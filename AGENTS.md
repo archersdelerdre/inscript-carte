@@ -29,13 +29,27 @@ All UI text is in **French**. Code, comments and docs are in English.
 
 | Command | What it does |
 | --- | --- |
-| `bun run dev` | server on `:3000` + client on `:5173` (Vite proxies `/api` to the server) |
+| `bun run dev` | server on `:3998` + client on `:5173` (Vite proxies `/api` to the server) |
 | `bun run typecheck` / `test` / `build` / `lint` / `format` | through turbo, or oxlint/oxfmt at the root |
 | `bun run --cwd apps/server db:import-legacy-events <events.json>` | import the old app's competitions (see Data) |
 | `bun run --cwd apps/server db:import-archers <export.xlsx>` | sync the club member list (FFTA extranet export) |
 | `bun run --cwd apps/server db:rollback` | roll back the last migration batch |
 
 Migrations run **when the server starts** (`main.ts`), before it accepts requests.
+
+## Docker (production)
+
+- One image, **one port (3998)**: the Bun server answers `/api/*` and serves the built client for every other path
+  (`presentation/http/static-files.ts`, enabled by `CLIENT_DIST_PATH`; unknown paths get `index.html`, `/assets/*`
+  is cached for a year). In development `CLIENT_DIST_PATH` is unset and Vite serves the client.
+- `docker build -t inscript-carte .` then `docker run -p 3998:3998 -v inscript-carte-data:/data inscript-carte`.
+  The database is `/data/inscript-carte.sqlite` in the volume (personal data, never in the image). Runs as user `bun`.
+- Imports inside the container: `docker exec <container> bun run --cwd apps/server db:import-archers <file>` (mount
+  the file read-only first).
+- Bun runs the TypeScript sources directly (no server bundle). `bun install --ignore-scripts`: better-sqlite3 loads
+  its binary from `prebuilds/`, and its automatic rebuild would need Python and a C++ compiler.
+- `.dockerignore` is an **allow list**: a new file reaches the build only if it is listed there.
+- Behind HTTPS, the reverse proxy must send `X-Forwarded-Proto: https` so the session cookie gets `Secure`.
 
 ## Server: clean architecture
 
@@ -47,9 +61,9 @@ Inner layers never import outer ones.
 - `application/`: `ListUpcomingCompetitions` (drops finished and cancelled, adds the club registration count),
   `Authentication`, `ClubRegistrations`; ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`.
   Use cases return result codes (`{ ok: false, reason }`), never throw for business errors.
-- `infrastructure/`: `config.ts` (`PORT`, `DATABASE_PATH`, default `data/inscript-carte.sqlite`), database
-  (connection, migrations, SQLite repositories and session store, scripts), geocoding, member export parser,
-  in-memory login limiter, `SystemClock`.
+- `infrastructure/`: `config.ts` (`PORT`, `DATABASE_PATH` default `data/inscript-carte.sqlite`, `CLIENT_DIST_PATH`),
+  database (connection, migrations, SQLite repositories and session store, scripts), geocoding, member export
+  parser, in-memory login limiter, `SystemClock`.
 - `presentation/http/`: routes and DTO presenters. `app.ts` wires everything (used by `main.ts` and `app.test.ts`).
 
 API (types and error codes in `packages/shared/src/api.ts`; the client turns codes into French messages):
@@ -71,7 +85,9 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
   only has the birth year.
 - **Category** is computed, never typed: `ageCategory(birthYear, competitionDate)` in `shared/src/ffta-category.ts`
   (FFTA table: season N runs 1 Sept N-1 to 31 Aug N, age reached in year N). Stored on each registration row.
-- **Form**: départs 1 to 6 (buttons), bow, distances only for Extérieur (required there), trispot, optional contact.
+- **Form**: départs 1 to 6 (buttons), bow, distances only for Extérieur (required there), trispot, **payment method**
+  (required: Espèces / Chèque / Virement, remembered on the device), optional contact. `payment_method` comes from
+  migration `0003`; rows made before it have `NULL`.
   The request carries a bow **per départ** (`departures: [{ departure, bowType }]`). The usual case stays one bow
   choice; the link « Un arc différent selon le départ ? » (only with 2+ départs) shows one bow menu per départ.
   One row per départ; one payment reference per request (`R-0001`, club-wide counter). Taken départs are refused.
@@ -131,7 +147,7 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
   in 10 px without the Leaflet prefix (the OSM credit is required).
 - Discipline colors (`competitions/disciplines.ts`) are data, kept from the old site. App accent: red.
 - Labels: "Salle 18m" (no space). FFTA competition titles are shown as they come.
-- Competitions without a place show in the list with "(lieu pas encore connu)". Open question: the user said the
+- Competitions without a place show in the list with "(lieu non précisé)". Open question: the user said the
   future scraper should store them but **not display** them; confirm before changing.
 
 ## Accessibility (club has older and disabled members)

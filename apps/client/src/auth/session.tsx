@@ -130,7 +130,7 @@ function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
           <DialogHeader>
             <DialogTitle>Se connecter</DialogTitle>
             <DialogDescription>
-              Réservé aux licenciés du club. Une seule fois sur cet appareil : il se souviendra de vous.
+              Réservé aux licenciés du club. À faire une seule fois : cet appareil se souviendra de vous.
             </DialogDescription>
           </DialogHeader>
           <div className='grid gap-2'>

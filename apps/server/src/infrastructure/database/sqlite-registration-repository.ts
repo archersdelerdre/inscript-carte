@@ -1,4 +1,4 @@
-import type { AgeCategory, BowType, PaymentStatus, RegistrationStatus } from '@inscript-carte/shared';
+import type { AgeCategory, BowType, PaymentMethod, PaymentStatus, RegistrationStatus } from '@inscript-carte/shared';
 import type { Knex } from 'knex';
 
 import type { CalendarDate } from '../../domain/calendar-date.ts';
@@ -18,6 +18,7 @@ type RegistrationRow = {
   category: AgeCategory;
   status: RegistrationStatus;
   payment_status: PaymentStatus;
+  payment_method: PaymentMethod | null;
   payment_reference: string;
   club_note: string | null;
 };
@@ -65,6 +66,7 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
             trispot: registration.trispot,
             distance: registration.distance,
             contact: registration.contact,
+            payment_method: registration.paymentMethod,
             payment_reference: paymentReference,
           })),
         );
@@ -131,6 +133,7 @@ function toRegistration(row: RegistrationRow): Registration {
     category: row.category,
     status: row.status,
     paymentStatus: row.payment_status,
+    paymentMethod: row.payment_method,
     paymentReference: row.payment_reference,
     clubNote: row.club_note,
   };

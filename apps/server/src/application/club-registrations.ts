@@ -3,6 +3,7 @@ import {
   BOW_TYPES,
   DISTANCES,
   MAX_DEPARTURE,
+  PAYMENT_METHODS,
   type AgeCategory,
   type BowType,
   type DepartureChoice,
@@ -24,6 +25,7 @@ export type RegistrationForm = {
   trispot: unknown;
   distance: unknown;
   contact: unknown;
+  paymentMethod: unknown;
 };
 
 export type RegisterResult =
@@ -54,6 +56,7 @@ export class ClubRegistrations {
     if (!isClubRegistrationOpen(competition, this.#clock.today())) return { ok: false, reason: 'registration_closed' };
 
     const departures = parseDepartures(form.departures);
+    const paymentMethod = PAYMENT_METHODS.find((value) => value === form.paymentMethod);
     // Distances only exist for "Extérieur" competitions, where they are required.
     const distance = DISTANCES.find((value) => value === form.distance) ?? null;
     const distanceValid = competition.discipline === 'exterieur' ? distance !== null : form.distance === null;
@@ -61,6 +64,7 @@ export class ClubRegistrations {
     if (
       !departures ||
       typeof form.trispot !== 'boolean' ||
+      !paymentMethod ||
       !distanceValid ||
       (form.contact !== null && contact === null) ||
       (contact !== null && contact.length > MAX_CONTACT_LENGTH)
@@ -82,6 +86,7 @@ export class ClubRegistrations {
       trispot: form.trispot,
       distance: distance satisfies Distance | null,
       contact: contact || null,
+      paymentMethod,
     });
     if (!result.ok) return result;
     return {

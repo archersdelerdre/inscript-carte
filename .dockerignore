@@ -1,0 +1,27 @@
+# Allow list: everything stays out of the build except what the image needs. A new file (member list, backup,
+# .env, database) can never reach the image by mistake: it would have to be added here on purpose.
+*
+
+!package.json
+!bun.lock
+!tsconfig.base.json
+
+!packages/shared/package.json
+!packages/shared/src
+
+!apps/server/package.json
+!apps/server/src
+
+!apps/client/package.json
+!apps/client/index.html
+!apps/client/vite.config.ts
+!apps/client/tsconfig*.json
+!apps/client/src
+
+# Excluded again inside the allowed folders.
+**/*.test.ts
+**/*.sqlite
+**/*.sqlite-*
+**/*.xlsx
+**/*.csv
+**/.DS_Store

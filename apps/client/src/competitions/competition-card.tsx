@@ -94,7 +94,7 @@ function Place({ competition, onShowOnMap }: { competition: CompetitionDto; onSh
           Voir sur la carte
         </Button>
       ) : (
-        <span className='text-muted-foreground shrink-0 text-sm italic'>(lieu pas encore connu)</span>
+        <span className='text-muted-foreground shrink-0 text-sm italic'>(lieu non précisé)</span>
       )}
     </div>
   );
@@ -104,8 +104,7 @@ function Deadline({ competition }: { competition: CompetitionDto }) {
   if (competition.clubRegistrationDeadline < todayInParis()) {
     return (
       <p className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
-        Date limite passée : l'inscription par le club n'est plus possible. Une inscription directe auprès de
-        l'organisateur reste probablement possible, à faire vous-même.
+        Date limite du club dépassée. Il reste peut-être possible de s'inscrire directement auprès de l'organisateur.
       </p>
     );
   }
@@ -121,7 +120,9 @@ function RegistrationCount({ competition }: { competition: CompetitionDto }) {
   return (
     <p className='flex items-center gap-2 text-sm'>
       <UsersIcon className='text-muted-foreground size-[1.125rem] shrink-0' />
-      {count === 0 ? 'Aucun inscrit du club pour le moment' : `${count} inscription${count > 1 ? 's' : ''} du club`}
+      {count === 0
+        ? 'Aucune inscription du club pour le moment'
+        : `${count} inscription${count > 1 ? 's' : ''} du club`}
     </p>
   );
 }

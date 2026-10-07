@@ -45,6 +45,7 @@ export function toMyRegistrationDto({ registration, competition, canWithdraw }: 
     category: registration.category,
     status: registration.status,
     paymentStatus: registration.paymentStatus,
+    paymentMethod: registration.paymentMethod,
     paymentReference: registration.paymentReference,
     clubRegistrationDeadline: clubRegistrationDeadline(competition),
     clubNote: registration.clubNote,

@@ -43,5 +43,14 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   paid: 'Payé',
 };
 
+/** How the archer will pay the club; chosen when registering. */
+export const PAYMENT_METHODS = ['cash', 'cheque', 'transfer'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: 'Espèces',
+  cheque: 'Chèque',
+  transfer: 'Virement',
+};
+
 /** Départs are numbered from 1; the form offers 1 to this number. */
 export const MAX_DEPARTURE = 6;

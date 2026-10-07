@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, formatDay } from '@/lib/dates';
 
-import { ERROR_MESSAGES } from './messages';
+import { ERROR_MESSAGES, PAYMENT_METHOD_PHRASES } from './messages';
 import { StatusBadge } from './status-badge';
 
 type Props = { archer: SignedInArcher; onClose: () => void; onWithdrawn: () => void };
@@ -75,7 +75,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
         <DialogHeader>
           <DialogTitle>Mon suivi</DialogTitle>
           <DialogDescription>
-            Connecté : {archer.fullName} ({archer.licenceNumber}).{' '}
+            {archer.fullName} (licence {archer.licenceNumber}).{' '}
             <button
               type='button'
               className='text-foreground underline underline-offset-4'
@@ -94,7 +94,8 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
         {registrations === null && !message && <p className='text-muted-foreground'>Chargement…</p>}
         {registrations?.length === 0 && (
           <p className='text-muted-foreground'>
-            Aucune inscription pour le moment. Choisissez un concours et « S'inscrire ».
+            Vous n'avez aucune inscription pour le moment. Choisissez un concours dans la liste, puis cliquez sur «
+            S'inscrire ».
           </p>
         )}
 
@@ -118,8 +119,9 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                     </div>
                     {registration.status !== 'cancelled' && registration.paymentStatus === 'to_pay' && (
                       <p className='text-sm'>
-                        À payer avant le {formatDay(registration.clubRegistrationDeadline)}, référence{' '}
-                        <strong>{registration.paymentReference}</strong>
+                        À payer avant le {formatDay(registration.clubRegistrationDeadline)}
+                        {registration.paymentMethod && `, ${PAYMENT_METHOD_PHRASES[registration.paymentMethod]}`},
+                        référence <strong>{registration.paymentReference}</strong>
                       </p>
                     )}
                     {registration.clubNote && <p className='text-muted-foreground text-sm'>{registration.clubNote}</p>}
@@ -136,8 +138,8 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
         })}
 
         <p className='text-muted-foreground text-sm'>
-          Pour ajouter un départ, utilisez « S'inscrire » sur le concours. Pour en changer, retirez l'ancien puis
-          ajoutez le nouveau. Une inscription déjà transmise par le club se modifie auprès du club.
+          Pour ajouter un départ, cliquez sur « S'inscrire » sur le concours. Pour changer de départ, retirez l'ancien
+          puis inscrivez-vous au nouveau. Une fois l'inscription transmise par le club, seul le club peut la modifier.
         </p>
       </DialogContent>
 
@@ -146,12 +148,14 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Retirer ce départ ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Départ {toWithdraw?.departure} de « {toWithdraw?.competitionTitle} ». Le club sera prévenu dans son suivi.
+              Départ {toWithdraw?.departure} du concours « {toWithdraw?.competitionTitle} ». Le club en sera informé.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Garder</AlertDialogCancel>
-            <AlertDialogAction onClick={() => toWithdraw && void withdraw(toWithdraw)}>Retirer</AlertDialogAction>
+            <AlertDialogCancel>Non, le garder</AlertDialogCancel>
+            <AlertDialogAction onClick={() => toWithdraw && void withdraw(toWithdraw)}>
+              Oui, le retirer
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

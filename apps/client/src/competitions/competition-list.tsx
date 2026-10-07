@@ -13,7 +13,7 @@ type Props = {
 
 export function CompetitionList({ competitions, allFrance, onShowOnMap }: Props) {
   if (competitions.length === 0) {
-    return <p className='text-muted-foreground'>Aucun concours à venir pour ce choix.</p>;
+    return <p className='text-muted-foreground'>Aucun concours à venir avec ces filtres.</p>;
   }
 
   const shown = allFrance ? competitions.slice(0, MAX_CARDS_FOR_ALL_FRANCE) : competitions;

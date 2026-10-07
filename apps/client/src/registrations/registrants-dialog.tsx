@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { api } from '@/lib/api';
 import { formatDateRange } from '@/lib/dates';
 
-import { ERROR_MESSAGES } from './messages';
+import { departuresPhrase, ERROR_MESSAGES } from './messages';
 
 type Props = { competition: CompetitionDto; onClose: () => void };
 
@@ -55,8 +55,7 @@ export function RegistrantsDialog({ competition, onClose }: Props) {
               <li key={`${registrant.fullName}|${registrant.bowType}`} className='rounded-md border px-3 py-2'>
                 <p className='font-medium'>{registrant.fullName}</p>
                 <p className='text-muted-foreground text-sm'>
-                  {BOW_TYPE_LABELS[registrant.bowType]} · départ{registrant.departures.length > 1 ? 's' : ''}{' '}
-                  {registrant.departures.join(', ')}
+                  {BOW_TYPE_LABELS[registrant.bowType]} · {departuresPhrase(registrant.departures)}
                 </p>
               </li>
             ))}

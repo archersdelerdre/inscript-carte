@@ -8,9 +8,12 @@ import {
   DISTANCE_LABELS,
   DISTANCES,
   MAX_DEPARTURE,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHODS,
   type BowType,
   type CompetitionDto,
   type Distance,
+  type PaymentMethod,
   type ListMyRegistrationsResponse,
   type RegistrationCreatedResponse,
   type RegistrationRequest,
@@ -38,10 +41,14 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { api } from '@/lib/api';
 import { formatDateRange, formatDay } from '@/lib/dates';
 
-import { ERROR_MESSAGES } from './messages';
+import { departuresPhrase, ERROR_MESSAGES, PAYMENT_METHOD_PHRASES } from './messages';
 
 /** Remembered on the device so the next registration is pre-filled ("never ask twice"). */
-const STORAGE = { bowType: 'registration.bowType', contact: 'registration.contact' } as const;
+const STORAGE = {
+  bowType: 'registration.bowType',
+  contact: 'registration.contact',
+  paymentMethod: 'registration.paymentMethod',
+} as const;
 const DEPARTURE_NUMBERS = Array.from({ length: MAX_DEPARTURE }, (_, index) => index + 1);
 
 type Props = {
@@ -63,6 +70,9 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
   const [distance, setDistance] = useState<Distance | ''>('');
   const [trispot, setTrispot] = useState(false);
   const [contact, setContact] = useState(() => localStorage.getItem(STORAGE.contact) ?? '');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>(
+    () => PAYMENT_METHODS.find((value) => value === localStorage.getItem(STORAGE.paymentMethod)) ?? '',
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [created, setCreated] = useState<RegistrationCreatedResponse | null>(null);
@@ -92,8 +102,10 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
     const missing = [
       departures.length === 0 && 'le ou les départs',
       isExterieur && !distance && 'les distances',
+      !paymentMethod && 'le mode de paiement',
     ].filter(Boolean);
-    if (missing.length > 0) return setMessage(`Merci d'indiquer : ${missing.join(', ')}.`);
+    // `!paymentMethod` is already in `missing`; repeated so TypeScript knows it is set below.
+    if (missing.length > 0 || !paymentMethod) return setMessage(`Merci d'indiquer : ${missing.join(', ')}.`);
 
     setSending(true);
     const request: RegistrationRequest = {
@@ -101,6 +113,7 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
       trispot,
       distance: isExterieur && distance ? distance : null,
       contact: contact.trim() || null,
+      paymentMethod,
     };
     const result = await api<RegistrationCreatedResponse>(
       apiPath(API_ROUTES.competitionRegistrations, { competitionId: competition.id }),
@@ -113,6 +126,7 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
     }
     localStorage.setItem(STORAGE.bowType, bowType);
     localStorage.setItem(STORAGE.contact, contact.trim());
+    localStorage.setItem(STORAGE.paymentMethod, paymentMethod);
     setCreated(result.data);
     onRegistered();
   }
@@ -133,14 +147,15 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
           <>
             <div role='status' className='grid gap-2 rounded-md bg-green-50 px-4 py-3 text-green-950'>
               <p className='font-semibold'>
-                {created.departures.length > 1 ? 'Inscriptions enregistrées' : 'Inscription enregistrée'} (départ
-                {created.departures.length > 1 ? 's' : ''} {created.departures.join(', ')}).
+                {created.departures.length > 1 ? 'Inscriptions enregistrées' : 'Inscription enregistrée'} (
+                {departuresPhrase(created.departures)}).
               </p>
               <p>
-                À régler au club avant le {formatDay(created.paymentDeadline)}, en indiquant la référence{' '}
+                À régler au club avant le {formatDay(created.paymentDeadline)}
+                {paymentMethod && `, ${PAYMENT_METHOD_PHRASES[paymentMethod]}`}, en indiquant la référence{' '}
                 <strong>{created.paymentReference}</strong>.
               </p>
-              <p>Vous la retrouverez dans « Mon suivi ».</p>
+              <p>Vous retrouverez cette inscription et sa référence dans « Mon suivi ».</p>
             </div>
             <DialogFooter>
               <Button onClick={onClose}>Fermer</Button>
@@ -175,8 +190,9 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
                 ))}
               </ToggleGroup>
               <p className='text-muted-foreground text-sm'>
-                {taken.length > 0 && `Vous êtes déjà inscrit au départ ${taken.join(', ')}. `}
-                Les horaires des départs sont dans le mandat
+                {taken.length > 0 &&
+                  `Vous êtes déjà inscrit${archer.sex === 'female' ? 'e' : ''} (${departuresPhrase(taken)}). `}
+                Les horaires des départs sont indiqués dans le mandat
                 {competition.mandateUrl ? (
                   <>
                     {' '}
@@ -262,6 +278,22 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
               <Checkbox id='trispot' checked={trispot} onCheckedChange={(checked) => setTrispot(checked === true)} />
               Je souhaite tirer sur trispot
             </Label>
+
+            <div className='grid gap-2'>
+              <Label htmlFor='payment-method'>Mode de paiement</Label>
+              <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
+                <SelectTrigger id='payment-method' className='w-full'>
+                  <SelectValue placeholder='Choisir…' />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {PAYMENT_METHOD_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className='grid gap-2'>
               <Label htmlFor='contact'>

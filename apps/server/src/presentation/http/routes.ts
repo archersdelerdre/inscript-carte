@@ -93,6 +93,7 @@ export function createRoutes({ listUpcomingCompetitions, authentication, clubReg
           trispot: body.trispot,
           distance: body.distance,
           contact: body.contact,
+          paymentMethod: body.paymentMethod,
         });
         if (!result.ok) return error(result.reason, STATUS_BY_REASON[result.reason]);
         const { ok: _, ...created } = result;

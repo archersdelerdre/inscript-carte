@@ -3,6 +3,7 @@ import type {
   BowType,
   DepartureChoice,
   Distance,
+  PaymentMethod,
   PaymentStatus,
   RegistrationStatus,
 } from '@inscript-carte/shared';
@@ -20,6 +21,7 @@ export type Registration = {
   readonly category: AgeCategory;
   readonly status: RegistrationStatus;
   readonly paymentStatus: PaymentStatus;
+  readonly paymentMethod: PaymentMethod | null;
   readonly paymentReference: string;
   readonly clubNote: string | null;
 };
@@ -34,6 +36,7 @@ export type NewRegistration = {
   readonly trispot: boolean;
   readonly distance: Distance | null;
   readonly contact: string | null;
+  readonly paymentMethod: PaymentMethod;
 };
 
 /** The club takes requests until its deadline, included. */

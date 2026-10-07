@@ -1,6 +1,6 @@
 import type { Discipline } from './discipline.ts';
 import type { AgeCategory } from './ffta-category.ts';
-import type { BowType, Distance, PaymentStatus, RegistrationStatus, Sex } from './registration.ts';
+import type { BowType, Distance, PaymentMethod, PaymentStatus, RegistrationStatus, Sex } from './registration.ts';
 
 /** Bun route patterns; the client fills the `:params` with `apiPath`. */
 export const API_ROUTES = {
@@ -92,6 +92,7 @@ export type RegistrationRequest = {
   /** Required for "Extérieur" competitions, `null` otherwise. */
   distance: Distance | null;
   contact: string | null;
+  paymentMethod: PaymentMethod;
 };
 
 export type RegistrationCreatedResponse = {
@@ -125,6 +126,8 @@ export type MyRegistrationDto = {
   category: AgeCategory;
   status: RegistrationStatus;
   paymentStatus: PaymentStatus;
+  /** `null` for registrations made before the payment method was asked. */
+  paymentMethod: PaymentMethod | null;
   paymentReference: string;
   clubRegistrationDeadline: string;
   clubNote: string | null;

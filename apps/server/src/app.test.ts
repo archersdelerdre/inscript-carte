@@ -87,6 +87,7 @@ const form = ({
   trispot: false,
   distance: null,
   contact: null,
+  paymentMethod: 'cheque',
   ...rest,
 });
 
@@ -177,7 +178,7 @@ describe('registration', () => {
     expect(list.competitions.find((competition) => competition.id === SALLE)?.clubRegistrationCount).toBe(3);
   });
 
-  test('refuses invalid départs, a missing distance for Extérieur, and a distance elsewhere', async () => {
+  test('refuses invalid départs, a missing or unknown payment method, and wrong distances', async () => {
     const cookie = await signIn(ADULT);
     for (const [competition, body] of [
       [SALLE, form({ departures: [] })],
@@ -185,6 +186,8 @@ describe('registration', () => {
       [SALLE, form({ departures: [1, 1] })],
       [SALLE, form({ bowType: 'arbalete' })],
       [SALLE, form({ distance: 'nationales' })],
+      [SALLE, form({ paymentMethod: null })],
+      [SALLE, form({ paymentMethod: 'carte' })],
       [EXTERIEUR, form()],
     ] as const) {
       const response = await call(`/api/competitions/${competition}/registrations`, { method: 'POST', cookie, body });
@@ -295,7 +298,13 @@ describe('withdrawal', () => {
   test('a member withdraws one départ before the deadline; it stays in the list, cancelled, and leaves the counter', async () => {
     const cookie = await signIn(ADULT);
     const [first] = await registerAndList(cookie);
-    expect(first).toMatchObject({ departure: 1, status: 'received', paymentStatus: 'to_pay', canWithdraw: true });
+    expect(first).toMatchObject({
+      departure: 1,
+      status: 'received',
+      paymentStatus: 'to_pay',
+      paymentMethod: 'cheque',
+      canWithdraw: true,
+    });
 
     expect((await call(`/api/me/registrations/${first!.id}`, { method: 'DELETE', cookie })).status).toBe(204);
 

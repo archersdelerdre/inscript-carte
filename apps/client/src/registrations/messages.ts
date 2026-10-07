@@ -1,3 +1,5 @@
+import type { PaymentMethod } from '@inscript-carte/shared';
+
 import type { ApiResult } from '@/lib/api';
 
 type ErrorCode = Extract<ApiResult<unknown>, { ok: false }>['error'];
@@ -9,10 +11,24 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   invalid_request: 'Le formulaire est incomplet. Vérifiez les champs et réessayez.',
   not_signed_in: 'Votre session a expiré. Merci de vous reconnecter.',
   invalid_credentials:
-    'Numéro de licence ou date de naissance incorrect. Vérifiez sur votre licence. Seuls les licenciés du club peuvent se connecter.',
-  too_many_attempts: "Trop d'essais. Réessayez un peu plus tard.",
+    'Ces informations ne correspondent à aucun licencié du club. Vérifiez le numéro de licence et la date de naissance sur votre licence.',
+  too_many_attempts: 'Trop de tentatives. Réessayez dans quelques minutes.',
   registration_closed: "La date limite d'inscription par le club est passée.",
-  already_registered: 'Vous êtes déjà inscrit à au moins un de ces départs.',
+  already_registered: "Vous êtes déjà inscrit sur l'un de ces départs.",
   cannot_withdraw:
-    'Cette inscription ne peut plus être retirée ici (date limite passée ou déjà transmise par le club). Contactez le club.',
+    "Cette inscription ne peut plus être retirée ici : la date limite est passée ou le club l'a déjà transmise. Contactez le club.",
 };
+
+/** "À régler au club avant le 9 oct., par chèque, …" */
+export const PAYMENT_METHOD_PHRASES: Record<PaymentMethod, string> = {
+  cash: 'en espèces',
+  cheque: 'par chèque',
+  transfer: 'par virement',
+};
+
+/** `[1]` → "départ 1", `[1, 2, 3]` → "départs 1, 2 et 3". */
+export function departuresPhrase(departures: readonly number[]): string {
+  const numbers = departures.map(String);
+  const list = numbers.length > 1 ? `${numbers.slice(0, -1).join(', ')} et ${numbers.at(-1)}` : numbers.join('');
+  return `${numbers.length > 1 ? 'départs' : 'départ'} ${list}`;
+}
