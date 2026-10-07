@@ -48,7 +48,7 @@ import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, formatDateTime, formatDay } from '@/lib/dates';
 import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
-import { StatusBadge } from '@/registrations/status-badge';
+import { StatusBadge, StatusDot } from '@/registrations/status-badge';
 
 const ALL = 'all';
 const MAX_CLUB_NOTE_LENGTH = 500;
@@ -215,6 +215,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
               <SelectItem value={ALL}>Tous les statuts</SelectItem>
               {REGISTRATION_STATUSES.map((status) => (
                 <SelectItem key={status} value={status}>
+                  <StatusDot status={status} />
                   {REGISTRATION_STATUS_LABELS[status]} ({competition.statusCounts[status]})
                 </SelectItem>
               ))}
@@ -451,6 +452,7 @@ function ReferenceCard({
               <SelectContent>
                 {referenceStatuses.map((status) => (
                   <SelectItem key={status} value={status}>
+                    <StatusDot status={status} />
                     {REGISTRATION_STATUS_LABELS[status]}
                   </SelectItem>
                 ))}
@@ -524,6 +526,7 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
             <SelectContent>
               {REGISTRATION_STATUSES.map((status) => (
                 <SelectItem key={status} value={status} disabled={!canChangeStatus(registration.status, status)}>
+                  <StatusDot status={status} />
                   {REGISTRATION_STATUS_LABELS[status]}
                 </SelectItem>
               ))}
