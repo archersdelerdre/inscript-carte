@@ -34,12 +34,13 @@ export function toCompetitionDto({ competition, clubRegistrationCount }: Upcomin
   };
 }
 
-export function toSignedInArcher(archer: Archer): SignedInArcher {
+export function toSignedInArcher(archer: Archer, isAdmin: boolean): SignedInArcher {
   return {
     licenceNumber: archer.licenceNumber,
     fullName: archer.fullName,
     sex: archer.sex,
     birthYear: birthYear(archer),
+    isAdmin,
   };
 }
 

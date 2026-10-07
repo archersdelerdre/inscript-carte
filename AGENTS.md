@@ -225,7 +225,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - Cards: date block in the discipline color, title, badges ("Para-tir" light blue, "Reportée" amber), town line with
   **"Voir sur la carte"**, discipline · club, club deadline, links "Mandat (PDF)" (red) and "Détail FFTA" (grey).
 - **Bottom right of the card: "Voir les inscrits" and "S'inscrire"** (the latter only before the club deadline). Each
-  action asks to sign in first when needed, then continues. "Mon suivi" is in the header.
+  action asks to sign in first when needed, then continues. "Mon suivi" is in the header; on its left, an
+  "Administration" link to `/admin` shows only for admins (`SignedInArcher.isAdmin`; icon only on phones).
 - **Hovering a card does nothing on the map.** "Voir sur la carte" is the only link from list to map (zoom + popup).
 - Map: OpenStreetMap standard tiles (the user rejected CARTO and Plan IGN), one dot per **position** (merges spelling
   variants of a town), red count bubbles for clusters, zoom buttons bottom right, "© OpenStreetMap" credit bottom left

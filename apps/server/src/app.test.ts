@@ -109,7 +109,13 @@ describe('sign-in', () => {
     const body = (await session.json()) as SessionResponse;
     // The birth year is enough for categories: the full birth date never goes back to the browser.
     expect(body).toEqual({
-      archer: { licenceNumber: ADULT.licenceNumber, fullName: 'DUPONT JEANNE', sex: 'female', birthYear: 1980 },
+      archer: {
+        licenceNumber: ADULT.licenceNumber,
+        fullName: 'DUPONT JEANNE',
+        sex: 'female',
+        birthYear: 1980,
+        isAdmin: false,
+      },
     });
 
     expect((await call('/api/session', { method: 'DELETE', cookie })).status).toBe(204);
@@ -425,6 +431,13 @@ async function memberExport(licenceOfNewMember = '2222222D'): Promise<Blob> {
 
 describe('admin sign-in', () => {
   beforeEach(() => makeAdmin(ADULT));
+
+  test('the member session tells an admin that they can open the admin page', async () => {
+    const session = (await (await call('/api/session', { cookie: await signIn(ADULT) })).json()) as SessionResponse;
+    expect(session.archer.isAdmin).toBe(true);
+    const youth = (await (await call('/api/session', { cookie: await signIn(YOUTH) })).json()) as SessionResponse;
+    expect(youth.archer.isAdmin).toBe(false);
+  });
 
   test('an admin signs in as a member, then with their password; the session ends at sign-out', async () => {
     const response = await call('/api/admin/session', {

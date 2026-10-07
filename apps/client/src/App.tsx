@@ -6,9 +6,10 @@ import {
   type GeoPosition,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { ListIcon, MapIcon, MapPinIcon, TargetIcon, UserRoundIcon } from 'lucide-react';
+import { ListIcon, MapIcon, MapPinIcon, ShieldCheckIcon, TargetIcon, UserRoundIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { useSession } from '@/auth/session';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RegistrationActionsProvider, useRegistrationActions } from '@/registrations/registration-actions';
@@ -94,7 +95,10 @@ export function App() {
           <span className='min-w-0 truncate text-lg font-semibold tracking-tight'>
             Concours de tir à l'arc en France
           </span>
-          <MyRegistrationsButton />
+          <div className='ml-auto flex shrink-0 items-center gap-2'>
+            <AdminButton />
+            <MyRegistrationsButton />
+          </div>
         </header>
 
         {/* On phones the list covers the map instead of hiding it: Leaflet must always know its real size. */}
@@ -186,9 +190,24 @@ export function App() {
 function MyRegistrationsButton() {
   const { showMyRegistrations } = useRegistrationActions();
   return (
-    <Button variant='outline' className='ml-auto shrink-0' onClick={showMyRegistrations}>
+    <Button variant='outline' className='shrink-0' onClick={showMyRegistrations}>
       <UserRoundIcon />
       Mon suivi
+    </Button>
+  );
+}
+
+/** Only for admins. The admin page still asks for the admin password. */
+function AdminButton() {
+  const { archer } = useSession();
+  if (!archer?.isAdmin) return null;
+  return (
+    <Button variant='outline' className='shrink-0' asChild>
+      <a href='/admin' title='Administration' aria-label='Administration'>
+        <ShieldCheckIcon />
+        {/* Icon only on phones: the header is narrow there. */}
+        <span className='max-sm:hidden'>Administration</span>
+      </a>
     </Button>
   );
 }

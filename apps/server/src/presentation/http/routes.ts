@@ -12,6 +12,7 @@ import type { BunRequest } from 'bun';
 import type { Authentication } from '../../application/authentication.ts';
 import type { ClubRegistrations } from '../../application/club-registrations.ts';
 import type { ListUpcomingCompetitions } from '../../application/list-upcoming-competitions.ts';
+import type { Archer } from '../../domain/archer.ts';
 import { createAdminRoutes, type AdminHttpDependencies } from './admin-routes.ts';
 import { error, isHttps, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
 import { toCompetitionDto, toMyRegistrationDto, toSignedInArcher } from './presenters.ts';
@@ -32,6 +33,10 @@ export function createRoutes({
 }: HttpDependencies) {
   const signedInArcher = (request: BunRequest) =>
     authentication.signedInArcher(request.cookies.get(SESSION_COOKIE) ?? null);
+  const sessionResponse = async (archer: Archer) =>
+    Response.json({
+      archer: toSignedInArcher(archer, await adminDependencies.adminAccounts.isAdmin(archer.licenceNumber)),
+    } satisfies SessionResponse);
 
   return {
     [API_ROUTES.health]: {
@@ -48,9 +53,7 @@ export function createRoutes({
     [API_ROUTES.session]: {
       GET: async (request: BunRequest) => {
         const archer = await signedInArcher(request);
-        return archer
-          ? Response.json({ archer: toSignedInArcher(archer) } satisfies SessionResponse)
-          : error('not_signed_in', 401);
+        return archer ? sessionResponse(archer) : error('not_signed_in', 401);
       },
       POST: async (request: BunRequest, server: ClientAddressSource) => {
         const body = await readJson(request);
@@ -68,7 +71,7 @@ export function createRoutes({
           path: '/',
           expires: result.expiresAt,
         });
-        return Response.json({ archer: toSignedInArcher(result.archer) } satisfies SessionResponse);
+        return sessionResponse(result.archer);
       },
       DELETE: async (request: BunRequest) => {
         await authentication.signOut(request.cookies.get(SESSION_COOKIE) ?? null);

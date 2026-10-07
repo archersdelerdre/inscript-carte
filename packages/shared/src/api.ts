@@ -101,6 +101,8 @@ export type SignedInArcher = {
   fullName: string;
   sex: Sex;
   birthYear: number;
+  /** Shows the "Administration" button; the admin page still asks for the admin password. */
+  isAdmin: boolean;
 };
 
 export type SessionResponse = {

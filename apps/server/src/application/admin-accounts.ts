@@ -68,6 +68,10 @@ export class AdminAccounts {
     return (await this.#admins.remove(licenceNumber)) ? { ok: true } : { ok: false, reason: 'not_found' };
   }
 
+  async isAdmin(licenceNumber: string): Promise<boolean> {
+    return (await this.#admins.find(licenceNumber)) !== null;
+  }
+
   /** Command line. Also ends their admin sessions. `false` when the member was not an admin. */
   async remove(licenceNumber: string): Promise<boolean> {
     return this.#admins.remove(licenceNumber.trim().toUpperCase());
