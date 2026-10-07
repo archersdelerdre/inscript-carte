@@ -202,7 +202,7 @@ function AdminButton() {
   const { archer } = useSession();
   if (!archer?.isAdmin) return null;
   return (
-    <Button variant='outline' className='shrink-0' asChild>
+    <Button variant='ghost' className='shrink-0' asChild>
       <a href='/admin' title='Administration' aria-label='Administration'>
         <ShieldCheckIcon />
         {/* Icon only on phones: the header is narrow there. */}
