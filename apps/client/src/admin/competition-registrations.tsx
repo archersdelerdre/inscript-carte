@@ -184,38 +184,24 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
 
   return (
     <div className='grid gap-4 p-4'>
-      <header className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='grid min-w-0 flex-1 basis-72 gap-1'>
-          <h1 className='text-xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
-          <p className='text-muted-foreground'>
-            {formatDateRange(competition.startDate, competition.endDate)} · {competition.town} (
-            {competition.departmentCode}) · fin des inscriptions au club le{' '}
-            {formatDay(competition.clubRegistrationDeadline)}
+      <header className='grid gap-1'>
+        <h1 className='text-xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
+        <p className='text-muted-foreground'>
+          {formatDateRange(competition.startDate, competition.endDate)} · {competition.town} (
+          {competition.departmentCode}) · fin des inscriptions au club le{' '}
+          {formatDay(competition.clubRegistrationDeadline)}
+        </p>
+        {competition.isCancelled && (
+          <p className='w-fit rounded-md bg-red-50 px-3 py-2 text-sm text-red-900'>
+            Ce concours a été annulé par l'organisateur.
           </p>
-          {competition.isCancelled && (
-            <p className='w-fit rounded-md bg-red-50 px-3 py-2 text-sm text-red-900'>
-              Ce concours a été annulé par l'organisateur.
-            </p>
-          )}
-        </div>
-        {/* The file follows the filters below: usually "Payés seulement" before sending it. */}
-        <div className='grid justify-items-end gap-1 max-sm:justify-items-start'>
-          <Button variant='outline' onClick={() => void download()} disabled={exported === 0}>
-            <DownloadIcon />
-            Fichier Excel pour l'organisateur
-          </Button>
-          <span className='text-muted-foreground text-sm'>
-            {exported === 0
-              ? 'Aucun départ à envoyer avec ces filtres'
-              : `${exported} ${exported > 1 ? 'départs' : 'départ'}, selon les filtres`}
-          </span>
-        </div>
+        )}
       </header>
 
       <div className='grid gap-1'>
-        <div className='flex flex-wrap items-center gap-4'>
+        <div className='flex flex-wrap items-center gap-3'>
           <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
-            <SelectTrigger aria-label='Statut' className='min-w-56'>
+            <SelectTrigger aria-label='Statut'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -228,7 +214,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
             </SelectContent>
           </Select>
           <Select value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as typeof paymentFilter)}>
-            <SelectTrigger aria-label='Paiement' className='min-w-56'>
+            <SelectTrigger aria-label='Paiement'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -237,9 +223,21 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
               <SelectItem value='to_pay'>En attente de paiement seulement ({competition.toPayCount})</SelectItem>
             </SelectContent>
           </Select>
+          {/* On the right of the same row, with how many départs the file will have. */}
+          <div className='flex flex-wrap items-center gap-x-3 gap-y-1 md:ml-auto'>
+            <span className='text-muted-foreground text-sm'>
+              {exported === 0
+                ? 'Aucun départ pour le fichier Excel'
+                : `Le fichier Excel contiendra ${exported} ${exported > 1 ? 'départs' : 'départ'}`}
+            </span>
+            <Button variant='outline' onClick={() => void download()} disabled={exported === 0}>
+              <DownloadIcon />
+              Fichier Excel pour l'organisateur
+            </Button>
+          </div>
         </div>
         <p className='text-muted-foreground text-sm'>
-          Le fichier Excel suit ces filtres, sans jamais les départs « Plus de place » ni « Annulée ».
+          Le fichier suit ces filtres, sans jamais les départs « Plus de place » ni « Annulée ».
         </p>
       </div>
 

@@ -41,7 +41,7 @@ export function AdminCompetitions({ onSessionExpired }: Props) {
     <div className='flex min-h-0 flex-1'>
       <aside
         className={cn(
-          'bg-muted/30 flex min-w-0 flex-col gap-4 overflow-y-auto p-4 max-md:flex-1 md:w-[420px] md:shrink-0 md:border-r',
+          'bg-muted/30 flex min-w-0 flex-col gap-4 overflow-y-auto p-4 max-md:flex-1 md:w-[360px] md:shrink-0 md:border-r 2xl:w-[420px]',
           selectedId !== null && 'max-md:hidden',
         )}
       >
