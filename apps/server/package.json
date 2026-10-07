@@ -1,0 +1,25 @@
+{
+  "name": "@inscript-carte/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "start": "bun src/main.ts",
+    "build": "bun build src/main.ts --target=bun --outdir=dist --external=knex --external=better-sqlite3",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "db:rollback": "bun src/infrastructure/database/rollback.ts",
+    "db:import-legacy-events": "bun src/infrastructure/database/import-legacy-events.ts",
+    "db:import-archers": "bun src/infrastructure/database/import-archers.ts"
+  },
+  "dependencies": {
+    "@inscript-carte/shared": "workspace:*",
+    "better-sqlite3": "^13.0.3",
+    "knex": "^3.3.0",
+    "read-excel-file": "^9.3.10"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}
