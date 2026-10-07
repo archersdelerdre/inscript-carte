@@ -147,12 +147,17 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   registers again), every other change is allowed. Going back to "Reçue" was allowed on 2026-10-07 to fix mistakes:
   the panel warns that the archer can withdraw it again without the organizer knowing. Cancelling adds "Annulée par
   le club le JJ/MM/AAAA" to the note; both ask for a confirmation in the UI. Each admin change writes `updated_by`.
-- The page lists competitions with registrations (upcoming first), then one card per payment reference (= one
-  archer's request) with its départs. Reference actions (status of all départs, "Tout marquer payé") only show when
-  the reference has 2+ active départs. Filters: status and payment (Tous / Payés / En attente de paiement). The
-  "Fichier Excel pour l'organisateur" button (top right) **follows these filters**: the user usually sends only the
-  paid départs. "Plus de place" and "Annulée" never go in the file. The payment label of `to_pay` is "En attente de
-  paiement" (user's wording, 2026-10-07; not the old status of that name).
+- The page lists competitions with registrations (upcoming first; date block in the discipline color, "à
+  transmettre" / "en attente de paiement" as sky / amber badges), then one card per payment reference (= one archer
+  per competition) on a light grey pane. Card: grey header band (name, reference, licence, category, contact) with
+  the reference actions (status of all départs, "Tout marquer payé", only with 2+ active départs); then **one line
+  per départ** in aligned columns: départ + bow, status select, a **"Payé" checkbox** (green when ticked, amber "En
+  attente de paiement" otherwise), a pencil **icon button** for the note. The note and "Modifié par" go under the
+  line only when present; cancelled lines are dimmed (the user asked for more contrast and a smaller note button,
+  2026-10-07). Filters: status and payment (Tous / Payés / En attente de paiement). The "Fichier Excel pour
+  l'organisateur" button sits at the right of the filter row, its count on its left, and **follows these filters**:
+  the user usually sends only the paid départs. "Plus de place" and "Annulée" never go in the file. The payment label
+  of `to_pay` is "En attente de paiement" (user's wording, 2026-10-07; not the old status of that name).
 - "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
   "⋯" menu per row (Désactiver / Réactiver, Nommer admin / Retirer les droits d'admin, each with a confirmation; the
   admin's own row shows "Vous"). The actions column is pinned to the right so phones see it. The upload is in the

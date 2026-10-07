@@ -16,7 +16,8 @@ import {
   type UpdatePaymentReferenceRequest,
   type UpdateRegistrationRequest,
 } from '@inscript-carte/shared';
-import { DownloadIcon, PencilIcon } from 'lucide-react';
+import { cn } from 'cn';
+import { DownloadIcon, MessageSquareTextIcon, PencilIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -29,8 +30,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -357,29 +358,31 @@ function ReferenceCard({
   ];
 
   return (
-    <section className='bg-card grid gap-3 rounded-lg border p-3'>
-      <div className='flex flex-wrap items-start justify-between gap-2'>
-        <div className='grid gap-0.5'>
-          <h3 className='leading-snug font-semibold'>{first.fullName}</h3>
+    <section className='bg-card overflow-hidden rounded-lg border shadow-sm'>
+      <header className='bg-muted/60 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3'>
+        <div className='grid min-w-0 gap-0.5'>
+          <h3 className='text-base leading-snug font-semibold'>{first.fullName}</h3>
           <p className='text-muted-foreground text-sm'>
-            Licence {first.licenceNumber} · {categoryLabel(first.category, first.sex)}
+            Réf. <strong className='text-foreground'>{group.paymentReference}</strong>
+            {paymentMethods.length > 0 && ` · ${paymentMethods.join(', ')}`} · licence {first.licenceNumber} ·{' '}
+            {categoryLabel(first.category, first.sex)}
             {first.contact && (
               <>
                 {' · '}
                 <span className='whitespace-nowrap'>{first.contact}</span>
               </>
             )}
-          </p>
-          <p className='text-muted-foreground text-sm'>
-            Réf. <strong className='text-foreground'>{group.paymentReference}</strong>
-            {paymentMethods.length > 0 && ` · ${paymentMethods.join(', ')}`} · demandé le{' '}
+            {' · demandé le '}
             <span className='whitespace-nowrap'>{formatDateTime(first.createdAt)}</span>
           </p>
         </div>
         {showReferenceActions && (
           <div className='flex flex-wrap gap-2'>
             <Select value='' onValueChange={(value) => onReferenceStatus(value as RegistrationStatus)}>
-              <SelectTrigger aria-label={`Statut de tous les départs de ${group.paymentReference}`}>
+              <SelectTrigger
+                aria-label={`Statut de tous les départs de ${group.paymentReference}`}
+                className='bg-background'
+              >
                 <SelectValue placeholder='Statut de tous les départs' />
               </SelectTrigger>
               <SelectContent>
@@ -395,11 +398,11 @@ function ReferenceCard({
             </Button>
           </div>
         )}
-      </div>
+      </header>
 
-      <ul className='grid gap-2'>
+      <ul className='divide-y'>
         {group.rows.map((registration) => (
-          <li key={registration.id} className='grid gap-2 border-t pt-2'>
+          <li key={registration.id} className='px-4 py-2.5'>
             <DepartureRow
               registration={registration}
               onStatus={(status) => onRowStatus(registration, status)}
@@ -420,66 +423,78 @@ type DepartureRowProps = {
   onNote: () => void;
 };
 
+/**
+ * One line per départ, in columns that line up from one row to the next: what, status, payment, note. The note and
+ * the last admin who changed it go below, only when there is one.
+ */
 function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRowProps) {
   const cancelled = registration.status === 'cancelled';
+  const paid = registration.paymentStatus === 'paid';
   const details = [
     BOW_TYPE_LABELS[registration.bowType],
     registration.trispot && 'Trispot',
     registration.distance && `Distances ${DISTANCE_LABELS[registration.distance].toLowerCase()}`,
   ].filter(Boolean);
+  const noteLabel = registration.clubNote ? 'Modifier la note' : 'Ajouter une note';
 
   return (
-    <>
-      <div className='flex flex-wrap items-center gap-2'>
-        <span className='font-medium'>Départ {registration.departure}</span>
-        <span className='text-muted-foreground'>{details.join(' · ')}</span>
-        {/* A cancelled départ that was paid still shows it: the club may have to pay it back. */}
-        {(!cancelled || registration.paymentStatus === 'paid') && (
-          <Badge
-            className={
-              registration.paymentStatus === 'paid' ? 'bg-green-100 text-green-900' : 'bg-amber-100 text-amber-900'
-            }
-          >
-            {PAYMENT_STATUS_LABELS[registration.paymentStatus]}
-          </Badge>
-        )}
-        {cancelled && <StatusBadge status='cancelled' />}
-      </div>
+    <div className={cn('grid gap-x-4 gap-y-1.5', cancelled && 'opacity-70')}>
+      <div className='flex flex-wrap items-center gap-x-4 gap-y-2 md:grid md:grid-cols-[minmax(9rem,1fr)_15rem_14rem_2.5rem]'>
+        <p className='min-w-0'>
+          <span className='font-semibold'>Départ {registration.departure}</span>
+          <span className='text-muted-foreground'> · {details.join(' · ')}</span>
+        </p>
 
-      <div className='flex flex-wrap items-center gap-2'>
-        {!cancelled && (
-          <>
-            <Select value={registration.status} onValueChange={(value) => onStatus(value as RegistrationStatus)}>
-              <SelectTrigger aria-label={`Statut du départ ${registration.departure}`} className='min-w-56'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {REGISTRATION_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status} disabled={!canChangeStatus(registration.status, status)}>
-                    {REGISTRATION_STATUS_LABELS[status]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant='outline'
-              onClick={() => onPayment(registration.paymentStatus === 'paid' ? 'to_pay' : 'paid')}
-            >
-              {registration.paymentStatus === 'paid' ? 'Remettre en attente de paiement' : 'Marquer payé'}
-            </Button>
-          </>
+        {cancelled ? (
+          <StatusBadge status='cancelled' />
+        ) : (
+          <Select value={registration.status} onValueChange={(value) => onStatus(value as RegistrationStatus)}>
+            <SelectTrigger aria-label={`Statut du départ ${registration.departure}`} className='w-60 md:w-full'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {REGISTRATION_STATUSES.map((status) => (
+                <SelectItem key={status} value={status} disabled={!canChangeStatus(registration.status, status)}>
+                  {REGISTRATION_STATUS_LABELS[status]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
-        <Button variant='ghost' onClick={onNote}>
+
+        {/* Ticked = paid. A cancelled départ that was paid still says so: the club may have to pay it back. */}
+        {cancelled ? (
+          <span className='text-sm font-medium text-green-800'>{paid && PAYMENT_STATUS_LABELS.paid}</span>
+        ) : (
+          <label className='flex min-h-10 cursor-pointer items-center gap-2.5'>
+            <Checkbox
+              checked={paid}
+              onCheckedChange={(checked) => onPayment(checked === true ? 'paid' : 'to_pay')}
+              className='data-checked:border-green-700 data-checked:bg-green-700'
+            />
+            <span className={cn('text-sm font-medium', paid ? 'text-green-800' : 'text-amber-800')}>
+              {PAYMENT_STATUS_LABELS[registration.paymentStatus]}
+            </span>
+          </label>
+        )}
+
+        <Button variant='ghost' size='icon' onClick={onNote} aria-label={noteLabel} title={noteLabel}>
           <PencilIcon />
-          {registration.clubNote ? 'Modifier la note' : 'Ajouter une note'}
         </Button>
       </div>
 
-      {registration.clubNote && <p className='text-sm whitespace-pre-line'>{registration.clubNote}</p>}
-      {registration.updatedByName && (
-        <p className='text-muted-foreground text-sm'>Dernière modification : {registration.updatedByName}</p>
+      {(registration.clubNote || registration.updatedByName) && (
+        <div className='text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-sm'>
+          {registration.clubNote && (
+            <p className='text-foreground flex gap-1.5 whitespace-pre-line'>
+              <MessageSquareTextIcon className='text-muted-foreground mt-0.5 size-4 shrink-0' />
+              {registration.clubNote}
+            </p>
+          )}
+          {registration.updatedByName && <p>Modifié par {registration.updatedByName}</p>}
+        </div>
       )}
-    </>
+    </div>
   );
 }
 

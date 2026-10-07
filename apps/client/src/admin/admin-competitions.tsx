@@ -3,6 +3,7 @@ import { cn } from 'cn';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { DISCIPLINE_COLORS } from '@/competitions/disciplines';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { api, type ApiResult } from '@/lib/api';
@@ -41,7 +42,7 @@ export function AdminCompetitions({ onSessionExpired }: Props) {
     <div className='flex min-h-0 flex-1'>
       <aside
         className={cn(
-          'bg-muted/30 flex min-w-0 flex-col gap-4 overflow-y-auto p-4 max-md:flex-1 md:w-[360px] md:shrink-0 md:border-r 2xl:w-[420px]',
+          'flex min-w-0 flex-col gap-4 overflow-y-auto p-4 max-md:flex-1 md:w-[360px] md:shrink-0 md:border-r 2xl:w-[420px]',
           selectedId !== null && 'max-md:hidden',
         )}
       >
@@ -70,7 +71,7 @@ export function AdminCompetitions({ onSessionExpired }: Props) {
         )}
       </aside>
 
-      <main className={cn('min-w-0 flex-1 overflow-y-auto', selectedId === null && 'max-md:hidden')}>
+      <main className={cn('bg-muted/50 min-w-0 flex-1 overflow-y-auto', selectedId === null && 'max-md:hidden')}>
         {selectedId === null ? (
           <p className='text-muted-foreground p-6'>Choisissez un concours dans la liste.</p>
         ) : (
@@ -130,35 +131,38 @@ function CompetitionItem({
   const start = splitDay(competition.startDate);
   const { received, sent_to_organizer, confirmed, full } = competition.statusCounts;
   const active = received + sent_to_organizer + confirmed + full;
-  const details = [
-    `${active} ${active > 1 ? 'départs' : 'départ'}`,
-    received > 0 && `${received} à transmettre`,
-    competition.toPayCount > 0 && `${competition.toPayCount} en attente de paiement`,
-  ].filter(Boolean);
-
   return (
     <button
       type='button'
       onClick={onSelect}
       aria-current={selected ? 'true' : undefined}
       className={cn(
-        'bg-card flex w-full gap-3 rounded-lg border p-3 text-left transition-shadow hover:shadow-md',
-        selected && 'border-primary ring-primary ring-1',
+        'bg-card flex w-full gap-3 rounded-lg border p-3 text-left shadow-xs transition-shadow hover:shadow-md',
+        selected && 'border-primary bg-primary/5 ring-primary ring-1',
       )}
     >
-      <span className='bg-muted flex w-12 shrink-0 flex-col items-center justify-center rounded-md py-1 leading-tight'>
+      {/* Date block in the discipline color, like the cards of the public list. */}
+      <span
+        className='flex w-12 shrink-0 flex-col items-center justify-center rounded-md py-1 leading-tight text-white'
+        style={{ background: DISCIPLINE_COLORS[competition.discipline] }}
+      >
         <span className='text-lg font-semibold'>{start.day}</span>
         <span className='text-sm'>{start.month}</span>
       </span>
       <span className='grid min-w-0 gap-1'>
         <span className='leading-snug font-medium'>{competition.title}</span>
         <span className='text-muted-foreground text-sm'>
-          {formatDateRange(competition.startDate, competition.endDate)} · {competition.town}
+          {formatDateRange(competition.startDate, competition.endDate)} · {competition.town} · {active}{' '}
+          {active > 1 ? 'départs' : 'départ'}
         </span>
-        <span className='flex flex-wrap items-center gap-1.5 text-sm'>
+        {/* What is left to do, in the same colors as the badges of the detail. */}
+        <span className='flex flex-wrap items-center gap-1.5'>
           {competition.isCancelled && <Badge className='bg-red-100 text-red-900'>Concours annulé</Badge>}
           {competition.isPostponed && <Badge className='bg-amber-100 text-amber-900'>Reportée</Badge>}
-          {details.join(' · ')}
+          {received > 0 && <Badge className='bg-sky-100 text-sky-900'>{received} à transmettre</Badge>}
+          {competition.toPayCount > 0 && (
+            <Badge className='bg-amber-100 text-amber-900'>{competition.toPayCount} en attente de paiement</Badge>
+          )}
         </span>
       </span>
     </button>
