@@ -12,5 +12,6 @@ apps/server/data/
 *.sqlite
 *.sqlite-*
 .DS_Store
-# Private notes about the club, kept out of the repository.
+# Private notes about the club and plans, kept out of the repository.
 CONCEPT.md
+ADMIN-PANEL.md

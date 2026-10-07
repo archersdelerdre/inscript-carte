@@ -14,7 +14,8 @@ This block is written and re-added by `turbo` before repository-scoped commands 
 Rebuild of a friend's app: a map and list of upcoming FFTA archery competitions in France, plus (later) registration
 through **one club**. What the old app does and the product decisions are in [`CONCEPT.md`](CONCEPT.md): read it first.
 
-All UI text is in **French**. Code, comments and docs are in English.
+All UI text is in **French**. Code, comments and docs are in English, except `README.md`, which is in French for the
+club members (why and for whom the project exists, no technical content).
 
 ## Stack
 
