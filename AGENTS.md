@@ -69,7 +69,7 @@ Inner layers never import outer ones.
   same options.
 - `application/`: `ListUpcomingCompetitions` (drops finished and cancelled, adds the club registration count),
   `Authentication`, `ClubRegistrations`, `AdminAuthentication`, `AdminAccounts` (command line only),
-  `AdminRegistrations`, `MemberListImport`; ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`,
+  `AdminRegistrations`, `ClubMembers` (import, status, list); ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`,
   `PasswordHasher`. Use cases return result codes (`{ ok: false, reason }`), never throw for business errors.
 - `infrastructure/`: `config.ts` (`PORT`, `DATABASE_PATH` default `data/inscript-carte.sqlite`, `CLIENT_DIST_PATH`),
   database (connection, migrations, SQLite repositories and session store, scripts), geocoding, member export
@@ -92,6 +92,7 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 | `GET /api/admin/competitions/:competitionId/export` | `.xlsx` for the organizer (Reçue, Transmise, Validée rows) |
 | `PATCH /api/admin/registrations/:registrationId` | status, payment status, club note of one départ |
 | `PATCH /api/admin/payment-references/:paymentReference` | status / payment of every non-cancelled row, all or none |
+| `GET /api/admin/members` | every member, those who left included: licence, name, sex, current-season category, active, admin |
 | `GET/POST /api/admin/members/import` | last import + active count / upload the FFTA export (multipart `file`) |
 
 Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without a valid admin session.
@@ -131,11 +132,13 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - The page lists competitions with registrations (upcoming first), then one card per payment reference (= one
   archer's request) with its départs. Reference actions (status of all départs, "Tout marquer payé") only show when
   the reference has 2+ active départs. Filters: status, "À payer seulement".
-- Member list upload: read in memory (`readMemberExport(Buffer)`), never written to disk, max 5 MB. A bad file is
+- "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter; the upload is
+  in the "Mettre à jour la liste" dialog. The upload is read in memory (`readMemberExport(Buffer)`), never written to disk, max 5 MB. A bad file is
   refused as a whole with `{ error: 'invalid_member_export', problem, line, detail }` (`MemberExportError`); the
   client turns `problem` into French. Each import is a `member_imports` row (date, admin or `NULL` for the command
   line, counts).
-- Birth dates are never sent to the client, not even to admins.
+- Birth dates are never sent to the client, not even to admins: the member table shows the category computed by the
+  server (`ageCategory(birthYear, today)`).
 
 ## Database (SQLite, Knex)
 
@@ -157,7 +160,7 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   outside the repo. Parsed by `infrastructure/members/ffta-member-export.ts`: licence number (7 digits + letter),
   name without civility ("M "/"Me "), sex, birth date, status ("Active"). Addresses are dropped on purpose.
   Columns are matched by the start of their title (the export adds a sort arrow: "Nom, Prénom↑").
-- An import (command line or admin upload) goes through `MemberListImport` → `SqliteMemberListRepository.sync`, in
+- An import (command line or admin upload) goes through `ClubMembers.import` → `SqliteMemberListRepository.sync`, in
   one transaction: adds, updates, and **deactivates members missing from the export** (never deletes them:
   registrations point to them). Only active members may sign in. A bad row stops the whole import with its line number.
 

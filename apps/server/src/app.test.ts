@@ -5,6 +5,7 @@ import type {
   AdminSessionResponse,
   CompetitionDto,
   ListAdminCompetitionsResponse,
+  ListAdminMembersResponse,
   ListCompetitionRegistrantsResponse,
   ListMyRegistrationsResponse,
   MemberExportErrorResponse,
@@ -472,6 +473,7 @@ describe('admin sign-in', () => {
       ['GET', `/api/admin/competitions/${SALLE}/export`],
       ['PATCH', '/api/admin/registrations/1'],
       ['PATCH', '/api/admin/payment-references/R-0001'],
+      ['GET', '/api/admin/members'],
       ['GET', '/api/admin/members/import'],
       ['POST', '/api/admin/members/import'],
     ] as const;
@@ -711,11 +713,43 @@ describe('admin registrations', () => {
   });
 });
 
-describe('member list import', () => {
+describe('member list', () => {
   let cookie: string;
   beforeEach(async () => {
     await makeAdmin(ADULT);
     cookie = await adminSignIn();
+  });
+
+  test('admins see every member, those who left included, with the category of the season but no birth date', async () => {
+    const response = await call('/api/admin/members', { cookie });
+    const text = await response.text();
+    for (const member of [ADULT, YOUTH, DEPARTED]) expect(text).not.toContain(member.birthDate);
+    expect((JSON.parse(text) as ListAdminMembersResponse).members).toEqual([
+      {
+        licenceNumber: DEPARTED.licenceNumber,
+        fullName: 'ANCIEN MEMBRE',
+        sex: 'female',
+        category: 'S2',
+        isActive: false,
+        isAdmin: false,
+      },
+      {
+        licenceNumber: ADULT.licenceNumber,
+        fullName: 'DUPONT JEANNE',
+        sex: 'female',
+        category: 'S2',
+        isActive: true,
+        isAdmin: true,
+      },
+      {
+        licenceNumber: YOUTH.licenceNumber,
+        fullName: 'MARTIN LOU',
+        sex: 'female',
+        category: 'U18',
+        isActive: true,
+        isAdmin: false,
+      },
+    ]);
   });
 
   test('an uploaded FFTA export updates the member list and is remembered as the last import', async () => {

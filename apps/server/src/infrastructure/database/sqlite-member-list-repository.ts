@@ -31,22 +31,7 @@ export class SqliteMemberListRepository implements MemberListRepository {
     importedBy: string | null,
   ): Promise<MemberListSummary> {
     return this.#database.transaction(async (transaction) => {
-      const rows = await transaction<ArcherRow>('archers').select(
-        'licence_number',
-        'full_name',
-        'sex',
-        'birth_date',
-        'is_active',
-      );
-      const { toSave, toDeactivate, memberCount, summary } = plan(
-        rows.map((row) => ({
-          licenceNumber: row.licence_number,
-          fullName: row.full_name,
-          sex: row.sex,
-          birthDate: row.birth_date,
-          isActive: row.is_active === 1,
-        })),
-      );
+      const { toSave, toDeactivate, memberCount, summary } = plan(await readArchers(transaction));
 
       for (let start = 0; start < toSave.length; start += BATCH_SIZE) {
         await transaction('archers')
@@ -108,4 +93,25 @@ export class SqliteMemberListRepository implements MemberListRepository {
     };
     return Number(row.count);
   }
+
+  async all(): Promise<Archer[]> {
+    return readArchers(this.#database);
+  }
+}
+
+async function readArchers(database: Knex | Knex.Transaction): Promise<Archer[]> {
+  const rows = await database<ArcherRow>('archers').select(
+    'licence_number',
+    'full_name',
+    'sex',
+    'birth_date',
+    'is_active',
+  );
+  return rows.map((row) => ({
+    licenceNumber: row.licence_number,
+    fullName: row.full_name,
+    sex: row.sex,
+    birthDate: row.birth_date,
+    isActive: row.is_active === 1,
+  }));
 }

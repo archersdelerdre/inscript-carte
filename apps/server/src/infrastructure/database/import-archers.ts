@@ -1,7 +1,9 @@
-import { MemberListImport } from '../../application/member-list-import.ts';
+import { ClubMembers } from '../../application/club-members.ts';
 import { config } from '../config.ts';
 import { readMemberExport } from '../members/ffta-member-export.ts';
+import { SystemClock } from '../system-clock.ts';
 import { createDatabase } from './connection.ts';
+import { SqliteAdminRepository } from './sqlite-admin-repository.ts';
 import { SqliteMemberListRepository } from './sqlite-member-list-repository.ts';
 
 const path = Bun.argv[2];
@@ -15,7 +17,12 @@ const archers = await readMemberExport(path);
 const database = createDatabase(config.databasePath);
 try {
   await database.migrate.latest();
-  const result = await new MemberListImport(new SqliteMemberListRepository(database)).execute(archers, null);
+  const members = new ClubMembers(
+    new SqliteMemberListRepository(database),
+    new SqliteAdminRepository(database),
+    new SystemClock(),
+  );
+  const result = await members.import(archers, null);
   console.log(
     `${archers.length} members in the export: ${result.added} added, ${result.updated} updated, ` +
       `${result.unchanged} unchanged, ${result.deactivated} deactivated (missing from the export).`,

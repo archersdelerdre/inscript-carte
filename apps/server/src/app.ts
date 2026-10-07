@@ -3,9 +3,9 @@ import type { Knex } from 'knex';
 import { AdminAuthentication } from './application/admin-authentication.ts';
 import { AdminRegistrations } from './application/admin-registrations.ts';
 import { Authentication } from './application/authentication.ts';
+import { ClubMembers } from './application/club-members.ts';
 import { ClubRegistrations } from './application/club-registrations.ts';
 import { ListUpcomingCompetitions } from './application/list-upcoming-competitions.ts';
-import { MemberListImport } from './application/member-list-import.ts';
 import type { Clock } from './application/ports/clock.ts';
 import { BunPasswordHasher } from './infrastructure/bun-password-hasher.ts';
 import { SqliteAdminRepository } from './infrastructure/database/sqlite-admin-repository.ts';
@@ -33,6 +33,7 @@ export function createApp(database: Knex, clock: Clock) {
   const archers = new SqliteArcherRepository(database);
   const competitions = new SqliteCompetitionRepository(database);
   const registrations = new SqliteRegistrationRepository(database);
+  const admins = new SqliteAdminRepository(database);
   return createRoutes({
     listUpcomingCompetitions: new ListUpcomingCompetitions(competitions, registrations, clock),
     authentication: new Authentication(
@@ -44,14 +45,14 @@ export function createApp(database: Knex, clock: Clock) {
     clubRegistrations: new ClubRegistrations(competitions, registrations, clock),
     adminAuthentication: new AdminAuthentication(
       archers,
-      new SqliteAdminRepository(database),
+      admins,
       new SqliteSessionStore(database, 'admin_sessions'),
       new BunPasswordHasher(),
       new InMemoryLoginAttemptLimiter(SIGN_IN_WINDOW_MS, MAX_FAILED_ADMIN_SIGN_INS),
       clock,
     ),
     adminRegistrations: new AdminRegistrations(competitions, registrations, clock),
-    memberListImport: new MemberListImport(new SqliteMemberListRepository(database)),
+    clubMembers: new ClubMembers(new SqliteMemberListRepository(database), admins, clock),
     readMemberExport,
     organizerSpreadsheet,
   });

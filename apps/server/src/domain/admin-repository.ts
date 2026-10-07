@@ -2,6 +2,7 @@
 export interface AdminRepository {
   /** `null` when this member is not an admin. */
   findPasswordHash(archerLicenceNumber: string): Promise<string | null>;
+  licenceNumbers(): Promise<string[]>;
   /** Makes the member an admin, or changes their password. */
   save(archerLicenceNumber: string, passwordHash: string): Promise<void>;
   /** Also ends their admin sessions. `false` when the member was not an admin. */

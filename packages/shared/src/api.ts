@@ -17,6 +17,7 @@ export const API_ROUTES = {
   adminRegistration: '/api/admin/registrations/:registrationId',
   adminPaymentReference: '/api/admin/payment-references/:paymentReference',
   adminMemberImport: '/api/admin/members/import',
+  adminMembers: '/api/admin/members',
 } as const;
 
 export function apiPath(route: string, params: Record<string, string | number>): string {
@@ -225,6 +226,23 @@ export type UpdateRegistrationRequest = {
 export type UpdatePaymentReferenceRequest = {
   status?: RegistrationStatus;
   paymentStatus?: PaymentStatus;
+};
+
+/** One club member in the admin list. Never the birth date: the category is computed by the server. */
+export type AdminMemberDto = {
+  licenceNumber: string;
+  fullName: string;
+  sex: Sex;
+  /** Category of the current season. */
+  category: AgeCategory;
+  /** `false` for members missing from the last FFTA export: they can no longer sign in. */
+  isActive: boolean;
+  isAdmin: boolean;
+};
+
+export type ListAdminMembersResponse = {
+  /** Sorted by name. */
+  members: AdminMemberDto[];
 };
 
 export type MemberImportDto = {

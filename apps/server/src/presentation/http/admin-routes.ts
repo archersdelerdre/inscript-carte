@@ -3,6 +3,7 @@ import {
   type AdminCompetitionRegistrationsResponse,
   type AdminSessionResponse,
   type ListAdminCompetitionsResponse,
+  type ListAdminMembersResponse,
   type MemberExportErrorResponse,
   type MemberImportResponse,
   type MemberImportStatusResponse,
@@ -11,13 +12,13 @@ import type { BunRequest } from 'bun';
 
 import type { AdminAuthentication } from '../../application/admin-authentication.ts';
 import type { AdminRegistrations, UpdateResult } from '../../application/admin-registrations.ts';
-import type { MemberListImport } from '../../application/member-list-import.ts';
+import type { ClubMembers } from '../../application/club-members.ts';
 import type { Archer } from '../../domain/archer.ts';
 import type { Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 import { MemberExportError } from '../../infrastructure/members/ffta-member-export.ts';
 import { error, isHttps, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
-import { toAdminCompetitionDto, toAdminRegistrationDto } from './presenters.ts';
+import { toAdminCompetitionDto, toAdminMemberDto, toAdminRegistrationDto } from './presenters.ts';
 
 const ADMIN_COOKIE = 'admin_session';
 /** The admin cookie is only sent to the admin API. */
@@ -30,7 +31,7 @@ export type AdminHttpDependencies = {
   signedInArcher: (request: BunRequest) => Promise<Archer | null>;
   adminAuthentication: AdminAuthentication;
   adminRegistrations: AdminRegistrations;
-  memberListImport: MemberListImport;
+  clubMembers: ClubMembers;
   readMemberExport: (bytes: Buffer) => Promise<Archer[]>;
   organizerSpreadsheet: (competition: Competition, registrations: readonly RegistrationDetails[]) => Promise<Buffer>;
 };
@@ -39,7 +40,7 @@ export function createAdminRoutes({
   signedInArcher,
   adminAuthentication,
   adminRegistrations,
-  memberListImport,
+  clubMembers,
   readMemberExport,
   organizerSpreadsheet,
 }: AdminHttpDependencies) {
@@ -154,8 +155,14 @@ export function createAdminRoutes({
       }),
     },
 
+    [API_ROUTES.adminMembers]: {
+      GET: asAdmin(async () =>
+        Response.json({ members: (await clubMembers.list()).map(toAdminMemberDto) } satisfies ListAdminMembersResponse),
+      ),
+    },
+
     [API_ROUTES.adminMemberImport]: {
-      GET: asAdmin(async () => Response.json((await memberListImport.status()) satisfies MemberImportStatusResponse)),
+      GET: asAdmin(async () => Response.json((await clubMembers.status()) satisfies MemberImportStatusResponse)),
       /** Multipart form with a `file` field. The file is read in memory and never written to disk. */
       POST: asAdmin(async (request: BunRequest, admin) => {
         let file: unknown;
@@ -178,8 +185,8 @@ export function createAdminRoutes({
           if (cause instanceof MemberExportError) return Response.json(memberExportError(cause), { status: 400 });
           throw cause;
         }
-        await memberListImport.execute(archers, admin.licenceNumber);
-        const status = await memberListImport.status();
+        await clubMembers.import(archers, admin.licenceNumber);
+        const status = await clubMembers.status();
         return Response.json({ ...status, lastImport: status.lastImport! } satisfies MemberImportResponse);
       }),
     },

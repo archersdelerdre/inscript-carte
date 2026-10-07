@@ -1,5 +1,6 @@
 import type {
   AdminCompetitionDto,
+  AdminMemberDto,
   AdminRegistrationDto,
   CompetitionDto,
   MyRegistrationDto,
@@ -7,6 +8,7 @@ import type {
 } from '@inscript-carte/shared';
 
 import type { AdminCompetition } from '../../application/admin-registrations.ts';
+import type { ClubMember } from '../../application/club-members.ts';
 import type { MyRegistration } from '../../application/club-registrations.ts';
 import type { UpcomingCompetition } from '../../application/list-upcoming-competitions.ts';
 import { birthYear, type Archer } from '../../domain/archer.ts';
@@ -108,5 +110,17 @@ export function toAdminRegistrationDto({
     clubNote: registration.clubNote,
     createdAt: registration.createdAt,
     updatedByName,
+  };
+}
+
+/** The birth date stays on the server. */
+export function toAdminMemberDto({ archer, category, isAdmin }: ClubMember): AdminMemberDto {
+  return {
+    licenceNumber: archer.licenceNumber,
+    fullName: archer.fullName,
+    sex: archer.sex,
+    category,
+    isActive: archer.isActive,
+    isAdmin,
   };
 }

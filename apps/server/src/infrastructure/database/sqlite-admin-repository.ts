@@ -16,6 +16,10 @@ export class SqliteAdminRepository implements AdminRepository {
     return row?.password_hash ?? null;
   }
 
+  async licenceNumbers(): Promise<string[]> {
+    return this.#database('admins').pluck('archer_licence_number');
+  }
+
   async save(archerLicenceNumber: string, passwordHash: string): Promise<void> {
     await this.#database('admins')
       .insert({ archer_licence_number: archerLicenceNumber, password_hash: passwordHash })

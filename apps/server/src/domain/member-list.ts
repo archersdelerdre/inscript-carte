@@ -65,4 +65,6 @@ export interface MemberListRepository {
   sync(plan: (current: readonly Archer[]) => MemberListSync, importedBy: string | null): Promise<MemberListSummary>;
   lastImport(): Promise<MemberImport | null>;
   countActive(): Promise<number>;
+  /** Every member, those who left included. */
+  all(): Promise<Archer[]>;
 }

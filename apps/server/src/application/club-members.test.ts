@@ -4,16 +4,20 @@ import type { Knex } from 'knex';
 
 import type { Archer } from '../domain/archer.ts';
 import { createDatabase } from '../infrastructure/database/connection.ts';
+import { SqliteAdminRepository } from '../infrastructure/database/sqlite-admin-repository.ts';
 import { SqliteMemberListRepository } from '../infrastructure/database/sqlite-member-list-repository.ts';
-import { MemberListImport } from './member-list-import.ts';
+import { ClubMembers } from './club-members.ts';
 
 let database: Knex;
-let memberList: MemberListImport;
+let memberList: ClubMembers;
 
 beforeEach(async () => {
   database = createDatabase(':memory:');
   await database.migrate.latest();
-  memberList = new MemberListImport(new SqliteMemberListRepository(database));
+  memberList = new ClubMembers(new SqliteMemberListRepository(database), new SqliteAdminRepository(database), {
+    today: () => '2026-10-07',
+    now: () => new Date('2026-10-07T10:00:00Z'),
+  });
 });
 
 afterEach(() => database.destroy());
@@ -31,9 +35,9 @@ const activeLicences = () =>
   database('archers').where({ is_active: true }).orderBy('licence_number').pluck('licence_number');
 
 test('adds, updates and deactivates members to match the latest export', async () => {
-  await memberList.execute([archer('0000001A'), archer('0000002B'), archer('0000003C')], null);
+  await memberList.import([archer('0000001A'), archer('0000002B'), archer('0000003C')], null);
 
-  const result = await memberList.execute(
+  const result = await memberList.import(
     [archer('0000001A'), archer('0000002B', { fullName: 'NEW NAME' }), archer('0000004D')],
     null,
   );
@@ -48,10 +52,10 @@ test('adds, updates and deactivates members to match the latest export', async (
 });
 
 test('reactivates a member who comes back in a later export', async () => {
-  await memberList.execute([archer('0000001A'), archer('0000002B')], null);
-  await memberList.execute([archer('0000001A')], null);
+  await memberList.import([archer('0000001A'), archer('0000002B')], null);
+  await memberList.import([archer('0000001A')], null);
 
-  const result = await memberList.execute([archer('0000001A'), archer('0000002B')], null);
+  const result = await memberList.import([archer('0000001A'), archer('0000002B')], null);
 
   expect(result).toEqual({ added: 0, updated: 1, deactivated: 0, unchanged: 1 });
   expect(await activeLicences()).toEqual(['0000001A', '0000002B']);
@@ -60,8 +64,8 @@ test('reactivates a member who comes back in a later export', async () => {
 test('remembers the last import and who made it', async () => {
   expect(await memberList.status()).toEqual({ lastImport: null, activeMemberCount: 0 });
 
-  await memberList.execute([archer('0000001A'), archer('0000002B')], null);
-  await memberList.execute([archer('0000001A')], '0000001A');
+  await memberList.import([archer('0000001A'), archer('0000002B')], null);
+  await memberList.import([archer('0000001A')], '0000001A');
 
   expect(await memberList.status()).toEqual({
     lastImport: {

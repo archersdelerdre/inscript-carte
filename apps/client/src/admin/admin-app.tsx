@@ -11,7 +11,7 @@ import { api } from '@/lib/api';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 
 import { AdminCompetitions } from './admin-competitions';
-import { MemberImport } from './member-import';
+import { MembersPage } from './members-page';
 
 type Admin = AdminSessionResponse['admin'];
 type Section = 'registrations' | 'members';
@@ -88,7 +88,7 @@ export function AdminApp() {
       {admin && section === 'registrations' && <AdminCompetitions onSessionExpired={sessionExpired} />}
       {admin && section === 'members' && (
         <div className='min-h-0 flex-1 overflow-y-auto'>
-          <MemberImport onSessionExpired={sessionExpired} />
+          <MembersPage onSessionExpired={sessionExpired} />
         </div>
       )}
     </div>
