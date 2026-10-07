@@ -119,7 +119,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                     </div>
                     {registration.paymentStatus === 'to_pay' && (
                       <p className='text-sm'>
-                        À payer avant le {formatDay(registration.clubRegistrationDeadline)}
+                        En attente de paiement : à régler avant le {formatDay(registration.clubRegistrationDeadline)}
                         {registration.paymentMethod && `, ${PAYMENT_METHOD_PHRASES[registration.paymentMethod]}`},
                         référence <strong>{registration.paymentReference}</strong>
                       </p>

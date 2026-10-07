@@ -88,14 +88,32 @@ export class AdminRegistrations {
     return { competition: summarize(competition, counts, this.#clock.today()), registrations };
   }
 
-  /** The départs to send to the organizer (not cancelled, not refused for lack of places), by départ then name. */
+  /**
+   * The départs to send to the organizer (not cancelled, not refused for lack of places), by départ then name. The
+   * panel's filters narrow it: usually only the paid départs are sent. `invalid` when a filter value is unknown.
+   */
   async organizerList(
     competitionId: string,
-  ): Promise<{ competition: Competition; registrations: RegistrationDetails[] } | null> {
+    filters: { status?: unknown; paymentStatus?: unknown },
+  ): Promise<{ competition: Competition; registrations: RegistrationDetails[] } | 'not_found' | 'invalid'> {
+    const status =
+      filters.status === undefined ? undefined : REGISTRATION_STATUSES.find((known) => known === filters.status);
+    const paymentStatus =
+      filters.paymentStatus === undefined
+        ? undefined
+        : PAYMENT_STATUSES.find((known) => known === filters.paymentStatus);
+    if ((filters.status !== undefined && !status) || (filters.paymentStatus !== undefined && !paymentStatus)) {
+      return 'invalid';
+    }
     const competition = await this.#competitions.findById(competitionId);
-    if (!competition) return null;
+    if (!competition) return 'not_found';
     const registrations = (await this.#registrations.detailsForCompetition(competitionId))
-      .filter(({ registration }) => SENT_STATUSES.includes(registration.status))
+      .filter(
+        ({ registration }) =>
+          SENT_STATUSES.includes(registration.status) &&
+          (!status || registration.status === status) &&
+          (!paymentStatus || registration.paymentStatus === paymentStatus),
+      )
       .toSorted(
         (a, b) => a.registration.departure - b.registration.departure || a.fullName.localeCompare(b.fullName, 'fr'),
       );

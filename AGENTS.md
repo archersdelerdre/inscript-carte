@@ -91,7 +91,7 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 | `PUT /api/admin/session/password` | change own password (current one asked again); the only route open while a change is required |
 | `GET /api/admin/competitions` | competitions with registrations, counts per status and "to pay" |
 | `GET /api/admin/competitions/:competitionId/registrations` | every row, cancelled included, with names and contact |
-| `GET /api/admin/competitions/:competitionId/export` | `.xlsx` for the organizer (Reçue, Transmise, Validée rows) |
+| `GET /api/admin/competitions/:competitionId/export` | `.xlsx` for the organizer: Reçue, Transmise, Validée rows, narrowed by `?status=` and `?paymentStatus=` (the panel filters) |
 | `PATCH /api/admin/registrations/:registrationId` | status, payment status, club note of one départ |
 | `PATCH /api/admin/payment-references/:paymentReference` | status / payment of every non-cancelled row of the reference |
 | `GET /api/admin/members` | every member, those who left included: licence, name, sex, current-season category, active, admin |
@@ -149,7 +149,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   le club le JJ/MM/AAAA" to the note; both ask for a confirmation in the UI. Each admin change writes `updated_by`.
 - The page lists competitions with registrations (upcoming first), then one card per payment reference (= one
   archer's request) with its départs. Reference actions (status of all départs, "Tout marquer payé") only show when
-  the reference has 2+ active départs. Filters: status, "À payer seulement".
+  the reference has 2+ active départs. Filters: status and payment (Tous / Payés / En attente de paiement). The
+  "Fichier Excel pour l'organisateur" button (top right) **follows these filters**: the user usually sends only the
+  paid départs. "Plus de place" and "Annulée" never go in the file. The payment label of `to_pay` is "En attente de
+  paiement" (user's wording, 2026-10-07; not the old status of that name).
 - "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
   "⋯" menu per row (Désactiver / Réactiver, Nommer admin / Retirer les droits d'admin, each with a confirmation; the
   admin's own row shows "Vous"). The actions column is pinned to the right so phones see it. The upload is in the

@@ -31,7 +31,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +49,8 @@ import { StatusBadge } from '@/registrations/status-badge';
 
 const ALL = 'all';
 const MAX_CLUB_NOTE_LENGTH = 500;
+/** What the organizer may receive, as on the server: not "Plus de place", not "Annulée". */
+const SENT_STATUSES: readonly RegistrationStatus[] = ['received', 'sent_to_organizer', 'confirmed'];
 
 type Props = { competitionId: string; onSessionExpired: () => void; onChanged: () => void };
 
@@ -79,7 +80,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   const [data, setData] = useState<AdminCompetitionRegistrationsResponse | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<typeof ALL | RegistrationStatus>(ALL);
-  const [toPayOnly, setToPayOnly] = useState(false);
+  const [paymentFilter, setPaymentFilter] = useState<typeof ALL | PaymentStatus>(ALL);
   const [noteFor, setNoteFor] = useState<AdminRegistrationDto | null>(null);
   const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
 
@@ -138,7 +139,12 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   }
 
   async function download() {
-    const response = await fetch(apiPath(API_ROUTES.adminCompetitionExport, { competitionId })).catch(() => null);
+    // The file follows the filters on screen: usually only the paid départs go to the organizer.
+    const query = new URLSearchParams();
+    if (statusFilter !== ALL) query.set('status', statusFilter);
+    if (paymentFilter !== ALL) query.set('paymentStatus', paymentFilter);
+    const path = `${apiPath(API_ROUTES.adminCompetitionExport, { competitionId })}?${query}`;
+    const response = await fetch(path).catch(() => null);
     if (response?.status === 401) return onSessionExpired();
     if (!response?.ok) return setMessage(ERROR_MESSAGES.network);
     const name =
@@ -164,61 +170,77 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   const shown = registrations.filter(
     (registration) =>
       (statusFilter === ALL || registration.status === statusFilter) &&
-      (!toPayOnly || (registration.paymentStatus === 'to_pay' && registration.status !== 'cancelled')),
+      // "En attente de paiement" leaves cancelled départs out: nobody has to pay for them.
+      (paymentFilter === ALL ||
+        (registration.paymentStatus === paymentFilter &&
+          (paymentFilter === 'paid' || registration.status !== 'cancelled'))),
   );
   const groups = groupByReference(shown, registrations);
-  const sendable = registrations.filter((registration) =>
-    (['received', 'sent_to_organizer', 'confirmed'] as RegistrationStatus[]).includes(registration.status),
+  const paidCount = registrations.filter(
+    (registration) => registration.paymentStatus === 'paid' && registration.status !== 'cancelled',
   ).length;
+  /** Same rule as the server: the shown départs the club still counts on. */
+  const exported = shown.filter((registration) => SENT_STATUSES.includes(registration.status)).length;
 
   return (
     <div className='grid gap-4 p-4'>
-      <header className='grid gap-1'>
-        <h1 className='text-xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
-        <p className='text-muted-foreground'>
-          {formatDateRange(competition.startDate, competition.endDate)} · {competition.town} (
-          {competition.departmentCode}) · fin des inscriptions au club le{' '}
-          {formatDay(competition.clubRegistrationDeadline)}
-        </p>
-        {competition.isCancelled && (
-          <p className='w-fit rounded-md bg-red-50 px-3 py-2 text-sm text-red-900'>
-            Ce concours a été annulé par l'organisateur.
+      <header className='flex flex-wrap items-start justify-between gap-4'>
+        <div className='grid min-w-0 flex-1 basis-72 gap-1'>
+          <h1 className='text-xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
+          <p className='text-muted-foreground'>
+            {formatDateRange(competition.startDate, competition.endDate)} · {competition.town} (
+            {competition.departmentCode}) · fin des inscriptions au club le{' '}
+            {formatDay(competition.clubRegistrationDeadline)}
           </p>
-        )}
+          {competition.isCancelled && (
+            <p className='w-fit rounded-md bg-red-50 px-3 py-2 text-sm text-red-900'>
+              Ce concours a été annulé par l'organisateur.
+            </p>
+          )}
+        </div>
+        {/* The file follows the filters below: usually "Payés seulement" before sending it. */}
+        <div className='grid justify-items-end gap-1 max-sm:justify-items-start'>
+          <Button variant='outline' onClick={() => void download()} disabled={exported === 0}>
+            <DownloadIcon />
+            Fichier Excel pour l'organisateur
+          </Button>
+          <span className='text-muted-foreground text-sm'>
+            {exported === 0
+              ? 'Aucun départ à envoyer avec ces filtres'
+              : `${exported} ${exported > 1 ? 'départs' : 'départ'}, selon les filtres`}
+          </span>
+        </div>
       </header>
 
-      <div className='flex flex-wrap items-center gap-x-4 gap-y-2'>
-        <Button variant='outline' onClick={() => void download()} disabled={sendable === 0}>
-          <DownloadIcon />
-          Fichier Excel pour l'organisateur
-        </Button>
-        <span className='text-muted-foreground text-sm'>
-          {sendable} {sendable > 1 ? 'départs' : 'départ'} (statuts Reçue, Transmise, Validée)
-        </span>
-      </div>
-
-      <div className='flex flex-wrap items-center gap-4'>
-        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
-          <SelectTrigger aria-label='Statut' className='min-w-56'>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Tous les statuts</SelectItem>
-            {REGISTRATION_STATUSES.map((status) => (
-              <SelectItem key={status} value={status}>
-                {REGISTRATION_STATUS_LABELS[status]} ({competition.statusCounts[status]})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className='flex items-center gap-2'>
-          <Checkbox
-            id='to-pay-only'
-            checked={toPayOnly}
-            onCheckedChange={(checked) => setToPayOnly(checked === true)}
-          />
-          <Label htmlFor='to-pay-only'>À payer seulement ({competition.toPayCount})</Label>
+      <div className='grid gap-1'>
+        <div className='flex flex-wrap items-center gap-4'>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+            <SelectTrigger aria-label='Statut' className='min-w-56'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Tous les statuts</SelectItem>
+              {REGISTRATION_STATUSES.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {REGISTRATION_STATUS_LABELS[status]} ({competition.statusCounts[status]})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as typeof paymentFilter)}>
+            <SelectTrigger aria-label='Paiement' className='min-w-56'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Tous les paiements</SelectItem>
+              <SelectItem value='paid'>Payés seulement ({paidCount})</SelectItem>
+              <SelectItem value='to_pay'>En attente de paiement seulement ({competition.toPayCount})</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        <p className='text-muted-foreground text-sm'>
+          Le fichier Excel suit ces filtres, sans jamais les départs « Plus de place » ni « Annulée ».
+        </p>
       </div>
 
       {message && (
@@ -371,7 +393,7 @@ function ReferenceCard({
               </SelectContent>
             </Select>
             <Button variant='outline' onClick={() => onReferencePayment(allPaid ? 'to_pay' : 'paid')}>
-              {allPaid ? 'Tout remettre à payer' : 'Tout marquer payé'}
+              {allPaid ? 'Tout remettre en attente de paiement' : 'Tout marquer payé'}
             </Button>
           </div>
         )}
@@ -445,7 +467,7 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
               variant='outline'
               onClick={() => onPayment(registration.paymentStatus === 'paid' ? 'to_pay' : 'paid')}
             >
-              {registration.paymentStatus === 'paid' ? 'Remettre à payer' : 'Marquer payé'}
+              {registration.paymentStatus === 'paid' ? 'Remettre en attente de paiement' : 'Marquer payé'}
             </Button>
           </>
         )}

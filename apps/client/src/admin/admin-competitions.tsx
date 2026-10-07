@@ -133,7 +133,7 @@ function CompetitionItem({
   const details = [
     `${active} ${active > 1 ? 'départs' : 'départ'}`,
     received > 0 && `${received} à transmettre`,
-    competition.toPayCount > 0 && `${competition.toPayCount} à payer`,
+    competition.toPayCount > 0 && `${competition.toPayCount} en attente de paiement`,
   ].filter(Boolean);
 
   return (

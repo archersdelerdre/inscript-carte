@@ -158,8 +158,14 @@ export function createAdminRoutes({
 
     [API_ROUTES.adminCompetitionExport]: {
       GET: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminCompetitionExport>) => {
-        const result = await adminRegistrations.organizerList(request.params.competitionId);
-        if (!result) return error('not_found', 404);
+        // `?status=…&paymentStatus=…`: the filters shown in the panel. Missing means "all".
+        const query = new URL(request.url).searchParams;
+        const result = await adminRegistrations.organizerList(request.params.competitionId, {
+          status: query.get('status') ?? undefined,
+          paymentStatus: query.get('paymentStatus') ?? undefined,
+        });
+        if (result === 'invalid') return error('invalid_request', 400);
+        if (result === 'not_found') return error('not_found', 404);
         const file = await organizerSpreadsheet(result.competition, result.registrations);
         return new Response(file, {
           headers: {

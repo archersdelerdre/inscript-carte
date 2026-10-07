@@ -746,6 +746,28 @@ describe('admin registrations', () => {
       [2, 'MARTIN LOU', YOUTH.licenceNumber, 'U18 Femme', 'Classique', 'Non'],
     ]);
   });
+
+  test('the export follows the panel filters, for example only the paid départs', async () => {
+    await registerBoth();
+    const [, second] = await adminRegistrations(cookie);
+    await call(`/api/admin/registrations/${second!.id}`, { method: 'PATCH', cookie, body: { status: 'confirmed' } });
+    await call('/api/admin/payment-references/R-0002', { method: 'PATCH', cookie, body: { paymentStatus: 'paid' } });
+    const exported = async (query: string) => {
+      const response = await call(`/api/admin/competitions/${SALLE}/export?${query}`, { cookie });
+      return (await readSheet(Buffer.from(await response.arrayBuffer()))).slice(4).map((row) => [row[0], row[1]]);
+    };
+
+    expect(await exported('paymentStatus=paid')).toEqual([[1, 'DUPONT JEANNE']]);
+    expect(await exported('paymentStatus=to_pay')).toEqual([
+      [1, 'MARTIN LOU'],
+      [2, 'MARTIN LOU'],
+    ]);
+    expect(await exported('status=confirmed')).toEqual([[2, 'MARTIN LOU']]);
+    expect(await exported('status=confirmed&paymentStatus=paid')).toEqual([]);
+    // Refused départs never go to the organizer, even when asked for.
+    expect(await exported('status=full')).toEqual([]);
+    expect((await call(`/api/admin/competitions/${SALLE}/export?paymentStatus=free`, { cookie })).status).toBe(400);
+  });
 });
 
 describe('member list', () => {

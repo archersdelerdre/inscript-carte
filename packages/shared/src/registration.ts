@@ -43,7 +43,7 @@ export function canChangeStatus(from: RegistrationStatus, to: RegistrationStatus
 export const PAYMENT_STATUSES = ['to_pay', 'paid'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
-  to_pay: 'À payer',
+  to_pay: 'En attente de paiement',
   paid: 'Payé',
 };
 
