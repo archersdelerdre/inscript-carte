@@ -495,10 +495,14 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
     registration.distance && `Distances ${DISTANCE_LABELS[registration.distance].toLowerCase()}`,
   ].filter(Boolean);
   const noteLabel = registration.clubNote ? 'Modifier la note' : 'Ajouter une note';
+  // How the archer said they would pay; rows made before the question was asked have none.
+  const paymentMethod = registration.paymentMethod && (
+    <span className='text-muted-foreground font-normal'> ({PAYMENT_METHOD_LABELS[registration.paymentMethod]})</span>
+  );
 
   return (
     <div className={cn('grid gap-x-4 gap-y-1.5', cancelled && 'opacity-70')}>
-      <div className='flex flex-wrap items-center gap-x-4 gap-y-2 md:grid md:grid-cols-[minmax(9rem,1fr)_15rem_14rem_2.5rem]'>
+      <div className='flex flex-wrap items-center gap-x-4 gap-y-2 md:grid md:grid-cols-[minmax(9rem,1fr)_15rem_18rem_2.5rem]'>
         <p className='min-w-0'>
           <span className='font-semibold'>Départ {registration.departure}</span>
           <span className='text-muted-foreground'> · {details.join(' · ')}</span>
@@ -523,7 +527,10 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
 
         {/* Ticked = paid. A cancelled départ that was paid still says so: the club may have to pay it back. */}
         {cancelled ? (
-          <span className='text-sm font-medium text-green-800'>{paid && PAYMENT_STATUS_LABELS.paid}</span>
+          <span className='text-sm font-medium text-green-800'>
+            {paid && PAYMENT_STATUS_LABELS.paid}
+            {paid && paymentMethod}
+          </span>
         ) : (
           <label className='flex min-h-10 cursor-pointer items-center gap-2.5'>
             <Checkbox
@@ -533,6 +540,7 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
             />
             <span className={cn('text-sm font-medium', paid ? 'text-green-800' : 'text-amber-800')}>
               {PAYMENT_STATUS_LABELS[registration.paymentStatus]}
+              {paymentMethod}
             </span>
           </label>
         )}
