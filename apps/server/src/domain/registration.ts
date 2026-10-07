@@ -24,6 +24,13 @@ export type Registration = {
   readonly paymentMethod: PaymentMethod | null;
   readonly paymentReference: string;
   readonly clubNote: string | null;
+  readonly trispot: boolean;
+  readonly distance: Distance | null;
+  readonly contact: string | null;
+  /** ISO date and time (UTC). */
+  readonly createdAt: string;
+  /** Licence number of the admin who changed the row last. */
+  readonly updatedBy: string | null;
 };
 
 /** What an archer asks for; the server adds the category, status and payment reference. */
@@ -45,8 +52,6 @@ export function isClubRegistrationOpen(competition: Competition, today: Calendar
 }
 
 /** Once the club has sent the registration to the organizer, only the club can change it. */
-const WITHDRAWABLE_STATUSES: readonly RegistrationStatus[] = ['received', 'awaiting_payment'];
-
 export function canWithdraw(registration: Registration, competition: Competition, today: CalendarDate): boolean {
-  return WITHDRAWABLE_STATUSES.includes(registration.status) && today <= clubRegistrationDeadline(competition);
+  return registration.status === 'received' && today <= clubRegistrationDeadline(competition);
 }

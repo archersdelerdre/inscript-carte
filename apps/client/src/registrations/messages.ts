@@ -17,6 +17,11 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   already_registered: "Vous êtes déjà inscrit sur l'un de ces départs.",
   cannot_withdraw:
     "Cette inscription ne peut plus être retirée ici : la date limite est passée ou le club l'a déjà transmise. Contactez le club.",
+  admin_sign_in_required: 'Votre session administrateur a expiré. Merci de retaper votre mot de passe.',
+  not_admin: "Votre licence n'a pas accès à l'administration.",
+  status_change_not_allowed:
+    'Ce changement de statut est impossible : une inscription annulée le reste, et une inscription transmise ne revient pas à « Reçue ».',
+  invalid_member_export: "Ce fichier n'est pas la liste des licenciés attendue.",
 };
 
 /** "À régler au club avant le 9 oct., par chèque, …" */

@@ -1,4 +1,4 @@
-import type { Sex } from '@inscript-carte/shared';
+import type { MemberExportProblem, Sex } from '@inscript-carte/shared';
 import { readSheet } from 'read-excel-file/node';
 
 import type { Archer } from '../../domain/archer.ts';
@@ -8,9 +8,29 @@ const LICENCE_NUMBER = /^\d{7}[A-Z]$/;
 const CIVILITY = /^(M|Me|Mme|Mlle)\s+/;
 const SEX_BY_LABEL: Record<string, Sex> = { Masculin: 'male', Féminin: 'female' };
 
-/** Reads the club member list exported from the FFTA extranet (first sheet of the .xlsx file). */
-export async function readMemberExport(path: string): Promise<Archer[]> {
-  return parseMemberRows(await readSheet(path));
+/** The export is refused as a whole. `detail` is a column title or a wrong value, never a name or a birth date. */
+export class MemberExportError extends Error {
+  readonly problem: MemberExportProblem;
+  readonly line: number | null;
+  readonly detail: string | null;
+
+  constructor(problem: MemberExportProblem, message: string, line: number | null = null, detail: string | null = null) {
+    super(line === null ? message : `Line ${line}: ${message}`);
+    this.problem = problem;
+    this.line = line;
+    this.detail = detail;
+  }
+}
+
+/** Reads the club member list exported from the FFTA extranet (first sheet of the .xlsx file, a path or its bytes). */
+export async function readMemberExport(input: string | Buffer): Promise<Archer[]> {
+  let rows: (readonly unknown[])[];
+  try {
+    rows = await readSheet(input);
+  } catch {
+    throw new MemberExportError('unreadable', 'The file is not an Excel (.xlsx) file.');
+  }
+  return parseMemberRows(rows);
 }
 
 /**
@@ -20,12 +40,14 @@ export async function readMemberExport(path: string): Promise<Archer[]> {
  */
 export function parseMemberRows(rows: readonly (readonly unknown[])[]): Archer[] {
   const [header, ...lines] = rows;
-  if (!header) throw new Error('The member export is empty.');
+  if (!header) throw new MemberExportError('empty', 'The member export is empty.');
 
   // Matched by the start of the title: the exported sheet may add a sort arrow ("Nom, Prénom↑").
   const column = (title: string) => {
     const index = header.findIndex((cell) => typeof cell === 'string' && cell.trim().startsWith(title));
-    if (index === -1) throw new Error(`Column "${title}" not found in the member export.`);
+    if (index === -1) {
+      throw new MemberExportError('missing_column', `Column "${title}" not found in the member export.`, null, title);
+    }
     return index;
   };
   const columns = {
@@ -46,21 +68,32 @@ export function parseMemberRows(rows: readonly (readonly unknown[])[]): Archer[]
     const licenceNumber = String(cell(columns.licence) ?? '')
       .trim()
       .toUpperCase();
-    if (!LICENCE_NUMBER.test(licenceNumber))
-      throw new Error(`Line ${line}: invalid licence number "${licenceNumber}".`);
-    if (seen.has(licenceNumber)) throw new Error(`Line ${line}: licence number ${licenceNumber} appears twice.`);
+    if (!LICENCE_NUMBER.test(licenceNumber)) {
+      throw new MemberExportError('invalid_licence', `invalid licence number "${licenceNumber}".`, line, licenceNumber);
+    }
+    if (seen.has(licenceNumber)) {
+      throw new MemberExportError(
+        'duplicate_licence',
+        `licence number ${licenceNumber} appears twice.`,
+        line,
+        licenceNumber,
+      );
+    }
     seen.add(licenceNumber);
 
     const fullName = String(cell(columns.name) ?? '')
       .trim()
       .replace(CIVILITY, '');
-    if (!fullName) throw new Error(`Line ${line}: missing name.`);
+    if (!fullName) throw new MemberExportError('missing_name', 'missing name.', line);
 
-    const sex = SEX_BY_LABEL[String(cell(columns.sex) ?? '').trim()];
-    if (!sex) throw new Error(`Line ${line}: unknown sex "${String(cell(columns.sex))}".`);
+    const sexLabel = String(cell(columns.sex) ?? '').trim();
+    const sex = SEX_BY_LABEL[sexLabel];
+    if (!sex) throw new MemberExportError('unknown_sex', `unknown sex "${sexLabel}".`, line, sexLabel);
 
     const birthDate = cell(columns.birthDate);
-    if (!(birthDate instanceof Date)) throw new Error(`Line ${line}: missing or invalid birth date.`);
+    if (!(birthDate instanceof Date)) {
+      throw new MemberExportError('invalid_birth_date', 'missing or invalid birth date.', line);
+    }
 
     archers.push({
       licenceNumber,
@@ -72,6 +105,6 @@ export function parseMemberRows(rows: readonly (readonly unknown[])[]): Archer[]
     });
   });
 
-  if (archers.length === 0) throw new Error('The member export has no members.');
+  if (archers.length === 0) throw new MemberExportError('no_members', 'The member export has no members.');
   return archers;
 }

@@ -6,3 +6,9 @@ export function addDays(date: CalendarDate, days: number): CalendarDate {
   const shifted = new Date(Date.UTC(year!, month! - 1, day! + days));
   return shifted.toISOString().slice(0, 10);
 }
+
+/** `2026-10-06` → `06/10/2026`, for notes read by people. */
+export function toFrenchDate(date: CalendarDate): string {
+  const [year, month, day] = date.split('-');
+  return `${day}/${month}/${year}`;
+}

@@ -11,6 +11,7 @@ import {
 } from '@inscript-carte/shared';
 
 import { birthYear, type Archer } from '../domain/archer.ts';
+import { toFrenchDate } from '../domain/calendar-date.ts';
 import type { CompetitionRepository } from '../domain/competition-repository.ts';
 import { clubRegistrationDeadline, type Competition } from '../domain/competition.ts';
 import type { RegistrationRepository } from '../domain/registration-repository.ts';
@@ -153,8 +154,7 @@ export class ClubRegistrations {
     const today = this.#clock.today();
     if (!competition || !canWithdraw(registration, competition, today)) return { ok: false, reason: 'cannot_withdraw' };
 
-    const [year, month, day] = today.split('-');
-    await this.#registrations.withdraw(registrationId, `Retirée par l'archer le ${day}/${month}/${year}`, today);
+    await this.#registrations.withdraw(registrationId, `Retirée par l'archer le ${toFrenchDate(today)}`, today);
     return { ok: true };
   }
 }

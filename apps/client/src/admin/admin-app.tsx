@@ -1,0 +1,178 @@
+import { API_ROUTES, type AdminSessionResponse } from '@inscript-carte/shared';
+import { cn } from 'cn';
+import { LogOutIcon, MapIcon, ShieldCheckIcon } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+
+import { useSession } from '@/auth/session';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { api } from '@/lib/api';
+import { ERROR_MESSAGES } from '@/registrations/messages';
+
+import { AdminCompetitions } from './admin-competitions';
+import { MemberImport } from './member-import';
+
+type Admin = AdminSessionResponse['admin'];
+type Section = 'registrations' | 'members';
+
+/** The club secretary's page, at `/admin`. */
+export function AdminApp() {
+  /** `undefined` while the first check runs. */
+  const [admin, setAdmin] = useState<Admin | null | undefined>(undefined);
+  const [section, setSection] = useState<Section>('registrations');
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    document.title = 'Administration – Inscriptions du club';
+    void api<AdminSessionResponse>(API_ROUTES.adminSession).then((result) =>
+      setAdmin(result.ok ? result.data.admin : null),
+    );
+  }, []);
+
+  // Stable identity: screens use it in their effects.
+  const sessionExpired = useCallback(() => {
+    setExpired(true);
+    setAdmin(null);
+  }, []);
+
+  async function signOut() {
+    await api(API_ROUTES.adminSession, { method: 'DELETE' });
+    setExpired(false);
+    setAdmin(null);
+  }
+
+  return (
+    <div className='flex h-svh flex-col'>
+      <header className='flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2'>
+        <ShieldCheckIcon className='text-primary size-6 shrink-0' />
+        <span className='min-w-0 truncate text-lg font-semibold tracking-tight'>Administration</span>
+        {admin && (
+          <nav className='flex gap-1' aria-label='Rubriques'>
+            <SectionButton active={section === 'registrations'} onClick={() => setSection('registrations')}>
+              Inscriptions
+            </SectionButton>
+            <SectionButton active={section === 'members'} onClick={() => setSection('members')}>
+              Licenciés
+            </SectionButton>
+          </nav>
+        )}
+        <div className='ml-auto flex items-center gap-2'>
+          <Button variant='ghost' asChild>
+            <a href='/'>
+              <MapIcon />
+              <span className='max-sm:sr-only'>Retour à la carte</span>
+            </a>
+          </Button>
+          {admin && (
+            <Button variant='outline' onClick={() => void signOut()} title={`Connecté : ${admin.fullName}`}>
+              <LogOutIcon />
+              <span className='max-sm:sr-only'>Se déconnecter</span>
+            </Button>
+          )}
+        </div>
+      </header>
+
+      {admin === undefined && <p className='text-muted-foreground p-4'>Chargement…</p>}
+      {admin === null && (
+        <div className='min-h-0 flex-1 overflow-y-auto'>
+          <AdminSignIn
+            expired={expired}
+            onSignedIn={(signedIn) => {
+              setExpired(false);
+              setAdmin(signedIn);
+            }}
+          />
+        </div>
+      )}
+      {admin && section === 'registrations' && <AdminCompetitions onSessionExpired={sessionExpired} />}
+      {admin && section === 'members' && (
+        <div className='min-h-0 flex-1 overflow-y-auto'>
+          <MemberImport onSessionExpired={sessionExpired} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
+  return (
+    <Button
+      variant={active ? 'secondary' : 'ghost'}
+      aria-current={active ? 'page' : undefined}
+      className={cn(active && 'font-semibold')}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  );
+}
+
+/** Step 1: the member sign-in (licence + birth date). Step 2: the admin's personal password. */
+function AdminSignIn({ expired, onSignedIn }: { expired: boolean; onSignedIn: (admin: Admin) => void }) {
+  const { archer, withArcher, signOut } = useSession();
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState<string | null>(expired ? ERROR_MESSAGES.admin_sign_in_required : null);
+  const [sending, setSending] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!password) return setMessage('Merci de taper votre mot de passe.');
+    setSending(true);
+    const result = await api<AdminSessionResponse>(API_ROUTES.adminSession, { method: 'POST', body: { password } });
+    setSending(false);
+    setPassword('');
+    if (result.ok) return onSignedIn(result.data.admin);
+    setMessage(result.error === 'invalid_credentials' ? 'Mot de passe incorrect.' : ERROR_MESSAGES[result.error]);
+  }
+
+  return (
+    <main className='mx-auto grid w-full max-w-md gap-4 p-4 pt-10'>
+      <h1 className='text-2xl font-semibold tracking-tight'>Espace du club</h1>
+      <p className='text-muted-foreground'>
+        Réservé aux responsables du club : suivi des inscriptions et des paiements.
+      </p>
+
+      {archer === undefined && <p className='text-muted-foreground'>Chargement…</p>}
+      {archer === null && (
+        <>
+          <p>Connectez-vous d'abord avec votre numéro de licence et votre date de naissance.</p>
+          <Button className='w-fit' onClick={() => withArcher(() => {})}>
+            Se connecter
+          </Button>
+        </>
+      )}
+      {archer && (
+        <form onSubmit={submit} className='grid gap-4' noValidate>
+          <p>
+            Connecté : <strong>{archer.fullName}</strong>.{' '}
+            <button type='button' className='underline underline-offset-4' onClick={() => void signOut()}>
+              Ce n'est pas vous ?
+            </button>
+          </p>
+          {/* Lets password managers save the password with the licence number. */}
+          <input type='hidden' name='username' autoComplete='username' value={archer.licenceNumber} readOnly />
+          <div className='grid gap-2'>
+            <Label htmlFor='admin-password'>Mot de passe administrateur</Label>
+            <Input
+              id='admin-password'
+              type='password'
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete='current-password'
+              autoFocus
+            />
+          </div>
+          {message && (
+            <p role='alert' className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
+              {message}
+            </p>
+          )}
+          <Button type='submit' className='w-fit' disabled={sending}>
+            {sending ? 'Vérification…' : 'Entrer'}
+          </Button>
+        </form>
+      )}
+    </main>
+  );
+}

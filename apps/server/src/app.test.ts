@@ -1,13 +1,21 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 import type {
+  AdminCompetitionRegistrationsResponse,
+  AdminSessionResponse,
   CompetitionDto,
+  ListAdminCompetitionsResponse,
   ListCompetitionRegistrantsResponse,
   ListMyRegistrationsResponse,
+  MemberExportErrorResponse,
+  MemberImportResponse,
+  MemberImportStatusResponse,
   RegistrationCreatedResponse,
   SessionResponse,
 } from '@inscript-carte/shared';
 import type { Knex } from 'knex';
+import { readSheet } from 'read-excel-file/node';
+import writeXlsxFile from 'write-excel-file/node';
 
 import { createApp } from './app.ts';
 import { createDatabase } from './infrastructure/database/connection.ts';
@@ -331,5 +339,427 @@ describe('withdrawal', () => {
     clock.day = '2026-12-26';
     const late = await call(`/api/me/registrations/${first!.id}`, { method: 'DELETE', cookie });
     expect(await late.json()).toEqual({ error: 'cannot_withdraw' });
+  });
+});
+
+// The adult member is the admin; the youth is a member without admin rights.
+const ADMIN_PASSWORD = 'tir-a-l-arc-2026';
+
+async function makeAdmin(member: typeof ADULT) {
+  await database('admins').insert({
+    archer_licence_number: member.licenceNumber,
+    password_hash: await Bun.password.hash(ADMIN_PASSWORD),
+  });
+}
+
+async function adminSignIn(): Promise<string> {
+  const response = await call('/api/admin/session', {
+    method: 'POST',
+    cookie: await signIn(ADULT),
+    body: { password: ADMIN_PASSWORD },
+  });
+  expect(response.status).toBe(200);
+  return response.headers.get('set-cookie')!.split(';')[0]!;
+}
+
+/** The youth registers on départs 1 and 2 (R-0001), the adult on départ 1 (R-0002). */
+async function registerBoth() {
+  const youth = await signIn(YOUTH);
+  await call(`/api/competitions/${SALLE}/registrations`, {
+    method: 'POST',
+    cookie: youth,
+    body: form({ departures: [1, 2], contact: '06 00 00 00 00' }),
+  });
+  await call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie: await signIn(ADULT), body: form() });
+}
+
+async function adminRegistrations(cookie: string) {
+  const response = await call(`/api/admin/competitions/${SALLE}/registrations`, { cookie });
+  return ((await response.json()) as AdminCompetitionRegistrationsResponse).registrations;
+}
+
+function upload(cookie: string, file: Blob) {
+  const body = new FormData();
+  body.set('file', file, 'export.xlsx');
+  return fetch(new URL('/api/admin/members/import', server.url), { method: 'POST', headers: { cookie }, body });
+}
+
+/** A made-up FFTA member export: the admin and one new member. */
+async function memberExport(licenceOfNewMember = '2222222D'): Promise<Blob> {
+  const buffer = await writeXlsxFile(
+    [
+      ['N°', 'Nom, Prénom↑', 'Sexe', 'Date de naissance', 'Etat'],
+      [ADULT.licenceNumber, 'Me DUPONT JEANNE', 'Féminin', new Date(`${ADULT.birthDate}T00:00:00Z`), 'Active'],
+      [licenceOfNewMember, 'M NOUVEAU PAUL', 'Masculin', new Date('1990-02-02T00:00:00Z'), 'Active'],
+    ],
+    { dateFormat: 'dd/mm/yyyy' },
+  ).toBuffer();
+  return new Blob([buffer]);
+}
+
+describe('admin sign-in', () => {
+  beforeEach(() => makeAdmin(ADULT));
+
+  test('an admin signs in as a member, then with their password; the session ends at sign-out', async () => {
+    const response = await call('/api/admin/session', {
+      method: 'POST',
+      cookie: await signIn(ADULT),
+      body: { password: ADMIN_PASSWORD },
+    });
+    // Only sent to the admin API, never readable by scripts, never sent from another site.
+    expect(response.headers.get('set-cookie')).toMatch(/Path=\/api\/admin.*HttpOnly.*SameSite=Strict/i);
+    const cookie = response.headers.get('set-cookie')!.split(';')[0]!;
+
+    expect((await (await call('/api/admin/session', { cookie })).json()) as AdminSessionResponse).toEqual({
+      admin: { licenceNumber: ADULT.licenceNumber, fullName: 'DUPONT JEANNE' },
+    });
+    expect((await call('/api/admin/session', { method: 'DELETE', cookie })).status).toBe(204);
+    expect((await call('/api/admin/competitions', { cookie })).status).toBe(401);
+  });
+
+  test('needs the member session first, the right password, and a member who is an admin', async () => {
+    const noMember = await call('/api/admin/session', { method: 'POST', body: { password: ADMIN_PASSWORD } });
+    expect(await noMember.json()).toEqual({ error: 'not_signed_in' });
+
+    const wrong = await call('/api/admin/session', {
+      method: 'POST',
+      cookie: await signIn(ADULT),
+      body: { password: 'not-the-password' },
+    });
+    expect(wrong.status).toBe(401);
+    expect(await wrong.json()).toEqual({ error: 'invalid_credentials' });
+
+    const member = await call('/api/admin/session', {
+      method: 'POST',
+      cookie: await signIn(YOUTH),
+      body: { password: ADMIN_PASSWORD },
+    });
+    expect(member.status).toBe(403);
+    expect(await member.json()).toEqual({ error: 'not_admin' });
+  });
+
+  test('after 10 wrong passwords, even the right one is refused for 15 minutes', async () => {
+    const member = await signIn(ADULT);
+    for (let attempt = 1; attempt <= 10; attempt++) {
+      await call('/api/admin/session', { method: 'POST', cookie: member, body: { password: `wrong-${attempt}` } });
+    }
+    const blocked = await call('/api/admin/session', {
+      method: 'POST',
+      cookie: member,
+      body: { password: ADMIN_PASSWORD },
+    });
+    expect(blocked.status).toBe(429);
+    expect(await blocked.json()).toEqual({ error: 'too_many_attempts' });
+  });
+
+  test('an admin removed from the list, or who left the club, loses access at once', async () => {
+    const cookie = await adminSignIn();
+    await database('archers').where({ licence_number: ADULT.licenceNumber }).update({ is_active: false });
+    expect((await call('/api/admin/competitions', { cookie })).status).toBe(401);
+
+    await database('archers').where({ licence_number: ADULT.licenceNumber }).update({ is_active: true });
+    expect((await call('/api/admin/competitions', { cookie })).status).toBe(200);
+    await database('admins').delete();
+    expect((await call('/api/admin/competitions', { cookie })).status).toBe(401);
+  });
+
+  test('visitors and members (even the admin with only a member session) get nothing from the admin API', async () => {
+    await registerBoth();
+    const routes = [
+      ['GET', '/api/admin/session'],
+      ['GET', '/api/admin/competitions'],
+      ['GET', `/api/admin/competitions/${SALLE}/registrations`],
+      ['GET', `/api/admin/competitions/${SALLE}/export`],
+      ['PATCH', '/api/admin/registrations/1'],
+      ['PATCH', '/api/admin/payment-references/R-0001'],
+      ['GET', '/api/admin/members/import'],
+      ['POST', '/api/admin/members/import'],
+    ] as const;
+    for (const cookie of [undefined, await signIn(YOUTH), await signIn(ADULT)]) {
+      for (const [method, path] of routes) {
+        const response = await call(path, {
+          method,
+          cookie,
+          body: method === 'PATCH' ? { status: 'full' } : undefined,
+        });
+        expect([path, response.status]).toEqual([path, 401]);
+        expect(await response.json()).toEqual({ error: 'admin_sign_in_required' });
+      }
+    }
+    expect(await database('registrations').pluck('status')).toEqual(['received', 'received', 'received']);
+  });
+});
+
+describe('admin registrations', () => {
+  let cookie: string;
+  beforeEach(async () => {
+    await makeAdmin(ADULT);
+    cookie = await adminSignIn();
+  });
+
+  test('lists competitions with registrations, with counts per status and what is left to pay', async () => {
+    await registerBoth();
+    await call(`/api/competitions/${EXTERIEUR}/registrations`, {
+      method: 'POST',
+      cookie: await signIn(ADULT),
+      body: form({ distance: 'nationales' }),
+    });
+    await call('/api/admin/payment-references/R-0002', { method: 'PATCH', cookie, body: { paymentStatus: 'paid' } });
+
+    const { competitions } = (await (
+      await call('/api/admin/competitions', { cookie })
+    ).json()) as ListAdminCompetitionsResponse;
+    expect(competitions.map(({ id, statusCounts, toPayCount }) => [id, statusCounts.received, toPayCount])).toEqual([
+      [SALLE, 3, 2],
+      [EXTERIEUR, 1, 1],
+    ]);
+  });
+
+  test('shows every detail of each départ, but never the birth date', async () => {
+    await registerBoth();
+    const response = await call(`/api/admin/competitions/${SALLE}/registrations`, { cookie });
+    const text = await response.text();
+    expect(text).not.toContain(YOUTH.birthDate);
+    const { registrations } = JSON.parse(text) as AdminCompetitionRegistrationsResponse;
+    expect(registrations.map(({ paymentReference, departure }) => [paymentReference, departure])).toEqual([
+      ['R-0001', 1],
+      ['R-0001', 2],
+      ['R-0002', 1],
+    ]);
+    expect(registrations[0]).toEqual({
+      id: expect.any(Number),
+      licenceNumber: YOUTH.licenceNumber,
+      fullName: 'MARTIN LOU',
+      sex: 'female',
+      category: 'U18',
+      departure: 1,
+      bowType: 'classique',
+      trispot: false,
+      distance: null,
+      paymentMethod: 'cheque',
+      paymentReference: 'R-0001',
+      paymentStatus: 'to_pay',
+      status: 'received',
+      contact: '06 00 00 00 00',
+      clubNote: null,
+      createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/),
+      updatedByName: null,
+    });
+  });
+
+  test('changes the status, payment and note of one départ, and remembers which admin did it', async () => {
+    await registerBoth();
+    const [first] = await adminRegistrations(cookie);
+
+    const response = await call(`/api/admin/registrations/${first!.id}`, {
+      method: 'PATCH',
+      cookie,
+      body: { status: 'sent_to_organizer', paymentStatus: 'paid', clubNote: '  Chèque reçu  ' },
+    });
+    expect(response.status).toBe(204);
+
+    const [changed, untouched] = await adminRegistrations(cookie);
+    expect(changed).toMatchObject({
+      status: 'sent_to_organizer',
+      paymentStatus: 'paid',
+      clubNote: 'Chèque reçu',
+      updatedByName: 'DUPONT JEANNE',
+    });
+    expect(untouched).toMatchObject({ status: 'received', paymentStatus: 'to_pay', updatedByName: null });
+
+    await call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body: { clubNote: '' } });
+    expect((await adminRegistrations(cookie))[0]!.clubNote).toBeNull();
+  });
+
+  test('a départ never goes back to "Reçue", and a cancelled one stays cancelled', async () => {
+    await registerBoth();
+    const [first] = await adminRegistrations(cookie);
+    const patch = (body: unknown) => call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body });
+
+    expect((await patch({ status: 'confirmed' })).status).toBe(204);
+    const back = await patch({ status: 'received' });
+    expect(back.status).toBe(409);
+    expect(await back.json()).toEqual({ error: 'status_change_not_allowed' });
+    expect((await patch({ status: 'full' })).status).toBe(204);
+    expect((await patch({ status: 'cancelled', clubNote: 'Plus de place' })).status).toBe(204);
+    expect((await patch({ status: 'confirmed' })).status).toBe(409);
+
+    const row = await database('registrations').where({ id: first!.id }).first();
+    expect(row).toMatchObject({
+      status: 'cancelled',
+      club_note: 'Plus de place\nAnnulée par le club le 06/10/2026',
+      cancelled_at: '2026-10-06',
+    });
+    // The archer can register on that départ again.
+    const again = await call(`/api/competitions/${SALLE}/registrations`, {
+      method: 'POST',
+      cookie: await signIn(YOUTH),
+      body: form({ departures: [1] }),
+    });
+    expect(again.status).toBe(201);
+  });
+
+  test('refuses unknown values, too long notes and empty changes', async () => {
+    await registerBoth();
+    const [first] = await adminRegistrations(cookie);
+    for (const body of [
+      {},
+      { status: 'awaiting_payment' },
+      { paymentStatus: 'refunded' },
+      { clubNote: 42 },
+      { clubNote: 'x'.repeat(501) },
+    ]) {
+      const response = await call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body });
+      expect([body, response.status]).toEqual([body, 400]);
+    }
+    const noteOnReference = await call('/api/admin/payment-references/R-0001', {
+      method: 'PATCH',
+      cookie,
+      body: { clubNote: 'Une note' },
+    });
+    expect(noteOnReference.status).toBe(400);
+    expect(
+      (await call('/api/admin/registrations/9999', { method: 'PATCH', cookie, body: { status: 'full' } })).status,
+    ).toBe(404);
+    expect(
+      (await call('/api/admin/payment-references/R-9999', { method: 'PATCH', cookie, body: { status: 'full' } }))
+        .status,
+    ).toBe(404);
+  });
+
+  test('changes every départ of one payment reference at once, skipping cancelled ones', async () => {
+    await registerBoth();
+    const [first] = await adminRegistrations(cookie);
+    await call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body: { status: 'cancelled' } });
+
+    const response = await call('/api/admin/payment-references/R-0001', {
+      method: 'PATCH',
+      cookie,
+      body: { status: 'sent_to_organizer', paymentStatus: 'paid' },
+    });
+    expect(response.status).toBe(204);
+
+    expect(
+      (await adminRegistrations(cookie)).map(({ paymentReference, status, paymentStatus }) => [
+        paymentReference,
+        status,
+        paymentStatus,
+      ]),
+    ).toEqual([
+      ['R-0001', 'cancelled', 'to_pay'],
+      ['R-0001', 'sent_to_organizer', 'paid'],
+      ['R-0002', 'received', 'to_pay'],
+    ]);
+  });
+
+  test('a status change refused for one départ of a reference changes none of them', async () => {
+    await registerBoth();
+    const [first] = await adminRegistrations(cookie);
+    await call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body: { status: 'confirmed' } });
+
+    const response = await call('/api/admin/payment-references/R-0001', {
+      method: 'PATCH',
+      cookie,
+      body: { status: 'received', paymentStatus: 'paid' },
+    });
+    expect(response.status).toBe(409);
+    expect(
+      (await adminRegistrations(cookie)).slice(0, 2).map(({ status, paymentStatus }) => [status, paymentStatus]),
+    ).toEqual([
+      ['confirmed', 'to_pay'],
+      ['received', 'to_pay'],
+    ]);
+  });
+
+  test('the archer can no longer withdraw a départ the club has sent', async () => {
+    await registerBoth();
+    const [first] = await adminRegistrations(cookie);
+    await call(`/api/admin/registrations/${first!.id}`, {
+      method: 'PATCH',
+      cookie,
+      body: { status: 'sent_to_organizer' },
+    });
+    const youth = await signIn(YOUTH);
+    const mine = (
+      (await (await call('/api/me/registrations', { cookie: youth })).json()) as ListMyRegistrationsResponse
+    ).registrations;
+    expect(mine.map(({ departure, canWithdraw }) => [departure, canWithdraw])).toEqual([
+      [1, false],
+      [2, true],
+    ]);
+  });
+
+  test('exports the départs to send to the organizer as an Excel file, without cancelled or refused ones', async () => {
+    await registerBoth();
+    const [first, second] = await adminRegistrations(cookie);
+    await call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body: { status: 'cancelled' } });
+    await call(`/api/admin/registrations/${second!.id}`, { method: 'PATCH', cookie, body: { status: 'confirmed' } });
+
+    const response = await call(`/api/admin/competitions/${SALLE}/export`, { cookie });
+    expect(response.headers.get('content-type')).toBe(
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    expect(response.headers.get('content-disposition')).toBe(
+      `attachment; filename="inscriptions-2027-01-09-${SALLE}.xlsx"`,
+    );
+    const rows = await readSheet(Buffer.from(await response.arrayBuffer()));
+    expect(rows.slice(3)).toEqual([
+      ['Départ', 'Nom et prénom', 'N° de licence', 'Catégorie', 'Arc', 'Trispot'],
+      [1, 'DUPONT JEANNE', ADULT.licenceNumber, 'Senior 2 Femme', 'Classique', 'Non'],
+      [2, 'MARTIN LOU', YOUTH.licenceNumber, 'U18 Femme', 'Classique', 'Non'],
+    ]);
+  });
+});
+
+describe('member list import', () => {
+  let cookie: string;
+  beforeEach(async () => {
+    await makeAdmin(ADULT);
+    cookie = await adminSignIn();
+  });
+
+  test('an uploaded FFTA export updates the member list and is remembered as the last import', async () => {
+    const before = (await (await call('/api/admin/members/import', { cookie })).json()) as MemberImportStatusResponse;
+    expect(before).toEqual({ lastImport: null, activeMemberCount: 2 });
+
+    const response = await upload(cookie, await memberExport());
+    expect(response.status).toBe(200);
+    const expected = {
+      lastImport: {
+        importedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/),
+        importedByName: 'DUPONT JEANNE',
+        memberCount: 2,
+        added: 1,
+        updated: 0,
+        deactivated: 1,
+        unchanged: 1,
+      },
+      activeMemberCount: 2,
+    };
+    expect((await response.json()) as MemberImportResponse).toEqual(expected);
+    expect(await (await call('/api/admin/members/import', { cookie })).json()).toEqual(expected);
+    // The youth is missing from the new export: she can no longer sign in.
+    expect((await call('/api/session', { method: 'POST', body: YOUTH })).status).toBe(401);
+  });
+
+  test('a wrong file is refused with the reason and the line, and nothing is imported', async () => {
+    const notExcel = await upload(cookie, new Blob(['Nom;Prénom\nDUPONT;JEAN']));
+    expect(notExcel.status).toBe(400);
+    expect((await notExcel.json()) as MemberExportErrorResponse).toEqual({
+      error: 'invalid_member_export',
+      problem: 'unreadable',
+      line: null,
+      detail: null,
+    });
+
+    const badLicence = await upload(cookie, await memberExport('123'));
+    expect((await badLicence.json()) as MemberExportErrorResponse).toEqual({
+      error: 'invalid_member_export',
+      problem: 'invalid_licence',
+      line: 3,
+      detail: '123',
+    });
+    expect(await database('archers').where({ is_active: true }).pluck('licence_number')).toHaveLength(2);
+    expect(await database('member_imports').pluck('id')).toEqual([]);
   });
 });

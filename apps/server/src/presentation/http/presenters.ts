@@ -1,9 +1,17 @@
-import type { CompetitionDto, MyRegistrationDto, SignedInArcher } from '@inscript-carte/shared';
+import type {
+  AdminCompetitionDto,
+  AdminRegistrationDto,
+  CompetitionDto,
+  MyRegistrationDto,
+  SignedInArcher,
+} from '@inscript-carte/shared';
 
+import type { AdminCompetition } from '../../application/admin-registrations.ts';
 import type { MyRegistration } from '../../application/club-registrations.ts';
 import type { UpcomingCompetition } from '../../application/list-upcoming-competitions.ts';
 import { birthYear, type Archer } from '../../domain/archer.ts';
 import { clubRegistrationDeadline } from '../../domain/competition.ts';
+import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 
 export function toCompetitionDto({ competition, clubRegistrationCount }: UpcomingCompetition): CompetitionDto {
   return {
@@ -50,5 +58,55 @@ export function toMyRegistrationDto({ registration, competition, canWithdraw }: 
     clubRegistrationDeadline: clubRegistrationDeadline(competition),
     clubNote: registration.clubNote,
     canWithdraw,
+  };
+}
+
+export function toAdminCompetitionDto({
+  competition,
+  isFinished,
+  statusCounts,
+  toPayCount,
+}: AdminCompetition): AdminCompetitionDto {
+  return {
+    id: competition.id,
+    title: competition.title,
+    discipline: competition.discipline,
+    startDate: competition.startDate,
+    endDate: competition.endDate,
+    clubRegistrationDeadline: clubRegistrationDeadline(competition),
+    town: competition.town,
+    departmentCode: competition.departmentCode,
+    isPostponed: competition.status === 'postponed',
+    isCancelled: competition.status === 'cancelled',
+    isFinished,
+    statusCounts,
+    toPayCount,
+  };
+}
+
+export function toAdminRegistrationDto({
+  registration,
+  fullName,
+  sex,
+  updatedByName,
+}: RegistrationDetails): AdminRegistrationDto {
+  return {
+    id: registration.id,
+    licenceNumber: registration.archerLicenceNumber,
+    fullName,
+    sex,
+    category: registration.category,
+    departure: registration.departure,
+    bowType: registration.bowType,
+    trispot: registration.trispot,
+    distance: registration.distance,
+    paymentMethod: registration.paymentMethod,
+    paymentReference: registration.paymentReference,
+    paymentStatus: registration.paymentStatus,
+    status: registration.status,
+    contact: registration.contact,
+    clubNote: registration.clubNote,
+    createdAt: registration.createdAt,
+    updatedByName,
   };
 }

@@ -1,6 +1,5 @@
 import {
   API_ROUTES,
-  type ApiError,
   type HealthResponse,
   type ListCompetitionRegistrantsResponse,
   type ListCompetitionsResponse,
@@ -13,20 +12,24 @@ import type { BunRequest } from 'bun';
 import type { Authentication } from '../../application/authentication.ts';
 import type { ClubRegistrations } from '../../application/club-registrations.ts';
 import type { ListUpcomingCompetitions } from '../../application/list-upcoming-competitions.ts';
+import { createAdminRoutes, type AdminHttpDependencies } from './admin-routes.ts';
+import { error, isHttps, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
 import { toCompetitionDto, toMyRegistrationDto, toSignedInArcher } from './presenters.ts';
 
 const SESSION_COOKIE = 'session';
 
-export type HttpDependencies = {
+export type HttpDependencies = Omit<AdminHttpDependencies, 'signedInArcher'> & {
   listUpcomingCompetitions: ListUpcomingCompetitions;
   authentication: Authentication;
   clubRegistrations: ClubRegistrations;
 };
 
-/** The part of Bun's server the routes use. */
-type ClientAddressSource = { requestIP(request: Request): { address: string } | null };
-
-export function createRoutes({ listUpcomingCompetitions, authentication, clubRegistrations }: HttpDependencies) {
+export function createRoutes({
+  listUpcomingCompetitions,
+  authentication,
+  clubRegistrations,
+  ...adminDependencies
+}: HttpDependencies) {
   const signedInArcher = (request: BunRequest) =>
     authentication.signedInArcher(request.cookies.get(SESSION_COOKIE) ?? null);
 
@@ -122,31 +125,6 @@ export function createRoutes({ listUpcomingCompetitions, authentication, clubReg
         return result.ok ? new Response(null, { status: 204 }) : error(result.reason, STATUS_BY_REASON[result.reason]);
       },
     },
+    ...createAdminRoutes({ ...adminDependencies, signedInArcher }),
   };
-}
-
-const STATUS_BY_REASON = {
-  not_found: 404,
-  invalid_request: 400,
-  registration_closed: 409,
-  already_registered: 409,
-  cannot_withdraw: 409,
-} as const satisfies Partial<Record<ApiError['error'], number>>;
-
-function error(code: ApiError['error'], status: number): Response {
-  return Response.json({ error: code } satisfies ApiError, { status });
-}
-
-async function readJson(request: Request): Promise<Record<string, unknown> | null> {
-  try {
-    const body: unknown = await request.json();
-    return typeof body === 'object' && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Behind a reverse proxy, the original protocol comes in a header. */
-function isHttps(request: Request): boolean {
-  return new URL(request.url).protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https';
 }

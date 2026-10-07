@@ -1,10 +1,21 @@
-import type { AgeCategory, BowType, PaymentMethod, PaymentStatus, RegistrationStatus } from '@inscript-carte/shared';
+import type {
+  AgeCategory,
+  BowType,
+  Distance,
+  PaymentMethod,
+  PaymentStatus,
+  RegistrationStatus,
+  Sex,
+} from '@inscript-carte/shared';
 import type { Knex } from 'knex';
 
 import type { CalendarDate } from '../../domain/calendar-date.ts';
 import type {
   AddRegistrationsResult,
   Registrant,
+  RegistrationChange,
+  RegistrationCount,
+  RegistrationDetails,
   RegistrationRepository,
 } from '../../domain/registration-repository.ts';
 import type { NewRegistration, Registration } from '../../domain/registration.ts';
@@ -21,6 +32,12 @@ type RegistrationRow = {
   payment_method: PaymentMethod | null;
   payment_reference: string;
   club_note: string | null;
+  trispot: 0 | 1;
+  distance: Distance | null;
+  contact: string | null;
+  /** SQLite `CURRENT_TIMESTAMP`: `YYYY-MM-DD HH:MM:SS`, UTC. */
+  created_at: string;
+  updated_by: string | null;
 };
 
 const ACTIVE = (query: Knex.QueryBuilder) => query.whereNot('registrations.status', 'cancelled');
@@ -39,6 +56,24 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
       .select('competition_ffta_id')
       .count({ count: '*' });
     return new Map(rows.map((row) => [row.competition_ffta_id, Number(row.count)]));
+  }
+
+  async countAll(): Promise<RegistrationCount[]> {
+    const rows: {
+      competition_ffta_id: string;
+      status: RegistrationStatus;
+      payment_status: PaymentStatus;
+      count: number;
+    }[] = await this.#database('registrations')
+      .groupBy('competition_ffta_id', 'status', 'payment_status')
+      .select('competition_ffta_id', 'status', 'payment_status')
+      .count({ count: '*' });
+    return rows.map((row) => ({
+      competitionId: row.competition_ffta_id,
+      status: row.status,
+      paymentStatus: row.payment_status,
+      count: Number(row.count),
+    }));
   }
 
   async activeDepartures(competitionId: string, archerLicenceNumber: string): Promise<number[]> {
@@ -108,6 +143,29 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
     return rows.map(toRegistration);
   }
 
+  async detailsForCompetition(competitionId: string): Promise<RegistrationDetails[]> {
+    const rows: (RegistrationRow & { full_name: string; sex: Sex; updated_by_name: string | null })[] =
+      await this.#database('registrations')
+        .join('archers', 'archers.licence_number', 'registrations.archer_licence_number')
+        .leftJoin('archers as editors', 'editors.licence_number', 'registrations.updated_by')
+        .where({ competition_ffta_id: competitionId })
+        .orderBy(['registrations.payment_reference', 'registrations.departure'])
+        .select('registrations.*', 'archers.full_name', 'archers.sex', 'editors.full_name as updated_by_name');
+    return rows.map((row) => ({
+      registration: toRegistration(row),
+      fullName: row.full_name,
+      sex: row.sex,
+      updatedByName: row.updated_by_name,
+    }));
+  }
+
+  async forPaymentReference(paymentReference: string): Promise<Registration[]> {
+    const rows = await this.#database<RegistrationRow>('registrations')
+      .where({ payment_reference: paymentReference })
+      .orderBy('departure');
+    return rows.map(toRegistration);
+  }
+
   async findById(id: number): Promise<Registration | null> {
     const row = await this.#database<RegistrationRow>('registrations').where({ id }).first();
     return row ? toRegistration(row) : null;
@@ -119,6 +177,23 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
       club_note: note,
       cancelled_at: today,
       updated_at: this.#database.fn.now(),
+    });
+  }
+
+  async save(changes: readonly RegistrationChange[], updatedBy: string): Promise<void> {
+    await this.#database.transaction(async (transaction) => {
+      for (const change of changes) {
+        await transaction('registrations')
+          .where({ id: change.id })
+          .update({
+            status: change.status,
+            payment_status: change.paymentStatus,
+            club_note: change.clubNote,
+            ...(change.cancelledAt ? { cancelled_at: change.cancelledAt } : {}),
+            updated_by: updatedBy,
+            updated_at: transaction.fn.now(),
+          });
+      }
     });
   }
 }
@@ -136,5 +211,10 @@ function toRegistration(row: RegistrationRow): Registration {
     paymentMethod: row.payment_method,
     paymentReference: row.payment_reference,
     clubNote: row.club_note,
+    trispot: row.trispot === 1,
+    distance: row.distance,
+    contact: row.contact,
+    createdAt: `${row.created_at.replace(' ', 'T')}Z`,
+    updatedBy: row.updated_by,
   };
 }

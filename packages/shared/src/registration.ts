@@ -1,3 +1,6 @@
+/** The one club whose members register through the app. */
+export const CLUB_NAME = "Les Archers de l'Erdre";
+
 export type Sex = 'female' | 'male';
 
 export const BOW_TYPES = ['classique', 'poulies', 'arc_nu', 'chasse', 'longbow'] as const;
@@ -18,23 +21,24 @@ export const DISTANCE_LABELS: Record<Distance, string> = {
   internationales: 'Internationales',
 };
 
-export const REGISTRATION_STATUSES = [
-  'received',
-  'awaiting_payment',
-  'sent_to_organizer',
-  'confirmed',
-  'full',
-  'cancelled',
-] as const;
+export const REGISTRATION_STATUSES = ['received', 'sent_to_organizer', 'confirmed', 'full', 'cancelled'] as const;
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 export const REGISTRATION_STATUS_LABELS: Record<RegistrationStatus, string> = {
   received: 'Reçue',
-  awaiting_payment: 'En attente de paiement',
   sent_to_organizer: "Transmise à l'organisateur",
   confirmed: 'Validée',
   full: 'Plus de place',
   cancelled: 'Annulée',
 };
+
+/**
+ * What the club may change a départ to. A cancelled départ stays cancelled (the archer registers again instead), and
+ * once sent to the organizer it never goes back to "Reçue", where the archer could still withdraw it.
+ */
+export function canChangeStatus(from: RegistrationStatus, to: RegistrationStatus): boolean {
+  if (from === to) return true;
+  return from !== 'cancelled' && to !== 'received';
+}
 
 export const PAYMENT_STATUSES = ['to_pay', 'paid'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];

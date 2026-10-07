@@ -34,6 +34,8 @@ club members (why and for whom the project exists, no technical content).
 | `bun run typecheck` / `test` / `build` / `lint` / `format` | through turbo, or oxlint/oxfmt at the root |
 | `bun run --cwd apps/server db:import-legacy-events <events.json>` | import the old app's competitions (see Data) |
 | `bun run --cwd apps/server db:import-archers <export.xlsx>` | sync the club member list (FFTA extranet export) |
+| `bun run --cwd apps/server db:add-admin <licence>` | make an active member an admin, or change their password (typed hidden) |
+| `bun run --cwd apps/server db:remove-admin <licence>` | remove an admin (ends their admin sessions) |
 | `bun run --cwd apps/server db:rollback` | roll back the last migration batch |
 
 Migrations run **when the server starts** (`main.ts`), before it accepts requests.
@@ -46,7 +48,8 @@ Migrations run **when the server starts** (`main.ts`), before it accepts request
 - `docker build -t inscript-carte .` then `docker run -p 3998:3998 -v inscript-carte-data:/data inscript-carte`.
   The database is `/data/inscript-carte.sqlite` in the volume (personal data, never in the image). Runs as user `bun`.
 - Imports inside the container: `docker exec <container> bun run --cwd apps/server db:import-archers <file>` (mount
-  the file read-only first).
+  the file read-only first), or upload it from the admin page. Admins: `docker exec -it <container> bun run --cwd
+  apps/server db:add-admin <licence>`.
 - Bun runs the TypeScript sources directly (no server bundle). `bun install --ignore-scripts`: better-sqlite3 loads
   its binary from `prebuilds/`, and its automatic rebuild would need Python and a C++ compiler.
 - `.dockerignore` is an **allow list**: a new file reaches the build only if it is listed there.
@@ -60,15 +63,20 @@ Migrations run **when the server starts** (`main.ts`), before it accepts request
 Inner layers never import outer ones.
 
 - `domain/`: `Competition` (+ the 15-day club deadline rule), `Archer`, `Registration` (+ `isClubRegistrationOpen`,
-  `canWithdraw`), `CalendarDate` (`YYYY-MM-DD` strings), repository ports. The domain may import types from
-  `@inscript-carte/shared` (shared kernel).
+  `canWithdraw`), `member-list.ts` (`planMemberListSync`: what an FFTA export adds, updates, deactivates),
+  `CalendarDate` (`YYYY-MM-DD` strings), repository ports. The domain may import types from `@inscript-carte/shared`
+  (shared kernel). The status rule `canChangeStatus` lives in `shared/src/registration.ts` so the client greys out the
+  same options.
 - `application/`: `ListUpcomingCompetitions` (drops finished and cancelled, adds the club registration count),
-  `Authentication`, `ClubRegistrations`; ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`.
-  Use cases return result codes (`{ ok: false, reason }`), never throw for business errors.
+  `Authentication`, `ClubRegistrations`, `AdminAuthentication`, `AdminAccounts` (command line only),
+  `AdminRegistrations`, `MemberListImport`; ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`,
+  `PasswordHasher`. Use cases return result codes (`{ ok: false, reason }`), never throw for business errors.
 - `infrastructure/`: `config.ts` (`PORT`, `DATABASE_PATH` default `data/inscript-carte.sqlite`, `CLIENT_DIST_PATH`),
   database (connection, migrations, SQLite repositories and session store, scripts), geocoding, member export
-  parser, in-memory login limiter, `SystemClock`.
-- `presentation/http/`: routes and DTO presenters. `app.ts` wires everything (used by `main.ts` and `app.test.ts`).
+  parser, organizer Excel export (`exports/organizer-spreadsheet.ts`, `write-excel-file`), in-memory login limiter,
+  `BunPasswordHasher` (argon2id), `SystemClock`.
+- `presentation/http/`: routes (`routes.ts` members, `admin-routes.ts` admins, helpers in `http.ts`) and DTO
+  presenters. `app.ts` wires everything (used by `main.ts` and `app.test.ts`).
 
 API (types and error codes in `packages/shared/src/api.ts`; the client turns codes into French messages):
 
@@ -78,6 +86,15 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 | `GET/POST/DELETE /api/session` | current archer / sign in (licence + birth date) / sign out |
 | `GET/POST /api/competitions/:competitionId/registrations` | members only: who is registered / register |
 | `GET /api/me/registrations`, `DELETE /api/me/registrations/:registrationId` | "Mon suivi" / withdraw a départ |
+| `GET/POST/DELETE /api/admin/session` | admin: current admin / password step (needs the member session) / sign out |
+| `GET /api/admin/competitions` | competitions with registrations, counts per status and "to pay" |
+| `GET /api/admin/competitions/:competitionId/registrations` | every row, cancelled included, with names and contact |
+| `GET /api/admin/competitions/:competitionId/export` | `.xlsx` for the organizer (Reçue, Transmise, Validée rows) |
+| `PATCH /api/admin/registrations/:registrationId` | status, payment status, club note of one départ |
+| `PATCH /api/admin/payment-references/:paymentReference` | status / payment of every non-cancelled row, all or none |
+| `GET/POST /api/admin/members/import` | last import + active count / upload the FFTA export (multipart `file`) |
+
+Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without a valid admin session.
 
 ## Registration through the club
 
@@ -95,16 +112,38 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
   The request carries a bow **per départ** (`departures: [{ departure, bowType }]`). The usual case stays one bow
   choice; the link « Un arc différent selon le départ ? » (only with 2+ départs) shows one bow menu per départ.
   One row per départ; one payment reference per request (`R-0001`, club-wide counter). Taken départs are refused.
-- Open until the club deadline **included**. Withdraw only while `received`/`awaiting_payment` and before the deadline:
-  the row stays in the database, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`, but it
-  disappears from "Mon suivi" (`GET /api/me/registrations` only returns rows that are not cancelled).
+- Open until the club deadline **included**. Withdraw only while `received` and before the deadline: the row stays in
+  the database, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`, but it disappears from "Mon
+  suivi" (`GET /api/me/registrations` only returns rows that are not cancelled).
 - Names of registrants are for signed-in members only; the count is public.
+
+## Admin panel (`/admin`, `apps/client/src/admin/`)
+
+- **Sign-in in two steps**: the normal member sign-in, then a **personal password** (the user chose this: a birth
+  date can be guessed, and the panel shows every member's contact). Admins are rows of `admins` (FK to `archers`,
+  argon2id hash), created only by `db:add-admin`; the user plans three admins. Max 10 wrong passwords per licence and
+  50 per address in 15 minutes. Admin session: 12 hours, `admin_sessions` table, cookie `admin_session` with
+  `Path=/api/admin`, `HttpOnly`, `SameSite=Strict`. An admin who leaves the club or is removed loses access at once.
+- **Statuses**: Reçue → Transmise à l'organisateur → Validée, plus Plus de place and Annulée ("En attente de paiement"
+  was dropped in `0004`: payment has its own field). `canChangeStatus`: a cancelled row stays cancelled (the archer
+  registers again), and nothing goes back to Reçue. Cancelling adds "Annulée par le club le JJ/MM/AAAA" to the note
+  and asks for a confirmation in the UI. Each admin change writes `updated_by`.
+- The page lists competitions with registrations (upcoming first), then one card per payment reference (= one
+  archer's request) with its départs. Reference actions (status of all départs, "Tout marquer payé") only show when
+  the reference has 2+ active départs. Filters: status, "À payer seulement".
+- Member list upload: read in memory (`readMemberExport(Buffer)`), never written to disk, max 5 MB. A bad file is
+  refused as a whole with `{ error: 'invalid_member_export', problem, line, detail }` (`MemberExportError`); the
+  client turns `problem` into French. Each import is a `member_imports` row (date, admin or `NULL` for the command
+  line, counts).
+- Birth dates are never sent to the client, not even to admins.
 
 ## Database (SQLite, Knex)
 
 - Tables: `competitions` (PK `ffta_id`), `archers` (PK `licence_number`), `registrations` (PK auto `id`, one row per
-  départ, FKs `competition_ffta_id` / `archer_licence_number`, `ON DELETE RESTRICT`). Value lists are `CHECK`
-  constraints. One active registration per (competition, archer, départ): partial unique index ignoring `cancelled`.
+  départ, FKs `competition_ffta_id` / `archer_licence_number` / `updated_by`, `ON DELETE RESTRICT`), `sessions`,
+  `admins`, `admin_sessions`, `member_imports`. Value lists are `CHECK` constraints. One active registration per
+  (competition, archer, départ): partial unique index ignoring `cancelled`. `0004` rebuilt `registrations` (SQLite
+  cannot change a `CHECK`): the next schema change on that table needs the same copy, see `0004-admin-panel.ts`.
 - Migrations are TS files listed explicitly in `migrations/index.ts` (so they survive `bun build`). The local database
   holds data now: **any schema change is a new migration**, never an edit of `0001`.
 - The DB file holds **personal data** (club members: birth dates, minors): `*.sqlite` is git-ignored and must never
@@ -118,9 +157,9 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
   outside the repo. Parsed by `infrastructure/members/ffta-member-export.ts`: licence number (7 digits + letter),
   name without civility ("M "/"Me "), sex, birth date, status ("Active"). Addresses are dropped on purpose.
   Columns are matched by the start of their title (the export adds a sort arrow: "Nom, Prénom↑").
-- `db:import-archers` syncs the table in one transaction (`sync-archers.ts`): adds, updates, and **deactivates
-  members missing from the export** (never deletes them: registrations point to them). Only active members may sign
-  in. A bad row stops the whole import with its line number.
+- An import (command line or admin upload) goes through `MemberListImport` → `SqliteMemberListRepository.sync`, in
+  one transaction: adds, updates, and **deactivates members missing from the export** (never deletes them:
+  registrations point to them). Only active members may sign in. A bad row stops the whole import with its line number.
 
 ## Data and geocoding
 
@@ -168,8 +207,7 @@ Material Design baseline, do not exaggerate:
 
 ## Not done yet
 
-- Statuses after "Reçue" are set by hand in the database until the admin page exists.
-- Admin page for the club secretary (statuses, payments, member list import).
+- Admin management from the panel (today: `db:add-admin` / `db:remove-admin` only).
 - FFTA scraper. Planned: competitions that cannot be located are stored but not displayed, their **count is shown in
   the admin panel**, and the admin can re-run a Google Maps lookup (results should then live in the DB instead of
   `known-places.ts`).

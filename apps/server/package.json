@@ -10,13 +10,16 @@
     "test": "bun test",
     "db:rollback": "bun src/infrastructure/database/rollback.ts",
     "db:import-legacy-events": "bun src/infrastructure/database/import-legacy-events.ts",
-    "db:import-archers": "bun src/infrastructure/database/import-archers.ts"
+    "db:import-archers": "bun src/infrastructure/database/import-archers.ts",
+    "db:add-admin": "bun src/infrastructure/database/add-admin.ts",
+    "db:remove-admin": "bun src/infrastructure/database/remove-admin.ts"
   },
   "dependencies": {
     "@inscript-carte/shared": "workspace:*",
     "better-sqlite3": "^13.0.3",
     "knex": "^3.3.0",
-    "read-excel-file": "^9.3.10"
+    "read-excel-file": "^9.3.10",
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",

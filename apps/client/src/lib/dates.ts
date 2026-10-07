@@ -25,6 +25,17 @@ export function todayInParis(): string {
   return parisDate.format(new Date());
 }
 
+const parisDateTime = new Intl.DateTimeFormat('fr-FR', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+  timeZone: 'Europe/Paris',
+});
+
+/** `2026-10-06T10:00:00Z` → `06/10/2026 12:00`, in Paris time. */
+export function formatDateTime(isoDateTime: string): string {
+  return parisDateTime.format(new Date(isoDateTime));
+}
+
 /** `12/05/1980` (also `12.05.1980`, `12 5 1980`) → `1980-05-12`; `null` if it is not a real date. */
 export function parseFrenchDate(text: string): string | null {
   const match = /^(\d{1,2})\D+(\d{1,2})\D+(\d{4})$/.exec(text.trim());
