@@ -48,7 +48,10 @@ export interface RegistrationRepository {
   /** Every row, cancelled ones included, counted per competition, status and payment status. */
   countAll(): Promise<RegistrationCount[]>;
   activeDepartures(competitionId: string, archerLicenceNumber: string): Promise<number[]>;
-  /** Adds one registration per départ, with the archer's payment reference for this competition (new if none yet). */
+  /**
+   * Adds one registration per départ, with the archer's payment reference for this competition (new if none yet). Its
+   * covoiturage answer is set on every active départ of the archer for this competition: the latest answer wins.
+   */
   add(registration: NewRegistration): Promise<AddRegistrationsResult>;
   activeRegistrants(competitionId: string): Promise<Registrant[]>;
   forArcher(archerLicenceNumber: string): Promise<Registration[]>;

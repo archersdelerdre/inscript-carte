@@ -116,6 +116,14 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
             payment_reference: paymentReference,
           })),
         );
+        // Covoiturage is the archer's answer for the whole competition: the latest request wins on every active départ.
+        await transaction('registrations')
+          .modify(ACTIVE)
+          .where({
+            competition_ffta_id: registration.competitionId,
+            archer_licence_number: registration.archerLicenceNumber,
+          })
+          .update({ carpool: registration.carpool, updated_at: transaction.fn.now() });
         return { ok: true, paymentReference } as const;
       });
     } catch (error) {

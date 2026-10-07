@@ -299,36 +299,41 @@ describe('registration', () => {
     });
   });
 
-  test('an archer interested in carpooling shows it to the other members, for the whole competition', async () => {
+  test('covoiturage is one answer per archer and competition: the latest request sets it on every départ', async () => {
     const adult = await signIn(ADULT);
-    await call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie: adult, body: form() });
-    // A later request for another départ, with another bow, says yes.
-    await call(`/api/competitions/${SALLE}/registrations`, {
-      method: 'POST',
-      cookie: adult,
-      body: form({ departures: [2], bowType: 'poulies', carpool: true }),
-    });
+    const register = (body: unknown) =>
+      call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie: adult, body });
+    const registrants = async () => {
+      const response = await call(`/api/competitions/${SALLE}/registrations`, { cookie: await signIn(YOUTH) });
+      return ((await response.json()) as ListCompetitionRegistrantsResponse).registrants;
+    };
+    const mine = async () => {
+      const response = await call('/api/me/registrations', { cookie: adult });
+      const { registrations } = (await response.json()) as ListMyRegistrationsResponse;
+      return registrations.map(({ departure, carpool }) => [departure, carpool]);
+    };
 
-    const response = await call(`/api/competitions/${SALLE}/registrations`, { cookie: await signIn(YOUTH) });
-    expect(((await response.json()) as ListCompetitionRegistrantsResponse).registrants).toEqual([
+    await register(form());
+    // A later request for another départ, with another bow, says yes: départ 1 says yes too.
+    await register(form({ departures: [2], bowType: 'poulies', carpool: true }));
+    expect(await registrants()).toEqual([
       { fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1], carpool: true },
       { fullName: 'DUPONT JEANNE', bowType: 'poulies', departures: [2], carpool: true },
     ]);
-    const invalid = await call(`/api/competitions/${SALLE}/registrations`, {
-      method: 'POST',
-      cookie: adult,
-      body: form({ departures: [3], carpool: 'oui' }),
-    });
-    expect(invalid.status).toBe(400);
-
-    // "Mon suivi" gets it per départ; the page shows the chip once per competition.
-    const mine = (
-      (await (await call('/api/me/registrations', { cookie: adult })).json()) as ListMyRegistrationsResponse
-    ).registrations;
-    expect(mine.map(({ departure, carpool }) => [departure, carpool])).toEqual([
-      [1, false],
+    expect(await mine()).toEqual([
+      [1, true],
       [2, true],
     ]);
+
+    // Unticked on a third départ: no more covoiturage on any of them.
+    await register(form({ departures: [3], carpool: false }));
+    expect(await mine()).toEqual([
+      [1, false],
+      [2, false],
+      [3, false],
+    ]);
+
+    expect((await register(form({ departures: [4], carpool: 'oui' }))).status).toBe(400);
   });
 
   test('each départ can have its own bow', async () => {
