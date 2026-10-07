@@ -28,25 +28,30 @@ function sectionFromPath(pathname: string): Section {
   return pathname.startsWith(SECTIONS.members.path) ? 'members' : 'registrations';
 }
 
-/** The club secretary's pages, under `/admin`. */
+/** `/admin/inscriptions/26492` → `26492`: the competition open on the registrations page. */
+function competitionFromPath(pathname: string): string | null {
+  const match = /^\/admin\/inscriptions\/([^/]+)/.exec(pathname);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+/** The club secretary's pages, under `/admin`. The address says which page and which competition are open. */
 export function AdminApp() {
   /** `undefined` while the first check runs. */
   const [admin, setAdmin] = useState<Admin | null | undefined>(undefined);
-  const [section, setSection] = useState<Section>(() => sectionFromPath(location.pathname));
+  const [pathname, setPathname] = useState(normalizedPathname);
   const [expired, setExpired] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   /** Signed in, with their own password: the panel is open. */
   const ready = admin && !admin.mustChangePassword;
+  const section = sectionFromPath(pathname);
+  const competitionId = section === 'registrations' ? competitionFromPath(pathname) : null;
 
   useEffect(() => {
     void api<AdminSessionResponse>(API_ROUTES.adminSession).then((result) =>
       setAdmin(result.ok ? result.data.admin : null),
     );
-    // `/admin` alone becomes the address of the page it shows.
-    const { path } = SECTIONS[sectionFromPath(location.pathname)];
-    if (location.pathname !== path) history.replaceState(null, '', path);
-    // The browser's back and forward buttons switch sections.
-    const onPopState = () => setSection(sectionFromPath(location.pathname));
+    // The browser's back and forward buttons change the page, or the competition shown.
+    const onPopState = () => setPathname(location.pathname);
     addEventListener('popstate', onPopState);
     return () => removeEventListener('popstate', onPopState);
   }, []);
@@ -55,11 +60,17 @@ export function AdminApp() {
     document.title = `${SECTIONS[section].title} – Administration du club`;
   }, [section]);
 
-  function navigate(target: Section) {
-    if (target === section) return;
-    history.pushState(null, '', SECTIONS[target].path);
-    setSection(target);
-  }
+  // Stable identity: the competitions page passes it down to its list.
+  const navigate = useCallback((path: string) => {
+    if (path === location.pathname) return;
+    history.pushState(null, '', path);
+    setPathname(path);
+  }, []);
+  const selectCompetition = useCallback(
+    (id: string | null) =>
+      navigate(id === null ? SECTIONS.registrations.path : `${SECTIONS.registrations.path}/${encodeURIComponent(id)}`),
+    [navigate],
+  );
 
   // Stable identity: screens use it in their effects.
   const sessionExpired = useCallback(() => {
@@ -126,7 +137,9 @@ export function AdminApp() {
           />
         </div>
       )}
-      {ready && section === 'registrations' && <AdminCompetitions onSessionExpired={sessionExpired} />}
+      {ready && section === 'registrations' && (
+        <AdminCompetitions selectedId={competitionId} onSelect={selectCompetition} onSessionExpired={sessionExpired} />
+      )}
       {ready && section === 'members' && (
         <div className='min-h-0 flex-1 overflow-y-auto'>
           <MembersPage currentLicenceNumber={admin.licenceNumber} onSessionExpired={sessionExpired} />
@@ -139,7 +152,7 @@ export function AdminApp() {
   );
 }
 
-type SectionLinkProps = { section: Section; active: boolean; onNavigate: (section: Section) => void };
+type SectionLinkProps = { section: Section; active: boolean; onNavigate: (path: string) => void };
 
 /** A real link: a plain click changes the page without reloading, Ctrl/Cmd/middle click opens a new tab. */
 function SectionLink({ section, active, onNavigate }: SectionLinkProps) {
@@ -151,13 +164,21 @@ function SectionLink({ section, active, onNavigate }: SectionLinkProps) {
         onClick={(event) => {
           if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
           event.preventDefault();
-          onNavigate(section);
+          onNavigate(SECTIONS[section].path);
         }}
       >
         {SECTIONS[section].title}
       </a>
     </Button>
   );
+}
+
+/** `/admin` alone (or an unknown admin path) becomes the address of the page it shows. Runs once, at start. */
+function normalizedPathname(): string {
+  const current = location.pathname;
+  const known = current.startsWith(SECTIONS.registrations.path) || current.startsWith(SECTIONS.members.path);
+  if (!known) history.replaceState(null, '', SECTIONS.registrations.path);
+  return known ? current : SECTIONS.registrations.path;
 }
 
 /** Step 1: the member sign-in (licence + birth date). Step 2: the admin's personal password. */

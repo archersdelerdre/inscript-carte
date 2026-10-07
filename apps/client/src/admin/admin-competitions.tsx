@@ -12,13 +12,18 @@ import { ERROR_MESSAGES } from '@/registrations/messages';
 
 import { CompetitionRegistrations } from './competition-registrations';
 
-type Props = { onSessionExpired: () => void };
+type Props = {
+  /** From the address: `/admin/inscriptions/<id>`. `null` on the list alone. */
+  selectedId: string | null;
+  /** Changes the address; `null` goes back to the list. */
+  onSelect: (competitionId: string | null) => void;
+  onSessionExpired: () => void;
+};
 
 /** Competitions with club registrations on the left, the selected one on the right (one or the other on phones). */
-export function AdminCompetitions({ onSessionExpired }: Props) {
+export function AdminCompetitions({ selectedId, onSelect, onSessionExpired }: Props) {
   const [competitions, setCompetitions] = useState<AdminCompetitionDto[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const showResult = useCallback(
     (result: ApiResult<ListAdminCompetitionsResponse>) => {
@@ -58,7 +63,7 @@ export function AdminCompetitions({ onSessionExpired }: Props) {
             title={`${upcoming.length} concours à venir`}
             competitions={upcoming}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={onSelect}
           />
         )}
         {finished.length > 0 && (
@@ -66,7 +71,7 @@ export function AdminCompetitions({ onSessionExpired }: Props) {
             title='Concours terminés'
             competitions={finished}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={onSelect}
           />
         )}
       </aside>
@@ -76,7 +81,7 @@ export function AdminCompetitions({ onSessionExpired }: Props) {
           <p className='text-muted-foreground p-6'>Choisissez un concours dans la liste.</p>
         ) : (
           <>
-            <Button variant='ghost' className='m-2 md:hidden' onClick={() => setSelectedId(null)}>
+            <Button variant='ghost' className='m-2 md:hidden' onClick={() => onSelect(null)}>
               <ArrowLeftIcon />
               Retour à la liste
             </Button>
