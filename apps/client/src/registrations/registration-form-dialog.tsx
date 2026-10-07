@@ -87,11 +87,10 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
   useEffect(() => {
     void api<ListMyRegistrationsResponse>(API_ROUTES.myRegistrations).then((result) => {
       if (!result.ok) return;
+      // "Mon suivi" only lists active départs.
       setTaken(
         result.data.registrations
-          .filter(
-            (registration) => registration.competitionId === competition.id && registration.status !== 'cancelled',
-          )
+          .filter((registration) => registration.competitionId === competition.id)
           .map((registration) => registration.departure),
       );
     });

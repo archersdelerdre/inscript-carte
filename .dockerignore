@@ -18,6 +18,11 @@
 !apps/client/tsconfig*.json
 !apps/client/src
 
+# Only to read the commit being built (shown at startup): the current branch and commit hashes, no history.
+!.git/HEAD
+!.git/refs/heads
+!.git/packed-refs
+
 # Excluded again inside the allowed folders.
 **/*.test.ts
 **/*.sqlite

@@ -12,6 +12,22 @@ COPY packages/shared packages/shared
 COPY apps/client apps/client
 RUN bun run --cwd apps/client build
 
+# The commit being built, shown at startup (no git in the image). Read from `.git` when the build receives it,
+# or given with `--build-arg GIT_COMMIT=...` (some build methods do not send `.git`).
+FROM oven/bun:1.4.2-slim AS version
+ARG GIT_COMMIT
+# `package.json` keeps the copy valid when `.git` is missing; `.git*` copies the content of `.git` into /git/.
+COPY package.json .git* /git/
+RUN cd /git \
+  && if [ -n "$GIT_COMMIT" ]; then commit="$GIT_COMMIT"; \
+  elif [ -f HEAD ]; then \
+    ref=$(sed -n 's/^ref: //p' HEAD); \
+    if [ -z "$ref" ]; then commit=$(cat HEAD); \
+    elif [ -f "$ref" ]; then commit=$(cat "$ref"); \
+    else commit=$(grep " $ref\$" packed-refs 2>/dev/null | cut -d' ' -f1); fi; \
+  fi \
+  && echo "${commit:-unknown}" | cut -c1-7 > /VERSION
+
 FROM oven/bun:1.4.2-slim
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -31,6 +47,7 @@ RUN bun install --frozen-lockfile --ignore-scripts --production --filter @inscri
 COPY packages/shared/src packages/shared/src
 COPY apps/server/src apps/server/src
 COPY --from=client /app/apps/client/dist apps/client/dist
+COPY --from=version /VERSION ./VERSION
 
 # The database holds personal data: keep it in a volume, outside the image.
 RUN mkdir /data && chown bun:bun /data

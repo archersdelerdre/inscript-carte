@@ -117,7 +117,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                       <StatusBadge status={registration.status} />
                       <span className='text-muted-foreground text-sm'>{BOW_TYPE_LABELS[registration.bowType]}</span>
                     </div>
-                    {registration.status !== 'cancelled' && registration.paymentStatus === 'to_pay' && (
+                    {registration.paymentStatus === 'to_pay' && (
                       <p className='text-sm'>
                         À payer avant le {formatDay(registration.clubRegistrationDeadline)}
                         {registration.paymentMethod && `, ${PAYMENT_METHOD_PHRASES[registration.paymentMethod]}`},

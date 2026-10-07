@@ -13,7 +13,8 @@
     "test": "turbo run test",
     "lint": "oxlint",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "deploy": "docker build --platform=linux/amd64 -t registry.jonas.bzh/inscript-carte:latest . && docker push registry.jonas.bzh/inscript-carte:latest"
   },
   "devDependencies": {
     "oxfmt": "^0.72.0",

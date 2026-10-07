@@ -118,8 +118,11 @@ export class ClubRegistrations {
       .toSorted((a, b) => a.fullName.localeCompare(b.fullName, 'fr'));
   }
 
+  /** "Mon suivi": cancelled rows stay in the database for the club, but the archer no longer sees them. */
   async mine(archer: Archer): Promise<MyRegistration[]> {
-    const registrations = await this.#registrations.forArcher(archer.licenceNumber);
+    const registrations = (await this.#registrations.forArcher(archer.licenceNumber)).filter(
+      (registration) => registration.status !== 'cancelled',
+    );
     const competitions = new Map<string, Competition>();
     for (const id of new Set(registrations.map((registration) => registration.competitionId))) {
       const competition = await this.#competitions.findById(id);

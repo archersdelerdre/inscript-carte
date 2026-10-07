@@ -49,6 +49,9 @@ Migrations run **when the server starts** (`main.ts`), before it accepts request
 - Bun runs the TypeScript sources directly (no server bundle). `bun install --ignore-scripts`: better-sqlite3 loads
   its binary from `prebuilds/`, and its automatic rebuild would need Python and a C++ compiler.
 - `.dockerignore` is an **allow list**: a new file reaches the build only if it is listed there.
+- The server prints `Version: <commit>` at startup (`infrastructure/app-version.ts`). The Docker build writes it to
+  `/app/VERSION`, read from `.git/HEAD` and refs (allowed in `.dockerignore`, no history), else from
+  `--build-arg GIT_COMMIT=...`, else `unknown`. In development it asks git and adds "+ uncommitted changes".
 - Behind HTTPS, the reverse proxy must send `X-Forwarded-Proto: https` so the session cookie gets `Secure`.
 
 ## Server: clean architecture
@@ -92,7 +95,8 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
   choice; the link « Un arc différent selon le départ ? » (only with 2+ départs) shows one bow menu per départ.
   One row per départ; one payment reference per request (`R-0001`, club-wide counter). Taken départs are refused.
 - Open until the club deadline **included**. Withdraw only while `received`/`awaiting_payment` and before the deadline:
-  the row stays, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`.
+  the row stays in the database, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`, but it
+  disappears from "Mon suivi" (`GET /api/me/registrations` only returns rows that are not cancelled).
 - Names of registrants are for signed-in members only; the count is public.
 
 ## Database (SQLite, Knex)
@@ -173,6 +177,10 @@ Material Design baseline, do not exaggerate:
 
 - Do not overwrite or delete the SQLite file (or its `-wal`/`-shm`) while the server runs: it keeps serving old data.
   Stop the server first.
+- To move the database elsewhere (a server, a Docker volume), never copy `inscript-carte.sqlite` alone: recent writes
+  may still be in its `-wal` file (the member import was lost that way). Make one self-contained copy with
+  `sqlite3 apps/server/data/inscript-carte.sqlite "VACUUM INTO 'export.sqlite'"`, stop the target server, delete its
+  `.sqlite`, `-wal` and `-shm`, then copy the export in, owned by `bun`.
 - `@radix-ui/react-select` 2.3.8 drops `className`/`style` on `Select.Value`: style it from the trigger with
   `*:data-[slot=select-value]:…`.
 - react-leaflet calls `popup.update()` when a popup's children change, and moves a marker when its `position` array

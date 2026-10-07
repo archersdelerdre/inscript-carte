@@ -295,7 +295,7 @@ async function registerAndList(cookie: string) {
 }
 
 describe('withdrawal', () => {
-  test('a member withdraws one départ before the deadline; it stays in the list, cancelled, and leaves the counter', async () => {
+  test('a withdrawn départ leaves "Mon suivi" and the counter, but stays in the database, cancelled', async () => {
     const cookie = await signIn(ADULT);
     const [first] = await registerAndList(cookie);
     expect(first).toMatchObject({
@@ -310,11 +310,9 @@ describe('withdrawal', () => {
 
     const after = ((await (await call('/api/me/registrations', { cookie })).json()) as ListMyRegistrationsResponse)
       .registrations;
-    expect(after[0]).toMatchObject({
-      status: 'cancelled',
-      clubNote: "Retirée par l'archer le 06/10/2026",
-      canWithdraw: false,
-    });
+    expect(after.map(({ departure }) => departure)).toEqual([2]);
+    const kept = await database('registrations').where({ id: first!.id }).first();
+    expect(kept).toMatchObject({ status: 'cancelled', club_note: "Retirée par l'archer le 06/10/2026" });
     const list = (await (await call('/api/competitions')).json()) as { competitions: CompetitionDto[] };
     expect(list.competitions.find((competition) => competition.id === SALLE)?.clubRegistrationCount).toBe(1);
   });

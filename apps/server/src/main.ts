@@ -1,4 +1,5 @@
 import { createApp } from './app.ts';
+import { appVersion } from './infrastructure/app-version.ts';
 import { config } from './infrastructure/config.ts';
 import { createDatabase } from './infrastructure/database/connection.ts';
 import { SystemClock } from './infrastructure/system-clock.ts';
@@ -20,3 +21,4 @@ const server = Bun.serve({
 });
 
 console.log(`Server listening on ${server.url}`);
+console.log(`Version: ${await appVersion()}`);
