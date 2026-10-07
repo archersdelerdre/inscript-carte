@@ -384,9 +384,13 @@ function ReferenceCard({
   const paymentMethods = [
     ...new Set(group.rows.flatMap((row) => (row.paymentMethod ? [PAYMENT_METHOD_LABELS[row.paymentMethod]] : []))),
   ];
-  // An archer who paid everything needs nothing more: their card starts closed. It does not close by itself when the
-  // last départ gets paid, so the admin keeps seeing what they just did.
-  const [open, setOpen] = useState(!allPaid);
+  // Nothing left to do for this archer: every départ is paid and answered by the organizer (Validée or Plus de place),
+  // cancelled ones aside. Their card starts closed. It does not close by itself after a change, so the admin keeps
+  // seeing what they just did.
+  const finished = group.activeRows.every(
+    (row) => row.paymentStatus === 'paid' && (row.status === 'confirmed' || row.status === 'full'),
+  );
+  const [open, setOpen] = useState(!finished);
   const expanded = open || forceOpen;
   const departureCount = group.activeRows.length;
 
