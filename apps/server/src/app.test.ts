@@ -318,6 +318,15 @@ describe('registration', () => {
       body: form({ departures: [3], carpool: 'oui' }),
     });
     expect(invalid.status).toBe(400);
+
+    // "Mon suivi" gets it per départ; the page shows the chip once per competition.
+    const mine = (
+      (await (await call('/api/me/registrations', { cookie: adult })).json()) as ListMyRegistrationsResponse
+    ).registrations;
+    expect(mine.map(({ departure, carpool }) => [departure, carpool])).toEqual([
+      [1, false],
+      [2, true],
+    ]);
   });
 
   test('each départ can have its own bow', async () => {

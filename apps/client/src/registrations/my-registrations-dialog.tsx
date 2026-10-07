@@ -6,6 +6,7 @@ import {
   type MyRegistrationDto,
   type SignedInArcher,
 } from '@inscript-carte/shared';
+import { CarIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useSession } from '@/auth/session';
@@ -19,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { api, type ApiResult } from '@/lib/api';
@@ -103,12 +105,22 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
           const [first] = rows as [MyRegistrationDto, ...MyRegistrationDto[]];
           return (
             <section key={first.competitionId} className='grid gap-2 rounded-lg border p-3'>
-              <h3 className='leading-snug font-semibold'>
-                {first.competitionTitle}{' '}
-                <span className='text-muted-foreground font-normal'>
-                  · {formatDateRange(first.startDate, first.endDate)}
-                </span>
-              </h3>
+              {/* The chip goes after the title, or at the start of the next line when it does not fit. */}
+              <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+                <h3 className='leading-snug font-semibold'>
+                  {first.competitionTitle}{' '}
+                  <span className='text-muted-foreground font-normal'>
+                    · {formatDateRange(first.startDate, first.endDate)}
+                  </span>
+                </h3>
+                {/* Same rule as "Voir les inscrits": one départ with it is enough. */}
+                {rows.some((row) => row.carpool) && (
+                  <Badge className='bg-sky-100 font-normal text-sky-900'>
+                    <CarIcon />
+                    Covoiturage
+                  </Badge>
+                )}
+              </div>
               <ul className='grid gap-3'>
                 {rows.map((registration) => (
                   <li key={registration.id} className='grid gap-1'>

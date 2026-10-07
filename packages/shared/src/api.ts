@@ -165,6 +165,8 @@ export type MyRegistrationDto = {
   clubRegistrationDeadline: string;
   clubNote: string | null;
   canWithdraw: boolean;
+  /** Interested in carpooling from the club. */
+  carpool: boolean;
 };
 
 export type ListMyRegistrationsResponse = {
