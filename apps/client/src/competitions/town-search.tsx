@@ -71,8 +71,8 @@ export function TownSearch({ value, placeholder, towns, onType, onPick, onClear 
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const suggestions = bestMatches(value, towns);
-  // Nothing to suggest once the text is exactly a town.
-  const shown = open && suggestions.length > 0 && !(suggestions.length === 1 && suggestions[0]?.name === value);
+  // Stays open even when the text is exactly a town: it closes when a town is picked, on Escape or on blur.
+  const shown = open && suggestions.length > 0;
 
   function pick(town: TownSuggestion) {
     onPick(town.name);
