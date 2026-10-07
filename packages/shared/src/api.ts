@@ -81,8 +81,8 @@ export type CompetitionDto = {
   /** `null` when the town could not be located. */
   position: GeoPosition | null;
   mandateUrl: string | null;
-  /** Club members registered (not cancelled). Public: only names are protected. */
-  clubRegistrationCount: number;
+  /** Club archers registered (on at least one départ not cancelled), each counted once. Public: names are protected. */
+  clubArcherCount: number;
 };
 
 export type ListCompetitionsResponse = {

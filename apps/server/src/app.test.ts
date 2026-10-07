@@ -8,6 +8,7 @@ import type {
   ListAdminCompetitionsResponse,
   ListAdminMembersResponse,
   ListCompetitionRegistrantsResponse,
+  ListCompetitionsResponse,
   ListMyRegistrationsResponse,
   MemberExportErrorResponse,
   MemberImportResponse,
@@ -191,8 +192,9 @@ describe('registration', () => {
       paymentReference: 'R-0002',
     });
 
+    // Two archers, three départs: the public counter counts archers.
     const list = (await (await call('/api/competitions')).json()) as { competitions: CompetitionDto[] };
-    expect(list.competitions.find((competition) => competition.id === SALLE)?.clubRegistrationCount).toBe(3);
+    expect(list.competitions.find((competition) => competition.id === SALLE)?.clubArcherCount).toBe(2);
   });
 
   test('a later request on the same competition keeps the reference, even after a withdrawal', async () => {
@@ -368,7 +370,7 @@ async function registerAndList(cookie: string) {
 }
 
 describe('withdrawal', () => {
-  test('a withdrawn départ leaves "Mon suivi" and the counter, but stays in the database, cancelled', async () => {
+  test('a withdrawn départ leaves "Mon suivi" but stays in the database, cancelled', async () => {
     const cookie = await signIn(ADULT);
     const [first] = await registerAndList(cookie);
     expect(first).toMatchObject({
@@ -386,8 +388,15 @@ describe('withdrawal', () => {
     expect(after.map(({ departure }) => departure)).toEqual([2]);
     const kept = await database('registrations').where({ id: first!.id }).first();
     expect(kept).toMatchObject({ status: 'cancelled', club_note: "Retirée par l'archer le 06/10/2026" });
-    const list = (await (await call('/api/competitions')).json()) as { competitions: CompetitionDto[] };
-    expect(list.competitions.find((competition) => competition.id === SALLE)?.clubRegistrationCount).toBe(1);
+    // Still registered on départ 2: still counted, once.
+    const counter = async () => {
+      const list = (await (await call('/api/competitions')).json()) as ListCompetitionsResponse;
+      return list.competitions.find((competition) => competition.id === SALLE)?.clubArcherCount;
+    };
+    expect(await counter()).toBe(1);
+    const [second] = after;
+    await call(`/api/me/registrations/${second!.id}`, { method: 'DELETE', cookie });
+    expect(await counter()).toBe(0);
   });
 
   test('is refused after the deadline, once the club has sent it, and for someone else', async () => {

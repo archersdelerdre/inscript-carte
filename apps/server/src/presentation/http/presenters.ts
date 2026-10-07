@@ -15,7 +15,7 @@ import { birthYear, type Archer } from '../../domain/archer.ts';
 import { clubRegistrationDeadline } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 
-export function toCompetitionDto({ competition, clubRegistrationCount }: UpcomingCompetition): CompetitionDto {
+export function toCompetitionDto({ competition, clubArcherCount }: UpcomingCompetition): CompetitionDto {
   return {
     id: competition.id,
     title: competition.title,
@@ -30,7 +30,7 @@ export function toCompetitionDto({ competition, clubRegistrationCount }: Upcomin
     departmentCode: competition.departmentCode,
     position: competition.position,
     mandateUrl: competition.mandateUrl,
-    clubRegistrationCount,
+    clubArcherCount,
   };
 }
 

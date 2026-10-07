@@ -43,8 +43,8 @@ export type RegistrationChange = {
 };
 
 export interface RegistrationRepository {
-  /** Active (not cancelled) registrations per competition id. */
-  countActiveByCompetition(): Promise<Map<string, number>>;
+  /** Archers with at least one active (not cancelled) départ, per competition id. */
+  countActiveArchersByCompetition(): Promise<Map<string, number>>;
   /** Every row, cancelled ones included, counted per competition, status and payment status. */
   countAll(): Promise<RegistrationCount[]>;
   activeDepartures(competitionId: string, archerLicenceNumber: string): Promise<number[]>;

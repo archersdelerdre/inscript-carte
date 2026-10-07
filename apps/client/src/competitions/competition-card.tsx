@@ -116,13 +116,14 @@ function Deadline({ competition }: { competition: CompetitionDto }) {
 }
 
 function RegistrationCount({ competition }: { competition: CompetitionDto }) {
-  const count = competition.clubRegistrationCount;
+  // One archer on several départs counts once.
+  const count = competition.clubArcherCount;
   return (
     <p className='flex items-center gap-2 text-sm'>
       <UsersIcon className='text-muted-foreground size-[1.125rem] shrink-0' />
       {count === 0
-        ? 'Aucune inscription du club pour le moment'
-        : `${count} inscription${count > 1 ? 's' : ''} du club`}
+        ? 'Aucun archer du club inscrit pour le moment'
+        : `${count} ${count > 1 ? 'archers inscrits' : 'archer inscrit'}`}
     </p>
   );
 }

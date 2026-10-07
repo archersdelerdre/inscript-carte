@@ -5,7 +5,8 @@ import type { Clock } from './ports/clock.ts';
 
 export type UpcomingCompetition = {
   competition: Competition;
-  clubRegistrationCount: number;
+  /** Club archers registered on at least one départ: one archer on two départs counts once. */
+  clubArcherCount: number;
 };
 
 export class ListUpcomingCompetitions {
@@ -23,11 +24,11 @@ export class ListUpcomingCompetitions {
     const today = this.#clock.today();
     const [all, counts] = await Promise.all([
       this.#competitions.findAll(),
-      this.#registrations.countActiveByCompetition(),
+      this.#registrations.countActiveArchersByCompetition(),
     ]);
     return all
       .filter((competition) => competition.status !== 'cancelled' && !isFinished(competition, today))
       .toSorted((a, b) => a.startDate.localeCompare(b.startDate))
-      .map((competition) => ({ competition, clubRegistrationCount: counts.get(competition.id) ?? 0 }));
+      .map((competition) => ({ competition, clubArcherCount: counts.get(competition.id) ?? 0 }));
   }
 }

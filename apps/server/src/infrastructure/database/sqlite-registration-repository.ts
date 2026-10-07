@@ -50,12 +50,12 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
     this.#database = database;
   }
 
-  async countActiveByCompetition(): Promise<Map<string, number>> {
+  async countActiveArchersByCompetition(): Promise<Map<string, number>> {
     const rows: { competition_ffta_id: string; count: number }[] = await this.#database('registrations')
       .modify(ACTIVE)
       .groupBy('competition_ffta_id')
       .select('competition_ffta_id')
-      .count({ count: '*' });
+      .countDistinct({ count: 'archer_licence_number' });
     return new Map(rows.map((row) => [row.competition_ffta_id, Number(row.count)]));
   }
 

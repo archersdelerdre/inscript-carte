@@ -38,13 +38,13 @@ test('keeps competitions not finished nor cancelled, sorted by start date, with 
   const useCase = new ListUpcomingCompetitions(
     { findAll: async () => all, findById: async () => null },
     // Only the method this use case calls.
-    { countActiveByCompetition: async () => new Map([['soon', 2]]) } as unknown as RegistrationRepository,
+    { countActiveArchersByCompetition: async () => new Map([['soon', 2]]) } as unknown as RegistrationRepository,
     { today: () => '2026-10-06', now: () => new Date('2026-10-06T10:00:00Z') },
   );
 
   const upcoming = await useCase.execute();
 
-  expect(upcoming.map(({ competition: { id }, clubRegistrationCount }) => [id, clubRegistrationCount])).toEqual([
+  expect(upcoming.map(({ competition: { id }, clubArcherCount }) => [id, clubArcherCount])).toEqual([
     ['ends-today', 0],
     ['soon', 2],
     ['postponed', 0],
