@@ -180,7 +180,8 @@ export type AdminSessionResponse = {
 };
 
 export type ChangeAdminPasswordRequest = {
-  currentPassword: string;
+  /** Required, except at the first sign-in with a generated password (`mustChangePassword`). */
+  currentPassword: string | null;
   newPassword: string;
 };
 

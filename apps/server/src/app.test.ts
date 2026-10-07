@@ -886,18 +886,24 @@ describe('member actions', () => {
     expect(blocked.status).toBe(403);
     expect(await blocked.json()).toEqual({ error: 'password_change_required' });
 
+    // The generated password was typed moments ago: the first change only asks for the new one.
     const change = (body: unknown) => call('/api/admin/session/password', { method: 'PUT', cookie: youth, body });
-    expect((await change({ currentPassword: 'wrong-password', newPassword: 'mon-nouveau-mdp' })).status).toBe(401);
-    expect(await (await change({ currentPassword: password, newPassword: 'court' })).json()).toEqual({
+    expect(await (await change({ currentPassword: null, newPassword: 'court' })).json()).toEqual({
       error: 'password_too_short',
     });
-    expect((await change({ currentPassword: password, newPassword: password })).status).toBe(400);
-    expect((await change({ currentPassword: password, newPassword: 'mon-nouveau-mdp' })).status).toBe(204);
+    expect((await change({ currentPassword: null, newPassword: password })).status).toBe(400);
+    expect((await change({ currentPassword: null, newPassword: 'mon-nouveau-mdp' })).status).toBe(204);
 
     expect((await call('/api/admin/competitions', { cookie: youth })).status).toBe(200);
     const again = await adminCookieOf(YOUTH, 'mon-nouveau-mdp');
     const after = (await (await call('/api/admin/session', { cookie: again })).json()) as AdminSessionResponse;
     expect(after.admin.mustChangePassword).toBe(false);
+
+    // Later changes ask for the current password again.
+    const later = (body: unknown) => call('/api/admin/session/password', { method: 'PUT', cookie: again, body });
+    expect((await later({ currentPassword: null, newPassword: 'encore-un-autre' })).status).toBe(401);
+    expect((await later({ currentPassword: 'wrong-password', newPassword: 'encore-un-autre' })).status).toBe(401);
+    expect((await later({ currentPassword: 'mon-nouveau-mdp', newPassword: 'encore-un-autre' })).status).toBe(204);
   });
 
   test('admin rights are given only to active members who are not admins yet', async () => {

@@ -89,7 +89,7 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 | `GET/POST /api/competitions/:competitionId/registrations` | members only: who is registered / register |
 | `GET /api/me/registrations`, `DELETE /api/me/registrations/:registrationId` | "Mon suivi" / withdraw a départ |
 | `GET/POST/DELETE /api/admin/session` | admin: current admin (+ `mustChangePassword`) / password step (needs the member session) / sign out |
-| `PUT /api/admin/session/password` | change own password (current one asked again); the only route open while a change is required |
+| `PUT /api/admin/session/password` | change own password: `currentPassword` required, except (`null`) during the forced first change; the only route open while a change is required |
 | `GET /api/admin/competitions` | competitions with registrations, counts per status and "to pay" |
 | `GET /api/admin/competitions/:competitionId/registrations` | every row, cancelled included, with names and contact |
 | `GET /api/admin/competitions/:competitionId/export` | `.xlsx` for the organizer: Reçue, Transmise, Validée rows, narrowed by `?status=` and `?paymentStatus=` (the panel filters) |
@@ -143,7 +143,9 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - **Becoming an admin**: `db:add-admin` (the person types their own password), or "Nommer admin" on the members page.
   The panel way generates a password (`XXXX-XXXX-XXXX`, no 0/O/1/I/L) shown **once** to the admin who gave the
   rights; the new admin must replace it at first sign-in before anything else works (the user asked for this: the
-  giver never knows the password in use). Nobody can remove their own rights or deactivate themselves.
+  giver never knows the password in use). That forced change only asks for the new password twice (user's request,
+  2026-10-08): the session was opened with the generated one moments ago. The server still refuses keeping it.
+  Nobody can remove their own rights or deactivate themselves.
 - **Statuses**: Reçue → Transmise à l'organisateur → Validée, plus Plus de place and Annulée ("En attente de paiement"
   was dropped on 2026-10-07: payment has its own field). `canChangeStatus`: a cancelled row stays cancelled (the archer
   registers again), every other change is allowed. Going back to "Reçue" was allowed on 2026-10-07 to fix mistakes:

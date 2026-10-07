@@ -32,40 +32,47 @@ function ChangePasswordForm({ forced, onChanged, onSessionExpired, onCancel }: F
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!currentPassword)
-      return setMessage(`Merci de taper ${forced ? 'le mot de passe reçu' : 'votre mot de passe actuel'}.`);
+    // At the first sign-in the generated password was just typed: it is not asked again.
+    if (!forced && !currentPassword) return setMessage('Merci de taper votre mot de passe actuel.');
     if (newPassword.length < MIN_ADMIN_PASSWORD_LENGTH) return setMessage(ERROR_MESSAGES.password_too_short);
     if (newPassword !== confirmation) return setMessage('Les deux nouveaux mots de passe ne sont pas identiques.');
-    if (newPassword === currentPassword) return setMessage('Le nouveau mot de passe doit être différent de l’ancien.');
+    if (!forced && newPassword === currentPassword) {
+      return setMessage('Le nouveau mot de passe doit être différent de l’ancien.');
+    }
 
     setSending(true);
     const result = await api(API_ROUTES.adminPassword, {
       method: 'PUT',
-      body: { currentPassword, newPassword } satisfies ChangeAdminPasswordRequest,
+      body: { currentPassword: forced ? null : currentPassword, newPassword } satisfies ChangeAdminPasswordRequest,
     });
     setSending(false);
     if (result.ok) return onChanged();
     if (result.error === 'admin_sign_in_required') return onSessionExpired();
-    setMessage(
-      result.error === 'invalid_credentials'
-        ? `${forced ? 'Le mot de passe reçu' : 'Le mot de passe actuel'} est incorrect.`
-        : ERROR_MESSAGES[result.error],
-    );
+    const messages: Partial<Record<typeof result.error, string>> = {
+      invalid_credentials: 'Le mot de passe actuel est incorrect.',
+      // The only other reason: the new password is the old one.
+      invalid_request: forced
+        ? 'Choisissez un mot de passe différent de celui reçu.'
+        : 'Le nouveau mot de passe doit être différent de l’ancien.',
+    };
+    setMessage(messages[result.error] ?? ERROR_MESSAGES[result.error]);
   }
 
   return (
     <form onSubmit={submit} className='grid gap-4' noValidate>
-      <div className='grid gap-2'>
-        <Label htmlFor='current-password'>{forced ? 'Mot de passe reçu' : 'Mot de passe actuel'}</Label>
-        <Input
-          id='current-password'
-          type='password'
-          value={currentPassword}
-          onChange={(event) => setCurrentPassword(event.target.value)}
-          autoComplete='current-password'
-          autoFocus
-        />
-      </div>
+      {!forced && (
+        <div className='grid gap-2'>
+          <Label htmlFor='current-password'>Mot de passe actuel</Label>
+          <Input
+            id='current-password'
+            type='password'
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+            autoComplete='current-password'
+            autoFocus
+          />
+        </div>
+      )}
       <div className='grid gap-2'>
         <Label htmlFor='new-password'>Nouveau mot de passe (au moins {MIN_ADMIN_PASSWORD_LENGTH} caractères)</Label>
         <Input
@@ -74,6 +81,7 @@ function ChangePasswordForm({ forced, onChanged, onSessionExpired, onCancel }: F
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
           autoComplete='new-password'
+          autoFocus={forced}
         />
       </div>
       <div className='grid gap-2'>

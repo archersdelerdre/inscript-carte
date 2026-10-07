@@ -114,13 +114,17 @@ export function createAdminRoutes({
       PUT: asAdmin(
         async (request: BunRequest, admin, server) => {
           const body = await readJson(request);
-          if (typeof body?.currentPassword !== 'string' || typeof body.newPassword !== 'string') {
+          const currentPassword = body?.currentPassword ?? null;
+          if (
+            (currentPassword !== null && typeof currentPassword !== 'string') ||
+            typeof body?.newPassword !== 'string'
+          ) {
             return error('invalid_request', 400);
           }
           const clientAddress = server.requestIP(request)?.address ?? 'unknown';
           const result = await adminAuthentication.changePassword(
             admin,
-            body.currentPassword,
+            currentPassword,
             body.newPassword,
             clientAddress,
           );

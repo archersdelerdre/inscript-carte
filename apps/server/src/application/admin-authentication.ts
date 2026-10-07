@@ -80,10 +80,14 @@ export class AdminAuthentication {
     return archer?.isActive && account ? { archer, mustChangePassword: account.mustChangePassword } : null;
   }
 
-  /** The current password is asked again: a session left open on a shared computer is not enough. */
+  /**
+   * A voluntary change asks for the current password again: a session left open on a shared computer is not enough.
+   * The forced change after a generated password does not: that session was opened with it moments ago and can do
+   * nothing else, so `currentPassword` is `null` then.
+   */
   async changePassword(
     admin: Archer,
-    currentPassword: string,
+    currentPassword: string | null,
     newPassword: string,
     clientAddress: string,
   ): Promise<ChangePasswordResult> {
@@ -92,13 +96,15 @@ export class AdminAuthentication {
     if (this.#limiter.isBlocked(keys, now)) return { ok: false, reason: 'too_many_attempts' };
     const account = await this.#admins.find(admin.licenceNumber);
     if (!account) return { ok: false, reason: 'invalid_credentials' };
-    if (!(await this.#hasher.verify(currentPassword, account.passwordHash))) {
-      this.#limiter.recordFailure(keys, now);
-      return { ok: false, reason: 'invalid_credentials' };
+    if (!account.mustChangePassword) {
+      if (currentPassword === null || !(await this.#hasher.verify(currentPassword, account.passwordHash))) {
+        this.#limiter.recordFailure(keys, now);
+        return { ok: false, reason: 'invalid_credentials' };
+      }
     }
     if (newPassword.length < MIN_ADMIN_PASSWORD_LENGTH) return { ok: false, reason: 'password_too_short' };
-    // Keeping the generated password would defeat its purpose.
-    if (newPassword === currentPassword) return { ok: false, reason: 'invalid_request' };
+    // Keeping the same password (the generated one, above all) would defeat the change.
+    if (await this.#hasher.verify(newPassword, account.passwordHash)) return { ok: false, reason: 'invalid_request' };
     await this.#admins.save(admin.licenceNumber, {
       passwordHash: await this.#hasher.hash(newPassword),
       mustChangePassword: false,
