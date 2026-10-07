@@ -40,7 +40,7 @@ export class Authentication {
 
     this.#limiter.clear(`licence:${licence}`);
     const expiresAt = new Date(now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
-    const token = await this.#sessions.create(archer.licenceNumber, expiresAt);
+    const token = await this.#sessions.create(archer.licenceNumber, expiresAt, now);
     return { ok: true, archer, token, expiresAt };
   }
 

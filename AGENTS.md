@@ -48,8 +48,8 @@ Migrations run **when the server starts** (`main.ts`), before it accepts request
 - `docker build -t inscript-carte .` then `docker run -p 3998:3998 -v inscript-carte-data:/data inscript-carte`.
   The database is `/data/inscript-carte.sqlite` in the volume (personal data, never in the image). Runs as user `bun`.
 - Imports inside the container: `docker exec <container> bun run --cwd apps/server db:import-archers <file>` (mount
-  the file read-only first), or upload it from the admin page. Admins: `docker exec -it <container> bun run --cwd
-  apps/server db:add-admin <licence>`.
+  the file read-only first), or upload it from the admin page. First admin: `docker exec -it <container> bun run
+  --cwd apps/server db:add-admin <licence>`; the next ones can be named from the members page.
 - Bun runs the TypeScript sources directly (no server bundle). `bun install --ignore-scripts`: better-sqlite3 loads
   its binary from `prebuilds/`, and its automatic rebuild would need Python and a C++ compiler.
 - `.dockerignore` is an **allow list**: a new file reaches the build only if it is listed there.
@@ -68,7 +68,8 @@ Inner layers never import outer ones.
   (shared kernel). The status rule `canChangeStatus` lives in `shared/src/registration.ts` so the client greys out the
   same options.
 - `application/`: `ListUpcomingCompetitions` (drops finished and cancelled, adds the club registration count),
-  `Authentication`, `ClubRegistrations`, `AdminAuthentication`, `AdminAccounts` (command line only),
+  `Authentication`, `ClubRegistrations`, `AdminAuthentication` (sign-in, password change), `AdminAccounts` (admin
+  rights: command line and panel),
   `AdminRegistrations`, `ClubMembers` (import, status, list); ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`,
   `PasswordHasher`. Use cases return result codes (`{ ok: false, reason }`), never throw for business errors.
 - `infrastructure/`: `config.ts` (`PORT`, `DATABASE_PATH` default `data/inscript-carte.sqlite`, `CLIENT_DIST_PATH`),
@@ -86,16 +87,20 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 | `GET/POST/DELETE /api/session` | current archer / sign in (licence + birth date) / sign out |
 | `GET/POST /api/competitions/:competitionId/registrations` | members only: who is registered / register |
 | `GET /api/me/registrations`, `DELETE /api/me/registrations/:registrationId` | "Mon suivi" / withdraw a départ |
-| `GET/POST/DELETE /api/admin/session` | admin: current admin / password step (needs the member session) / sign out |
+| `GET/POST/DELETE /api/admin/session` | admin: current admin (+ `mustChangePassword`) / password step (needs the member session) / sign out |
+| `PUT /api/admin/session/password` | change own password (current one asked again); the only route open while a change is required |
 | `GET /api/admin/competitions` | competitions with registrations, counts per status and "to pay" |
 | `GET /api/admin/competitions/:competitionId/registrations` | every row, cancelled included, with names and contact |
 | `GET /api/admin/competitions/:competitionId/export` | `.xlsx` for the organizer (Reçue, Transmise, Validée rows) |
 | `PATCH /api/admin/registrations/:registrationId` | status, payment status, club note of one départ |
 | `PATCH /api/admin/payment-references/:paymentReference` | status / payment of every non-cancelled row, all or none |
 | `GET /api/admin/members` | every member, those who left included: licence, name, sex, current-season category, active, admin |
+| `PATCH /api/admin/members/:licenceNumber` | `{ isActive }` by hand, never on oneself (the next import sets it from the file again) |
+| `POST/DELETE /api/admin/members/:licenceNumber/admin` | give admin rights (returns the generated password once) / remove them (never one's own) |
 | `GET/POST /api/admin/members/import` | last import + active count / upload the FFTA export (multipart `file`) |
 
-Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without a valid admin session.
+Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without a valid admin session, and
+`403 password_change_required` while the admin still has a generated password.
 
 ## Registration through the club
 
@@ -122,9 +127,14 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 
 - **Sign-in in two steps**: the normal member sign-in, then a **personal password** (the user chose this: a birth
   date can be guessed, and the panel shows every member's contact). Admins are rows of `admins` (FK to `archers`,
-  argon2id hash), created only by `db:add-admin`; the user plans three admins. Max 10 wrong passwords per licence and
-  50 per address in 15 minutes. Admin session: 12 hours, `admin_sessions` table, cookie `admin_session` with
-  `Path=/api/admin`, `HttpOnly`, `SameSite=Strict`. An admin who leaves the club or is removed loses access at once.
+  argon2id hash, `must_change_password` from migration `0005`). Max 10 wrong passwords per licence and 50 per address
+  in 15 minutes (the password change shares this limit). Admin session: 12 hours, `admin_sessions` table, cookie
+  `admin_session` with `Path=/api/admin`, `HttpOnly`, `SameSite=Strict`. An admin who leaves the club or is removed
+  loses access at once.
+- **Becoming an admin**: `db:add-admin` (the person types their own password), or "Nommer admin" on the members page.
+  The panel way generates a password (`XXXX-XXXX-XXXX`, no 0/O/1/I/L) shown **once** to the admin who gave the
+  rights; the new admin must replace it at first sign-in before anything else works (the user asked for this: the
+  giver never knows the password in use). Nobody can remove their own rights or deactivate themselves.
 - **Statuses**: Reçue → Transmise à l'organisateur → Validée, plus Plus de place and Annulée ("En attente de paiement"
   was dropped in `0004`: payment has its own field). `canChangeStatus`: a cancelled row stays cancelled (the archer
   registers again), and nothing goes back to Reçue. Cancelling adds "Annulée par le club le JJ/MM/AAAA" to the note
@@ -132,8 +142,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - The page lists competitions with registrations (upcoming first), then one card per payment reference (= one
   archer's request) with its départs. Reference actions (status of all départs, "Tout marquer payé") only show when
   the reference has 2+ active départs. Filters: status, "À payer seulement".
-- "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter; the upload is
-  in the "Mettre à jour la liste" dialog. The upload is read in memory (`readMemberExport(Buffer)`), never written to disk, max 5 MB. A bad file is
+- "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
+  "⋯" menu per row (Désactiver / Réactiver, Nommer admin / Retirer les droits d'admin, each with a confirmation; the
+  admin's own row shows "Vous"). The actions column is pinned to the right so phones see it. The upload is in the
+  "Mettre à jour la liste" dialog, read in memory (`readMemberExport(Buffer)`), never written to disk, max 5 MB. A bad file is
   refused as a whole with `{ error: 'invalid_member_export', problem, line, detail }` (`MemberExportError`); the
   client turns `problem` into French. Each import is a `member_imports` row (date, admin or `NULL` for the command
   line, counts).
@@ -210,7 +222,6 @@ Material Design baseline, do not exaggerate:
 
 ## Not done yet
 
-- Admin management from the panel (today: `db:add-admin` / `db:remove-admin` only).
 - FFTA scraper. Planned: competitions that cannot be located are stored but not displayed, their **count is shown in
   the admin panel**, and the admin can re-run a Google Maps lookup (results should then live in the DB instead of
   `known-places.ts`).
@@ -235,3 +246,5 @@ Material Design baseline, do not exaggerate:
   opaque hover live there). New components must be brought to the accessibility sizes (inputs, toggles, checkboxes).
 - Toggle buttons are only grey when "on" by default: chosen départs use solid primary + a check icon.
 - Avoid `Map.groupBy` and other 2024+ APIs in the client: members use older tablets.
+- Menu dropdowns are `components/ui/dropdown-menu.tsx`, written by hand in the shadcn style with 40 px items. Radix
+  opens them on `pointerdown`: browser automation must press the mouse, a synthetic `click()` does nothing.

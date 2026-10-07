@@ -79,7 +79,8 @@ test('rollback removes every table', async () => {
 });
 
 test('0004 moves "En attente de paiement" rows to "Reçue", then refuses that status', async () => {
-  await database.migrate.down();
+  await database.migrate.down({ name: '0005-admin-password-change' });
+  await database.migrate.down({ name: '0004-admin-panel' });
   await database('registrations').insert({ ...registration, status: 'awaiting_payment' });
 
   await database.migrate.latest();

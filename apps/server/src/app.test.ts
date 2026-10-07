@@ -4,6 +4,7 @@ import type {
   AdminCompetitionRegistrationsResponse,
   AdminSessionResponse,
   CompetitionDto,
+  GrantAdminResponse,
   ListAdminCompetitionsResponse,
   ListAdminMembersResponse,
   ListCompetitionRegistrantsResponse,
@@ -412,7 +413,7 @@ describe('admin sign-in', () => {
     const cookie = response.headers.get('set-cookie')!.split(';')[0]!;
 
     expect((await (await call('/api/admin/session', { cookie })).json()) as AdminSessionResponse).toEqual({
-      admin: { licenceNumber: ADULT.licenceNumber, fullName: 'DUPONT JEANNE' },
+      admin: { licenceNumber: ADULT.licenceNumber, fullName: 'DUPONT JEANNE', mustChangePassword: false },
     });
     expect((await call('/api/admin/session', { method: 'DELETE', cookie })).status).toBe(204);
     expect((await call('/api/admin/competitions', { cookie })).status).toBe(401);
@@ -476,6 +477,10 @@ describe('admin sign-in', () => {
       ['GET', '/api/admin/members'],
       ['GET', '/api/admin/members/import'],
       ['POST', '/api/admin/members/import'],
+      ['PATCH', `/api/admin/members/${YOUTH.licenceNumber}`],
+      ['POST', `/api/admin/members/${YOUTH.licenceNumber}/admin`],
+      ['DELETE', `/api/admin/members/${YOUTH.licenceNumber}/admin`],
+      ['PUT', '/api/admin/session/password'],
     ] as const;
     for (const cookie of [undefined, await signIn(YOUTH), await signIn(ADULT)]) {
       for (const [method, path] of routes) {
@@ -489,6 +494,7 @@ describe('admin sign-in', () => {
       }
     }
     expect(await database('registrations').pluck('status')).toEqual(['received', 'received', 'received']);
+    expect(await database('admins').pluck('archer_licence_number')).toEqual([ADULT.licenceNumber]);
   });
 });
 
@@ -795,5 +801,88 @@ describe('member list', () => {
     });
     expect(await database('archers').where({ is_active: true }).pluck('licence_number')).toHaveLength(2);
     expect(await database('member_imports').pluck('id')).toEqual([]);
+  });
+});
+
+async function adminCookieOf(member: typeof ADULT, password: string): Promise<string> {
+  const response = await call('/api/admin/session', {
+    method: 'POST',
+    cookie: await signIn(member),
+    body: { password },
+  });
+  expect(response.status).toBe(200);
+  return response.headers.get('set-cookie')!.split(';')[0]!;
+}
+
+describe('member actions', () => {
+  let cookie: string;
+  beforeEach(async () => {
+    await makeAdmin(ADULT);
+    cookie = await adminSignIn();
+  });
+
+  const grant = (licence: string) => call(`/api/admin/members/${licence}/admin`, { method: 'POST', cookie });
+
+  test('a new admin gets a generated password and must replace it before using the panel', async () => {
+    const granted = await grant(YOUTH.licenceNumber);
+    expect(granted.status).toBe(200);
+    const { password } = (await granted.json()) as GrantAdminResponse;
+    expect(password).toMatch(/^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$/);
+
+    const youth = await adminCookieOf(YOUTH, password);
+    const session = (await (await call('/api/admin/session', { cookie: youth })).json()) as AdminSessionResponse;
+    expect(session.admin.mustChangePassword).toBe(true);
+    const blocked = await call('/api/admin/competitions', { cookie: youth });
+    expect(blocked.status).toBe(403);
+    expect(await blocked.json()).toEqual({ error: 'password_change_required' });
+
+    const change = (body: unknown) => call('/api/admin/session/password', { method: 'PUT', cookie: youth, body });
+    expect((await change({ currentPassword: 'wrong-password', newPassword: 'mon-nouveau-mdp' })).status).toBe(401);
+    expect(await (await change({ currentPassword: password, newPassword: 'court' })).json()).toEqual({
+      error: 'password_too_short',
+    });
+    expect((await change({ currentPassword: password, newPassword: password })).status).toBe(400);
+    expect((await change({ currentPassword: password, newPassword: 'mon-nouveau-mdp' })).status).toBe(204);
+
+    expect((await call('/api/admin/competitions', { cookie: youth })).status).toBe(200);
+    const again = await adminCookieOf(YOUTH, 'mon-nouveau-mdp');
+    const after = (await (await call('/api/admin/session', { cookie: again })).json()) as AdminSessionResponse;
+    expect(after.admin.mustChangePassword).toBe(false);
+  });
+
+  test('admin rights are given only to active members who are not admins yet', async () => {
+    expect(await (await grant(ADULT.licenceNumber)).json()).toEqual({ error: 'already_admin' });
+    expect(await (await grant(DEPARTED.licenceNumber)).json()).toEqual({ error: 'member_inactive' });
+    expect((await grant('9999999Z')).status).toBe(404);
+  });
+
+  test("removing admin rights ends that admin's sessions, but nobody can remove their own", async () => {
+    const { password } = (await (await grant(YOUTH.licenceNumber)).json()) as GrantAdminResponse;
+    const youth = await adminCookieOf(YOUTH, password);
+    const revoke = (licence: string) => call(`/api/admin/members/${licence}/admin`, { method: 'DELETE', cookie });
+
+    const self = await revoke(ADULT.licenceNumber);
+    expect(self.status).toBe(409);
+    expect(await self.json()).toEqual({ error: 'cannot_change_self' });
+
+    expect((await revoke(YOUTH.licenceNumber)).status).toBe(204);
+    expect((await call('/api/admin/session', { cookie: youth })).status).toBe(401);
+    expect((await revoke(YOUTH.licenceNumber)).status).toBe(404);
+  });
+
+  test('an admin deactivates or reactivates a member by hand, but not themselves', async () => {
+    const patch = (licence: string, body: unknown) =>
+      call(`/api/admin/members/${licence}`, { method: 'PATCH', cookie, body });
+
+    expect((await patch(YOUTH.licenceNumber, { isActive: false })).status).toBe(204);
+    expect((await call('/api/session', { method: 'POST', body: YOUTH })).status).toBe(401);
+    expect((await patch(YOUTH.licenceNumber, { isActive: true })).status).toBe(204);
+    expect((await call('/api/session', { method: 'POST', body: YOUTH })).status).toBe(200);
+
+    expect(await (await patch(ADULT.licenceNumber, { isActive: false })).json()).toEqual({
+      error: 'cannot_change_self',
+    });
+    expect((await patch(YOUTH.licenceNumber, { isActive: 'no' })).status).toBe(400);
+    expect((await patch('9999999Z', { isActive: false })).status).toBe(404);
   });
 });

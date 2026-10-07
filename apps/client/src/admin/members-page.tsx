@@ -1,18 +1,40 @@
 import {
+  apiPath,
   API_ROUTES,
   categoryLabel,
   type AdminMemberDto,
   type ApiError,
+  type GrantAdminResponse,
   type ListAdminMembersResponse,
   type MemberExportErrorResponse,
   type MemberExportProblem,
   type MemberImportDto,
   type MemberImportStatusResponse,
+  type UpdateMemberRequest,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { SearchIcon, UploadIcon } from 'lucide-react';
+import {
+  CopyIcon,
+  EllipsisVerticalIcon,
+  SearchIcon,
+  ShieldOffIcon,
+  ShieldPlusIcon,
+  UploadIcon,
+  UserCheckIcon,
+  UserXIcon,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +45,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -60,16 +88,24 @@ function searchable(text: string): string {
 
 type StateFilter = 'all' | 'active' | 'left';
 
-type Props = { onSessionExpired: () => void };
+type Props = {
+  /** The signed-in admin: no action on their own row. */
+  currentLicenceNumber: string;
+  onSessionExpired: () => void;
+};
 
-/** Every club member in a table, and the update of the list from the FFTA extranet export. */
-export function MembersPage({ onSessionExpired }: Props) {
+type MemberAction = 'deactivate' | 'reactivate' | 'grant' | 'revoke';
+
+/** Every club member in a table, with their actions, and the update of the list from the FFTA extranet export. */
+export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
   const [members, setMembers] = useState<AdminMemberDto[] | null>(null);
   const [status, setStatus] = useState<MemberImportStatusResponse | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<StateFilter>('all');
   const [importOpen, setImportOpen] = useState(false);
+  const [pending, setPending] = useState<{ action: MemberAction; member: AdminMemberDto } | null>(null);
+  const [granted, setGranted] = useState<{ member: AdminMemberDto; password: string } | null>(null);
 
   const showResult = useCallback(
     <T,>(apply: (data: T) => void) =>
@@ -88,6 +124,29 @@ export function MembersPage({ onSessionExpired }: Props) {
   }, [showResult]);
 
   useEffect(reload, [reload]);
+
+  async function run(action: MemberAction, member: AdminMemberDto) {
+    setPending(null);
+    const licenceNumber = member.licenceNumber;
+    let result: ApiResult<unknown>;
+    if (action === 'grant') {
+      const response = await api<GrantAdminResponse>(apiPath(API_ROUTES.adminMemberAdminRights, { licenceNumber }), {
+        method: 'POST',
+      });
+      if (response.ok) setGranted({ member, password: response.data.password });
+      result = response;
+    } else if (action === 'revoke') {
+      result = await api(apiPath(API_ROUTES.adminMemberAdminRights, { licenceNumber }), { method: 'DELETE' });
+    } else {
+      result = await api(apiPath(API_ROUTES.adminMember, { licenceNumber }), {
+        method: 'PATCH',
+        body: { isActive: action === 'reactivate' } satisfies UpdateMemberRequest,
+      });
+    }
+    if (!result.ok && result.error === 'admin_sign_in_required') return onSessionExpired();
+    setMessage(result.ok ? null : ERROR_MESSAGES[result.error]);
+    reload();
+  }
 
   const words = searchable(query).split(/\s+/).filter(Boolean);
   const shown = (members ?? []).filter(
@@ -153,8 +212,8 @@ export function MembersPage({ onSessionExpired }: Props) {
           </p>
           {/* Scrolls sideways on phones instead of squeezing the columns. */}
           <div className='overflow-x-auto rounded-lg border'>
-            <table className='w-full min-w-[560px] border-collapse text-left'>
-              <thead className='bg-muted/50 whitespace-nowrap'>
+            <table className='w-full min-w-[640px] border-collapse text-left'>
+              <thead className='bg-muted whitespace-nowrap'>
                 <tr>
                   <th scope='col' className='px-3 py-2 font-semibold'>
                     Nom
@@ -167,6 +226,10 @@ export function MembersPage({ onSessionExpired }: Props) {
                   </th>
                   <th scope='col' className='px-3 py-2 font-semibold'>
                     État
+                  </th>
+                  {/* Pinned to the right: on phones the menu stays visible while the other columns scroll. */}
+                  <th scope='col' className='bg-muted sticky right-0 px-3 py-2 text-right font-semibold'>
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -183,6 +246,47 @@ export function MembersPage({ onSessionExpired }: Props) {
                     <td className='px-3 py-2 whitespace-nowrap tabular-nums'>{member.licenceNumber}</td>
                     <td className='px-3 py-2 whitespace-nowrap'>{categoryLabel(member.category, member.sex)}</td>
                     <td className='px-3 py-2 whitespace-nowrap'>{member.isActive ? 'Actif' : 'Plus au club'}</td>
+                    <td className='bg-background sticky right-0 px-3 py-1 text-right'>
+                      {member.licenceNumber === currentLicenceNumber ? (
+                        <span className='text-muted-foreground text-sm'>Vous</span>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant='ghost' size='icon' aria-label={`Actions pour ${member.fullName}`}>
+                              <EllipsisVerticalIcon />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                setPending({ action: member.isActive ? 'deactivate' : 'reactivate', member })
+                              }
+                            >
+                              {member.isActive ? <UserXIcon /> : <UserCheckIcon />}
+                              {member.isActive ? 'Désactiver' : 'Réactiver'}
+                            </DropdownMenuItem>
+                            {member.isAdmin ? (
+                              <DropdownMenuItem
+                                variant='destructive'
+                                onSelect={() => setPending({ action: 'revoke', member })}
+                              >
+                                <ShieldOffIcon />
+                                Retirer les droits d’admin
+                              </DropdownMenuItem>
+                            ) : (
+                              // An admin must be able to sign in: a member who left cannot become one.
+                              <DropdownMenuItem
+                                disabled={!member.isActive}
+                                onSelect={() => setPending({ action: 'grant', member })}
+                              >
+                                <ShieldPlusIcon />
+                                Nommer admin
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -193,6 +297,18 @@ export function MembersPage({ onSessionExpired }: Props) {
 
       {importOpen && (
         <ImportDialog onClose={() => setImportOpen(false)} onImported={reload} onSessionExpired={onSessionExpired} />
+      )}
+
+      {pending && (
+        <ConfirmActionDialog
+          action={pending.action}
+          member={pending.member}
+          onCancel={() => setPending(null)}
+          onConfirm={() => void run(pending.action, pending.member)}
+        />
+      )}
+      {granted && (
+        <GrantedPasswordDialog member={granted.member} password={granted.password} onClose={() => setGranted(null)} />
       )}
     </main>
   );
@@ -207,6 +323,113 @@ function LastImport({ lastImport }: { lastImport: MemberImportDto | null }) {
       Dernière mise à jour le {formatDateTime(lastImport.importedAt)}
       {lastImport.importedByName ? ` par ${lastImport.importedByName}` : ' (en ligne de commande)'}.
     </p>
+  );
+}
+
+/** What each action does, said before it is done. */
+function confirmation(action: MemberAction, member: AdminMemberDto): { title: string; text: string; button: string } {
+  const nextImport = 'La prochaine mise à jour de la liste FFTA remettra l’état indiqué dans le fichier.';
+  switch (action) {
+    case 'deactivate':
+      return {
+        title: `Désactiver ${member.fullName} ?`,
+        text: `Il ne pourra plus se connecter ni s’inscrire. Ses inscriptions passées sont gardées.${
+          member.isAdmin ? ' Il perd aussi l’accès à l’administration tant qu’il est désactivé.' : ''
+        } ${nextImport}`,
+        button: 'Oui, désactiver',
+      };
+    case 'reactivate':
+      return {
+        title: `Réactiver ${member.fullName} ?`,
+        text: `Il pourra de nouveau se connecter et s’inscrire. ${nextImport}`,
+        button: 'Oui, réactiver',
+      };
+    case 'grant':
+      return {
+        title: `Nommer ${member.fullName} administrateur ?`,
+        text:
+          'Il verra toutes les inscriptions et les coordonnées des licenciés. Un mot de passe provisoire va être ' +
+          'créé : vous devrez le lui donner. À sa première connexion, il choisira le sien.',
+        button: 'Oui, nommer admin',
+      };
+    case 'revoke':
+      return {
+        title: `Retirer les droits d’administrateur de ${member.fullName} ?`,
+        text: 'Il est déconnecté de l’administration tout de suite. Il reste licencié et peut toujours s’inscrire.',
+        button: 'Oui, retirer',
+      };
+  }
+}
+
+type ConfirmActionDialogProps = {
+  action: MemberAction;
+  member: AdminMemberDto;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+function ConfirmActionDialog({ action, member, onCancel, onConfirm }: ConfirmActionDialogProps) {
+  const { title, text, button } = confirmation(action, member);
+  return (
+    <AlertDialog open onOpenChange={(open) => !open && onCancel()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{text}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>{button}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/** The only time the generated password is shown. */
+function GrantedPasswordDialog({
+  member,
+  password,
+  onClose,
+}: {
+  member: AdminMemberDto;
+  password: string;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{member.fullName} est administrateur</DialogTitle>
+          <DialogDescription>
+            Donnez-lui ce mot de passe provisoire, de préférence de vive voix. Il ne sera plus jamais affiché.
+          </DialogDescription>
+        </DialogHeader>
+        <p className='bg-muted rounded-md px-4 py-3 text-center font-mono text-2xl font-semibold tracking-wider select-all'>
+          {password}
+        </p>
+        <p className='text-sm'>
+          Pour se connecter : aller sur la page d’administration, se connecter avec sa licence et sa date de naissance,
+          puis taper ce mot de passe. Il devra ensuite choisir son propre mot de passe.
+        </p>
+        <DialogFooter>
+          <Button
+            variant='outline'
+            onClick={() =>
+              void navigator.clipboard
+                ?.writeText(password)
+                .then(() => setCopied(true))
+                .catch(() => {})
+            }
+          >
+            <CopyIcon />
+            {copied ? 'Copié' : 'Copier'}
+          </Button>
+          <Button onClick={onClose}>J’ai noté le mot de passe</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

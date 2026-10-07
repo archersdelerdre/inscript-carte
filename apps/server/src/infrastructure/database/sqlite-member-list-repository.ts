@@ -97,6 +97,13 @@ export class SqliteMemberListRepository implements MemberListRepository {
   async all(): Promise<Archer[]> {
     return readArchers(this.#database);
   }
+
+  async setActive(licenceNumber: string, isActive: boolean): Promise<boolean> {
+    const changed = await this.#database('archers')
+      .where({ licence_number: licenceNumber })
+      .update({ is_active: isActive, updated_at: this.#database.fn.now() });
+    return changed > 0;
+  }
 }
 
 async function readArchers(database: Knex | Knex.Transaction): Promise<Archer[]> {

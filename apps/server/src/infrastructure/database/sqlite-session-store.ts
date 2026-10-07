@@ -12,9 +12,9 @@ export class SqliteSessionStore implements SessionStore {
     this.#table = table;
   }
 
-  async create(archerLicenceNumber: string, expiresAt: Date): Promise<string> {
+  async create(archerLicenceNumber: string, expiresAt: Date, now: Date): Promise<string> {
     const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
-    await this.#database(this.#table).where('expires_at', '<=', new Date().toISOString()).delete();
+    await this.#database(this.#table).where('expires_at', '<=', now.toISOString()).delete();
     await this.#database(this.#table).insert({
       token_hash: hash(token),
       archer_licence_number: archerLicenceNumber,

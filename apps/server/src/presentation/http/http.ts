@@ -10,6 +10,9 @@ export const STATUS_BY_REASON = {
   already_registered: 409,
   cannot_withdraw: 409,
   status_change_not_allowed: 409,
+  cannot_change_self: 409,
+  member_inactive: 409,
+  already_admin: 409,
 } as const satisfies Partial<Record<ApiError['error'], number>>;
 
 export function error(code: ApiError['error'], status: number): Response {

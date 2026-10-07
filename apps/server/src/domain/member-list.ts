@@ -67,4 +67,6 @@ export interface MemberListRepository {
   countActive(): Promise<number>;
   /** Every member, those who left included. */
   all(): Promise<Archer[]>;
+  /** `false` when no member has this licence number. */
+  setActive(licenceNumber: string, isActive: boolean): Promise<boolean>;
 }

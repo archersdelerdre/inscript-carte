@@ -1,6 +1,6 @@
 import { API_ROUTES, type AdminSessionResponse } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { LogOutIcon, MapIcon, ShieldCheckIcon } from 'lucide-react';
+import { KeyRoundIcon, LogOutIcon, MapIcon, ShieldCheckIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useSession } from '@/auth/session';
@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 
 import { AdminCompetitions } from './admin-competitions';
+import { ChangePasswordDialog, ForcedPasswordChange } from './change-password';
 import { MembersPage } from './members-page';
 
 type Admin = AdminSessionResponse['admin'];
@@ -22,6 +23,9 @@ export function AdminApp() {
   const [admin, setAdmin] = useState<Admin | null | undefined>(undefined);
   const [section, setSection] = useState<Section>('registrations');
   const [expired, setExpired] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  /** Signed in, with their own password: the panel is open. */
+  const ready = admin && !admin.mustChangePassword;
 
   useEffect(() => {
     document.title = 'Administration – Inscriptions du club';
@@ -47,7 +51,7 @@ export function AdminApp() {
       <header className='flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2'>
         <ShieldCheckIcon className='text-primary size-6 shrink-0' />
         <span className='min-w-0 truncate text-lg font-semibold tracking-tight'>Administration</span>
-        {admin && (
+        {ready && (
           <nav className='flex gap-1' aria-label='Rubriques'>
             <SectionButton active={section === 'registrations'} onClick={() => setSection('registrations')}>
               Inscriptions
@@ -64,6 +68,12 @@ export function AdminApp() {
               <span className='max-sm:sr-only'>Retour à la carte</span>
             </a>
           </Button>
+          {ready && (
+            <Button variant='ghost' onClick={() => setChangingPassword(true)}>
+              <KeyRoundIcon />
+              <span className='max-sm:sr-only'>Mot de passe</span>
+            </Button>
+          )}
           {admin && (
             <Button variant='outline' onClick={() => void signOut()} title={`Connecté : ${admin.fullName}`}>
               <LogOutIcon />
@@ -85,11 +95,22 @@ export function AdminApp() {
           />
         </div>
       )}
-      {admin && section === 'registrations' && <AdminCompetitions onSessionExpired={sessionExpired} />}
-      {admin && section === 'members' && (
+      {admin?.mustChangePassword && (
         <div className='min-h-0 flex-1 overflow-y-auto'>
-          <MembersPage onSessionExpired={sessionExpired} />
+          <ForcedPasswordChange
+            onChanged={() => setAdmin({ ...admin, mustChangePassword: false })}
+            onSessionExpired={sessionExpired}
+          />
         </div>
+      )}
+      {ready && section === 'registrations' && <AdminCompetitions onSessionExpired={sessionExpired} />}
+      {ready && section === 'members' && (
+        <div className='min-h-0 flex-1 overflow-y-auto'>
+          <MembersPage currentLicenceNumber={admin.licenceNumber} onSessionExpired={sessionExpired} />
+        </div>
+      )}
+      {changingPassword && (
+        <ChangePasswordDialog onClose={() => setChangingPassword(false)} onSessionExpired={sessionExpired} />
       )}
     </div>
   );

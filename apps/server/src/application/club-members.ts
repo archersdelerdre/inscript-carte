@@ -15,6 +15,8 @@ export type MemberListStatus = { lastImport: MemberImport | null; activeMemberCo
 /** A member as the admin page lists them. */
 export type ClubMember = { archer: Archer; category: AgeCategory; isAdmin: boolean };
 
+export type SetActiveResult = { ok: true } | { ok: false; reason: 'not_found' | 'cannot_change_self' };
+
 /** The club member list: imported from the FFTA export (admin page or command line), listed for admins. */
 export class ClubMembers {
   readonly #members: MemberListRepository;
@@ -52,5 +54,14 @@ export class ClubMembers {
         isAdmin: admins.has(archer.licenceNumber),
       }))
       .toSorted((a, b) => a.archer.fullName.localeCompare(b.archer.fullName, 'fr'));
+  }
+
+  /**
+   * By hand, for example a member who left before the next FFTA export. The next import sets the state from the file
+   * again. An admin cannot deactivate themselves: they would lose the panel at once.
+   */
+  async setActive(by: Archer, licenceNumber: string, isActive: boolean): Promise<SetActiveResult> {
+    if (licenceNumber === by.licenceNumber) return { ok: false, reason: 'cannot_change_self' };
+    return (await this.#members.setActive(licenceNumber, isActive)) ? { ok: true } : { ok: false, reason: 'not_found' };
   }
 }

@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 
+import { AdminAccounts } from './application/admin-accounts.ts';
 import { AdminAuthentication } from './application/admin-authentication.ts';
 import { AdminRegistrations } from './application/admin-registrations.ts';
 import { Authentication } from './application/authentication.ts';
@@ -34,6 +35,7 @@ export function createApp(database: Knex, clock: Clock) {
   const competitions = new SqliteCompetitionRepository(database);
   const registrations = new SqliteRegistrationRepository(database);
   const admins = new SqliteAdminRepository(database);
+  const passwordHasher = new BunPasswordHasher();
   return createRoutes({
     listUpcomingCompetitions: new ListUpcomingCompetitions(competitions, registrations, clock),
     authentication: new Authentication(
@@ -47,10 +49,11 @@ export function createApp(database: Knex, clock: Clock) {
       archers,
       admins,
       new SqliteSessionStore(database, 'admin_sessions'),
-      new BunPasswordHasher(),
+      passwordHasher,
       new InMemoryLoginAttemptLimiter(SIGN_IN_WINDOW_MS, MAX_FAILED_ADMIN_SIGN_INS),
       clock,
     ),
+    adminAccounts: new AdminAccounts(archers, admins, passwordHasher),
     adminRegistrations: new AdminRegistrations(competitions, registrations, clock),
     clubMembers: new ClubMembers(new SqliteMemberListRepository(database), admins, clock),
     readMemberExport,

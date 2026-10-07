@@ -22,6 +22,11 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   status_change_not_allowed:
     'Ce changement de statut est impossible : une inscription annulée le reste, et une inscription transmise ne revient pas à « Reçue ».',
   invalid_member_export: "Ce fichier n'est pas la liste des licenciés attendue.",
+  password_change_required: 'Choisissez d’abord votre propre mot de passe.',
+  password_too_short: 'Le mot de passe doit avoir au moins 10 caractères.',
+  cannot_change_self: 'Vous ne pouvez pas faire cette action sur votre propre compte.',
+  member_inactive: 'Ce licencié ne fait plus partie du club : réactivez-le d’abord.',
+  already_admin: 'Ce licencié est déjà administrateur.',
 };
 
 /** "À régler au club avant le 9 oct., par chèque, …" */

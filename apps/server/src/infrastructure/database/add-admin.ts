@@ -1,4 +1,6 @@
-import { AdminAccounts, MIN_ADMIN_PASSWORD_LENGTH } from '../../application/admin-accounts.ts';
+import { MIN_ADMIN_PASSWORD_LENGTH } from '@inscript-carte/shared';
+
+import { AdminAccounts } from '../../application/admin-accounts.ts';
 import { BunPasswordHasher } from '../bun-password-hasher.ts';
 import { config } from '../config.ts';
 import { createDatabase } from './connection.ts';
