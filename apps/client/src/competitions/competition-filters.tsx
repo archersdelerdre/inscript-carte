@@ -5,7 +5,7 @@ import {
   type CompetitionDto,
   type Discipline,
 } from '@inscript-carte/shared';
-import { SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react';
+import { MapPinIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -69,7 +69,7 @@ function DisciplineDot({ discipline }: { discipline: DisciplineFilter }) {
   return <span aria-hidden className='size-3 shrink-0 rounded-full bg-sky-500' style={{ background: color }} />;
 }
 
-type Chip = { key: string; label: ReactNode; text: string; remove: () => void };
+type Chip = { key: string; text: string; icon?: ReactNode; remove: () => void };
 
 type Props = {
   department: string;
@@ -84,8 +84,8 @@ type Props = {
 };
 
 /**
- * One line, so phones keep room for the list: a button opens every filter, and the search field shows the chosen
- * ones as chips (each one removable) before the town typed.
+ * Where (département and town) sits in one pill, always on one line. The other filters live behind the icon button;
+ * once chosen, they show as removable chips on a second line, only then.
  */
 export function CompetitionFilterBar({
   department,
@@ -120,88 +120,108 @@ export function CompetitionFilterBar({
   }
 
   const chips: Chip[] = [];
-  if (department !== ALL) {
-    const name = DEPARTMENT_NAMES[department];
-    const text = name ? `${name} (${department})` : department;
-    chips.push({ key: 'department', label: text, text, remove: () => onDepartmentChange(ALL) });
-  }
   if (filters.discipline !== ALL) {
     const text = filters.discipline === PARA_TIR ? 'Para-tir' : DISCIPLINE_LABELS[filters.discipline];
     chips.push({
       key: 'discipline',
-      label: (
-        <>
-          <DisciplineDot discipline={filters.discipline} />
-          {text}
-        </>
-      ),
       text,
+      icon: <DisciplineDot discipline={filters.discipline} />,
       remove: () => change({ discipline: ALL }),
     });
   }
   if (filters.from || filters.to) {
     const text = dateRangeLabel(filters.from, filters.to);
-    chips.push({ key: 'dates', label: text, text, remove: () => change({ from: '', to: '' }) });
+    chips.push({ key: 'dates', text, remove: () => change({ from: '', to: '' }) });
   }
   if (filters.withClubArchers) {
     const text = 'Avec des inscrits du club';
-    chips.push({ key: 'club', label: text, text, remove: () => change({ withClubArchers: false }) });
+    chips.push({ key: 'club', text, remove: () => change({ withClubArchers: false }) });
   }
 
-  function clearAll() {
-    clearTown();
-    onDepartmentChange(ALL);
-    change(NO_FILTERS);
+  /** The département stays: it has its own menu in the bar, remembered on the device. */
+  function clearFilters() {
+    change({ discipline: ALL, from: '', to: '', withClubArchers: false });
   }
+
+  const departmentName = DEPARTMENT_NAMES[department] ?? department;
 
   return (
-    <div className='flex items-start gap-2 border-b p-3'>
-      <Button
-        variant='outline'
-        size='icon'
-        className='relative shrink-0 rounded-full'
-        aria-label={chips.length > 0 ? `Filtres, ${chips.length} choisis` : 'Filtres'}
-        onClick={() => setDialogOpen(true)}
-      >
-        <SlidersHorizontalIcon />
-        {chips.length > 0 && (
-          <span
-            aria-hidden
-            className='bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full text-sm leading-none'
-          >
-            {chips.length}
-          </span>
-        )}
-      </Button>
+    <div className='flex flex-col gap-2 border-b p-3'>
+      <div className='flex items-center gap-2'>
+        <Button
+          variant='outline'
+          size='icon'
+          className='relative shrink-0 rounded-full'
+          aria-label={chips.length > 0 ? `Filtres, ${chips.length} choisis` : 'Filtres'}
+          onClick={() => setDialogOpen(true)}
+        >
+          <SlidersHorizontalIcon />
+          {chips.length > 0 && (
+            <span
+              aria-hidden
+              className='bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full text-sm leading-none'
+            >
+              {chips.length}
+            </span>
+          )}
+        </Button>
 
-      {/* Always one line: when the chips do not fit, they scroll sideways. `relative` places the town suggestions. */}
-      <div className='border-input focus-within:border-ring focus-within:ring-ring/50 relative flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-full border pr-1 pl-3 focus-within:ring-3'>
-        <SearchIcon aria-hidden className='text-muted-foreground size-4 shrink-0' />
-        {chips.length > 0 && (
-          <div className='flex min-w-0 shrink [scrollbar-width:none] items-center gap-1.5 overflow-x-auto'>
-            {chips.map((chip) => (
-              <button
-                key={chip.key}
-                type='button'
-                aria-label={`Retirer le filtre « ${chip.text} »`}
-                className='bg-muted hover:bg-muted-foreground/20 flex h-8 shrink-0 items-center gap-1.5 rounded-full pr-2 pl-3 text-sm whitespace-nowrap'
-                onClick={chip.remove}
-              >
-                {chip.label}
-                <XIcon aria-hidden className='size-4 shrink-0' />
-              </button>
-            ))}
+        {/* `relative` places the town suggestions under the whole pill. */}
+        <div className='border-input focus-within:border-ring focus-within:ring-ring/50 relative flex h-10 min-w-0 flex-1 items-center rounded-full border focus-within:ring-3'>
+          <Select value={department} onValueChange={onDepartmentChange}>
+            <SelectTrigger
+              aria-label='Département'
+              className='hover:bg-muted h-full shrink-0 gap-1.5 rounded-l-full rounded-r-none border-0 pr-2 pl-3 focus-visible:ring-0 data-[size=default]:h-full'
+            >
+              <MapPinIcon className='text-muted-foreground size-4' />
+              {/* Phones show the code only: the town needs the room. */}
+              <SelectValue>
+                <span className='sm:hidden'>{department === ALL ? 'France' : department}</span>
+                <span className='max-sm:hidden'>{department === ALL ? 'Toute la France' : departmentName}</span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Toute la France</SelectItem>
+              {departmentCodes.map((code) => (
+                <SelectItem key={code} value={code}>
+                  {code}
+                  {DEPARTMENT_NAMES[code] && ` - ${DEPARTMENT_NAMES[code]}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span aria-hidden className='bg-border h-5 w-px shrink-0' />
+          <SearchIcon aria-hidden className='text-muted-foreground ml-2.5 size-4 shrink-0' />
+          <div className='flex min-w-0 flex-1 items-center pr-1 pl-1'>
+            <TownSearch
+              value={townText}
+              placeholder='Ville'
+              towns={towns}
+              onType={typeTown}
+              onPick={pickTown}
+              onClear={clearTown}
+            />
           </div>
-        )}
-        <TownSearch
-          value={townText}
-          placeholder={chips.length > 0 ? 'Ville' : 'Rechercher une ville'}
-          towns={towns}
-          onType={typeTown}
-          onPick={pickTown}
-          onClear={clearTown}
-        />
+        </div>
       </div>
+
+      {chips.length > 0 && (
+        <div className='flex flex-wrap items-center gap-1.5'>
+          {chips.map((chip) => (
+            <button
+              key={chip.key}
+              type='button'
+              aria-label={`Retirer le filtre « ${chip.text} »`}
+              className='bg-muted hover:bg-muted-foreground/20 flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-full pr-2 pl-3 text-sm whitespace-nowrap'
+              onClick={chip.remove}
+            >
+              {chip.icon}
+              <span className='truncate'>{chip.text}</span>
+              <XIcon aria-hidden className='size-4 shrink-0' />
+            </button>
+          ))}
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -209,24 +229,6 @@ export function CompetitionFilterBar({
             <DialogTitle>Filtres</DialogTitle>
             <DialogDescription>La liste et la carte changent tout de suite.</DialogDescription>
           </DialogHeader>
-
-          <div className='grid gap-2'>
-            <Label htmlFor='filter-department'>Département</Label>
-            <Select value={department} onValueChange={onDepartmentChange}>
-              <SelectTrigger id='filter-department' className='w-full'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Toute la France</SelectItem>
-                {departmentCodes.map((code) => (
-                  <SelectItem key={code} value={code}>
-                    {code}
-                    {DEPARTMENT_NAMES[code] && ` - ${DEPARTMENT_NAMES[code]}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className='grid gap-2'>
             <Label htmlFor='filter-discipline'>Discipline</Label>
@@ -293,7 +295,7 @@ export function CompetitionFilterBar({
           </Label>
 
           <DialogFooter>
-            <Button variant='ghost' onClick={clearAll}>
+            <Button variant='ghost' onClick={clearFilters}>
               Tout effacer
             </Button>
             <DialogClose asChild>

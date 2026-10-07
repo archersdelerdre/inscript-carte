@@ -126,7 +126,7 @@ export function TownSearch({ value, placeholder, towns, onType, onPick, onClear 
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
-        className='placeholder:text-muted-foreground h-8 min-w-16 flex-1 bg-transparent px-1 outline-none [&::-webkit-search-cancel-button]:hidden'
+        className='placeholder:text-muted-foreground h-8 min-w-24 flex-1 bg-transparent px-1 outline-none [&::-webkit-search-cancel-button]:hidden'
       />
       {value && (
         <Button
