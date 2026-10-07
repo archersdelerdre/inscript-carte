@@ -108,13 +108,12 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   sign-ins get the same error. Max 30 failures per licence and 200 per network address in 15 minutes (in memory):
   high on purpose (the user wants no lockout for members who mistype), but it still stops birth-date guessing scripts.
   Success gives a random token in an `HttpOnly`, `SameSite=Lax` cookie for 180 days; only its SHA-256 hash is stored
-  (`sessions` table, migration `0002`). The browser keeps the licence number, never the birth date: `SignedInArcher`
+  (`sessions` table). The browser keeps the licence number, never the birth date: `SignedInArcher`
   only has the birth year.
 - **Category** is computed, never typed: `ageCategory(birthYear, competitionDate)` in `shared/src/ffta-category.ts`
   (FFTA table: season N runs 1 Sept N-1 to 31 Aug N, age reached in year N). Stored on each registration row.
 - **Form**: départs 1 to 6 (buttons), bow, distances only for Extérieur (required there), trispot, **payment method**
-  (required: Espèces / Chèque / Virement, remembered on the device), optional contact. `payment_method` comes from
-  migration `0003`; rows made before it have `NULL`.
+  (required: Espèces / Chèque / Virement, remembered on the device), optional contact.
   The request carries a bow **per départ** (`departures: [{ departure, bowType }]`). The usual case stays one bow
   choice; the link « Un arc différent selon le départ ? » (only with 2+ départs) shows one bow menu per départ.
   One row per départ; **one payment reference per archer and competition** (`R-0001`, club-wide counter): a later
@@ -134,7 +133,7 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   Vite answer `index.html` for those paths, so reloading works.
 - **Sign-in in two steps**: the normal member sign-in, then a **personal password** (the user chose this: a birth
   date can be guessed, and the panel shows every member's contact). Admins are rows of `admins` (FK to `archers`,
-  argon2id hash, `must_change_password` from migration `0005`). Max 10 wrong passwords per licence and 50 per address
+  argon2id hash, `must_change_password`). Max 10 wrong passwords per licence and 50 per address
   in 15 minutes (the password change shares this limit). Admin session: 12 hours, `admin_sessions` table, cookie
   `admin_session` with `Path=/api/admin`, `HttpOnly`, `SameSite=Strict`. An admin who leaves the club or is removed
   loses access at once.
@@ -143,7 +142,7 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   rights; the new admin must replace it at first sign-in before anything else works (the user asked for this: the
   giver never knows the password in use). Nobody can remove their own rights or deactivate themselves.
 - **Statuses**: Reçue → Transmise à l'organisateur → Validée, plus Plus de place and Annulée ("En attente de paiement"
-  was dropped in `0004`: payment has its own field). `canChangeStatus`: a cancelled row stays cancelled (the archer
+  was dropped on 2026-10-07: payment has its own field). `canChangeStatus`: a cancelled row stays cancelled (the archer
   registers again), every other change is allowed. Going back to "Reçue" was allowed on 2026-10-07 to fix mistakes:
   the panel warns that the archer can withdraw it again without the organizer knowing. Cancelling adds "Annulée par
   le club le JJ/MM/AAAA" to the note; both ask for a confirmation in the UI. Each admin change writes `updated_by`.
@@ -176,10 +175,11 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - Tables: `competitions` (PK `ffta_id`), `archers` (PK `licence_number`), `registrations` (PK auto `id`, one row per
   départ, FKs `competition_ffta_id` / `archer_licence_number` / `updated_by`, `ON DELETE RESTRICT`), `sessions`,
   `admins`, `admin_sessions`, `member_imports`. Value lists are `CHECK` constraints. One active registration per
-  (competition, archer, départ): partial unique index ignoring `cancelled`. `0004` rebuilt `registrations` (SQLite
-  cannot change a `CHECK`): the next schema change on that table needs the same copy, see `0004-admin-panel.ts`.
-- Migrations are TS files listed explicitly in `migrations/index.ts` (so they survive `bun build`). The local database
-  holds data now: **any schema change is a new migration**, never an edit of `0001`.
+  (competition, archer, départ): partial unique index ignoring `cancelled`. SQLite cannot change a `CHECK`: changing a
+  value list means copying the table into a new one inside the migration.
+- Migrations are TS files listed explicitly in `migrations/index.ts` (so they survive `bun build`). On 2026-10-07 the
+  user reset every database and all migrations were merged into `0001-initial-schema`. From now on the databases
+  hold data again: **any schema change is a new migration** (`0002`…), never an edit of `0001`.
 - The DB file holds **personal data** (club members: birth dates, minors): `*.sqlite` is git-ignored and must never
   be committed. Never print member names or birth dates in logs or tool output: counts only.
 - `bun build` keeps `knex` and `better-sqlite3` external (Knex requires every SQL driver; `better-sqlite3` is native).
@@ -193,8 +193,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   Columns are matched by the start of their title (the export adds a sort arrow: "Nom, Prénom↑").
 - An import (command line or admin upload) goes through `ClubMembers.import` → `SqliteMemberListRepository.sync`, in
   one transaction: adds new members and updates the others, their state ("Etat" column) included. **Members missing
-  from the export are not touched** (the user decided it, 2026-10-07; migration `0006` dropped the `deactivated`
-  count): an admin deactivates them by hand from the members page. Members are never deleted (registrations point to
+  from the export are not touched** (the user decided it, 2026-10-07): an admin deactivates them by hand from the
+  members page. Members are never deleted (registrations point to
   them). Only active members may sign in. A bad row stops the whole import with its line number.
 
 ## Data and geocoding

@@ -77,16 +77,3 @@ test('rollback removes every table', async () => {
     .pluck('name');
   expect(tables).toEqual([]);
 });
-
-test('0004 moves "En attente de paiement" rows to "Reçue", then refuses that status', async () => {
-  await database.migrate.down({ name: '0005-admin-password-change' });
-  await database.migrate.down({ name: '0004-admin-panel' });
-  await database('registrations').insert({ ...registration, status: 'awaiting_payment' });
-
-  await database.migrate.latest();
-
-  expect(await database('registrations').pluck('status')).toEqual(['received']);
-  await expect(
-    Promise.resolve(database('registrations').insert({ ...registration, departure: 2, status: 'awaiting_payment' })),
-  ).rejects.toThrow(/CHECK/);
-});
