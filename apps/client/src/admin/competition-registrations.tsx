@@ -53,8 +53,26 @@ const MAX_CLUB_NOTE_LENGTH = 500;
 
 type Props = { competitionId: string; onSessionExpired: () => void; onChanged: () => void };
 
-/** A change waiting for the admin to confirm it: cancelling cannot be undone. */
-type PendingCancel = { label: string; apply: () => Promise<void> };
+/** The two status changes that need the admin to confirm: cancelling cannot be undone, "Reçue" reopens withdrawal. */
+type ConfirmedStatus = 'cancelled' | 'received';
+type PendingChange = { status: ConfirmedStatus; label: string; apply: () => Promise<void> };
+
+const CONFIRMATIONS: Record<ConfirmedStatus, { title: (label: string) => string; text: string; button: string }> = {
+  cancelled: {
+    title: (label) => `Annuler ${label} ?`,
+    text:
+      "Une inscription annulée ne peut plus être réactivée : l'archer devra se réinscrire. La date d'annulation est " +
+      'ajoutée à la note du club.',
+    button: 'Oui, annuler',
+  },
+  received: {
+    title: (label) => `Remettre ${label} à « Reçue » ?`,
+    text:
+      "Si l'organisateur a déjà reçu l'inscription, prévenez-le : l'archer pourra de nouveau la retirer lui-même " +
+      'depuis « Mon suivi », et l’organisateur ne le saura pas.',
+    button: 'Oui, remettre à « Reçue »',
+  },
+};
 
 /** One competition: its registrations grouped by payment reference (one per archer), with every action. */
 export function CompetitionRegistrations({ competitionId, onSessionExpired, onChanged }: Props) {
@@ -63,7 +81,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   const [statusFilter, setStatusFilter] = useState<typeof ALL | RegistrationStatus>(ALL);
   const [toPayOnly, setToPayOnly] = useState(false);
   const [noteFor, setNoteFor] = useState<AdminRegistrationDto | null>(null);
-  const [pendingCancel, setPendingCancel] = useState<PendingCancel | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
 
   const showResult = useCallback(
     (result: ApiResult<AdminCompetitionRegistrationsResponse>) => {
@@ -102,14 +120,21 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
 
   function changeRowStatus(registration: AdminRegistrationDto, status: RegistrationStatus) {
     const apply = () => updateRow(registration, { status });
-    if (status !== 'cancelled') return void apply();
-    setPendingCancel({ label: `le départ ${registration.departure} de ${registration.fullName}`, apply });
+    const needsConfirmation = status === 'cancelled' || (status === 'received' && registration.status !== 'received');
+    if (!needsConfirmation) return void apply();
+    setPendingChange({ status, label: `le départ ${registration.departure} de ${registration.fullName}`, apply });
   }
 
   function changeReferenceStatus(group: Group, status: RegistrationStatus) {
     const apply = () => updateReference(group.paymentReference, { status });
-    if (status !== 'cancelled') return void apply();
-    setPendingCancel({ label: `tous les départs de ${group.fullName} (${group.paymentReference})`, apply });
+    const needsConfirmation =
+      status === 'cancelled' || (status === 'received' && group.activeRows.some((row) => row.status !== 'received'));
+    if (!needsConfirmation) return void apply();
+    setPendingChange({
+      status,
+      label: `tous les départs de ${group.fullName} (${group.paymentReference})`,
+      apply,
+    });
   }
 
   async function download() {
@@ -229,27 +254,26 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
         />
       )}
 
-      <AlertDialog open={pendingCancel !== null} onOpenChange={(open) => !open && setPendingCancel(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Annuler {pendingCancel?.label} ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Une inscription annulée ne peut plus être réactivée : l'archer devra se réinscrire. La date d'annulation
-              est ajoutée à la note du club.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Non, garder</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                void pendingCancel?.apply();
-                setPendingCancel(null);
-              }}
-            >
-              Oui, annuler
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+      <AlertDialog open={pendingChange !== null} onOpenChange={(open) => !open && setPendingChange(null)}>
+        {pendingChange && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{CONFIRMATIONS[pendingChange.status].title(pendingChange.label)}</AlertDialogTitle>
+              <AlertDialogDescription>{CONFIRMATIONS[pendingChange.status].text}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Non, garder</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  void pendingChange.apply();
+                  setPendingChange(null);
+                }}
+              >
+                {CONFIRMATIONS[pendingChange.status].button}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
       </AlertDialog>
     </div>
   );

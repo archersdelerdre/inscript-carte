@@ -20,7 +20,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   admin_sign_in_required: 'Votre session administrateur a expiré. Merci de retaper votre mot de passe.',
   not_admin: "Votre licence n'a pas accès à l'administration.",
   status_change_not_allowed:
-    'Ce changement de statut est impossible : une inscription annulée le reste, et une inscription transmise ne revient pas à « Reçue ».',
+    'Ce changement de statut est impossible : une inscription annulée le reste. L’archer peut se réinscrire.',
   invalid_member_export: "Ce fichier n'est pas la liste des licenciés attendue.",
   password_change_required: 'Choisissez d’abord votre propre mot de passe.',
   password_too_short: 'Le mot de passe doit avoir au moins 10 caractères.',

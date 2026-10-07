@@ -603,18 +603,26 @@ describe('admin registrations', () => {
     expect((await adminRegistrations(cookie))[0]!.clubNote).toBeNull();
   });
 
-  test('a départ never goes back to "Reçue", and a cancelled one stays cancelled', async () => {
+  test('a départ can go back to "Reçue" (the archer may withdraw it again), but a cancelled one stays cancelled', async () => {
     await registerBoth();
     const [first] = await adminRegistrations(cookie);
     const patch = (body: unknown) => call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body });
 
     expect((await patch({ status: 'confirmed' })).status).toBe(204);
-    const back = await patch({ status: 'received' });
-    expect(back.status).toBe(409);
-    expect(await back.json()).toEqual({ error: 'status_change_not_allowed' });
+    expect((await patch({ status: 'received' })).status).toBe(204);
+    const youth = await signIn(YOUTH);
+    const mine = (
+      (await (await call('/api/me/registrations', { cookie: youth })).json()) as ListMyRegistrationsResponse
+    ).registrations;
+    expect(mine.find(({ id }) => id === first!.id)?.canWithdraw).toBe(true);
+
     expect((await patch({ status: 'full' })).status).toBe(204);
     expect((await patch({ status: 'cancelled', clubNote: 'Plus de place' })).status).toBe(204);
-    expect((await patch({ status: 'confirmed' })).status).toBe(409);
+    for (const status of ['confirmed', 'received']) {
+      const revived = await patch({ status });
+      expect(revived.status).toBe(409);
+      expect(await revived.json()).toEqual({ error: 'status_change_not_allowed' });
+    }
 
     const row = await database('registrations').where({ id: first!.id }).first();
     expect(row).toMatchObject({
@@ -684,22 +692,19 @@ describe('admin registrations', () => {
     ]);
   });
 
-  test('a status change refused for one départ of a reference changes none of them', async () => {
+  test('a whole payment reference can go back to "Reçue"', async () => {
     await registerBoth();
-    const [first] = await adminRegistrations(cookie);
-    await call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body: { status: 'confirmed' } });
+    await call('/api/admin/payment-references/R-0001', { method: 'PATCH', cookie, body: { status: 'confirmed' } });
 
     const response = await call('/api/admin/payment-references/R-0001', {
       method: 'PATCH',
       cookie,
-      body: { status: 'received', paymentStatus: 'paid' },
+      body: { status: 'received' },
     });
-    expect(response.status).toBe(409);
-    expect(
-      (await adminRegistrations(cookie)).slice(0, 2).map(({ status, paymentStatus }) => [status, paymentStatus]),
-    ).toEqual([
-      ['confirmed', 'to_pay'],
-      ['received', 'to_pay'],
+    expect(response.status).toBe(204);
+    expect((await adminRegistrations(cookie)).slice(0, 2).map(({ status }) => status)).toEqual([
+      'received',
+      'received',
     ]);
   });
 

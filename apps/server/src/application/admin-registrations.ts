@@ -107,13 +107,15 @@ export class AdminRegistrations {
     if (!update) return { ok: false, reason: 'invalid_request' };
     const registration = await this.#registrations.findById(registrationId);
     if (!registration) return { ok: false, reason: 'not_found' };
+    if (update.status && !canChangeStatus(registration.status, update.status)) {
+      return { ok: false, reason: 'status_change_not_allowed' };
+    }
     const change = changeOf(registration, update, this.#clock.today());
-    if (!change) return { ok: false, reason: 'status_change_not_allowed' };
     await this.#registrations.save([change], admin.licenceNumber);
     return { ok: true };
   }
 
-  /** One archer pays all their départs of one competition together: the change applies to all, or to none. */
+  /** One archer pays all their départs of one competition together: the change applies to all of them. */
   async updatePaymentReference(
     admin: Archer,
     paymentReference: string,
@@ -121,14 +123,16 @@ export class AdminRegistrations {
   ): Promise<UpdateResult> {
     const update = parseUpdate(form, false);
     if (!update) return { ok: false, reason: 'invalid_request' };
+    // Cancelled départs stay as they are, so every other one can take the new status.
     const registrations = (await this.#registrations.forPaymentReference(paymentReference)).filter(
       (registration) => registration.status !== 'cancelled',
     );
     if (registrations.length === 0) return { ok: false, reason: 'not_found' };
     const today = this.#clock.today();
-    const changes = registrations.map((registration) => changeOf(registration, update, today));
-    if (changes.some((change) => change === null)) return { ok: false, reason: 'status_change_not_allowed' };
-    await this.#registrations.save(changes as RegistrationChange[], admin.licenceNumber);
+    await this.#registrations.save(
+      registrations.map((registration) => changeOf(registration, update, today)),
+      admin.licenceNumber,
+    );
     return { ok: true };
   }
 }
@@ -172,14 +176,9 @@ function parseUpdate(form: RegistrationUpdateForm, allowNote: boolean): Registra
   return Object.keys(update).length > 0 ? update : null;
 }
 
-/** `null` when the status change is not allowed. Cancelling adds a line to the note, like a withdrawal does. */
-function changeOf(
-  registration: Registration,
-  update: RegistrationUpdate,
-  today: CalendarDate,
-): RegistrationChange | null {
+/** The new values of one row; the status change was checked before. Cancelling adds a line to the note. */
+function changeOf(registration: Registration, update: RegistrationUpdate, today: CalendarDate): RegistrationChange {
   const status = update.status ?? registration.status;
-  if (!canChangeStatus(registration.status, status)) return null;
   const note = update.clubNote === undefined ? registration.clubNote : update.clubNote;
   const cancels = status === 'cancelled' && registration.status !== 'cancelled';
   return {

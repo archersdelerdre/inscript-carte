@@ -93,7 +93,7 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 | `GET /api/admin/competitions/:competitionId/registrations` | every row, cancelled included, with names and contact |
 | `GET /api/admin/competitions/:competitionId/export` | `.xlsx` for the organizer (Reçue, Transmise, Validée rows) |
 | `PATCH /api/admin/registrations/:registrationId` | status, payment status, club note of one départ |
-| `PATCH /api/admin/payment-references/:paymentReference` | status / payment of every non-cancelled row, all or none |
+| `PATCH /api/admin/payment-references/:paymentReference` | status / payment of every non-cancelled row of the reference |
 | `GET /api/admin/members` | every member, those who left included: licence, name, sex, current-season category, active, admin |
 | `PATCH /api/admin/members/:licenceNumber` | `{ isActive }` by hand, never on oneself (the next import sets it from the file again) |
 | `POST/DELETE /api/admin/members/:licenceNumber/admin` | give admin rights (returns the generated password once) / remove them (never one's own) |
@@ -144,8 +144,9 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   giver never knows the password in use). Nobody can remove their own rights or deactivate themselves.
 - **Statuses**: Reçue → Transmise à l'organisateur → Validée, plus Plus de place and Annulée ("En attente de paiement"
   was dropped in `0004`: payment has its own field). `canChangeStatus`: a cancelled row stays cancelled (the archer
-  registers again), and nothing goes back to Reçue. Cancelling adds "Annulée par le club le JJ/MM/AAAA" to the note
-  and asks for a confirmation in the UI. Each admin change writes `updated_by`.
+  registers again), every other change is allowed. Going back to "Reçue" was allowed on 2026-10-07 to fix mistakes:
+  the panel warns that the archer can withdraw it again without the organizer knowing. Cancelling adds "Annulée par
+  le club le JJ/MM/AAAA" to the note; both ask for a confirmation in the UI. Each admin change writes `updated_by`.
 - The page lists competitions with registrations (upcoming first), then one card per payment reference (= one
   archer's request) with its départs. Reference actions (status of all départs, "Tout marquer payé") only show when
   the reference has 2+ active départs. Filters: status, "À payer seulement".

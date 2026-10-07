@@ -32,12 +32,12 @@ export const REGISTRATION_STATUS_LABELS: Record<RegistrationStatus, string> = {
 };
 
 /**
- * What the club may change a départ to. A cancelled départ stays cancelled (the archer registers again instead), and
- * once sent to the organizer it never goes back to "Reçue", where the archer could still withdraw it.
+ * What the club may change a départ to: anything, except a cancelled départ, which stays cancelled (the archer
+ * registers again instead; reviving it could make a second active row on the same départ). Going back to "Reçue" is
+ * allowed (to fix a mistake), with a warning in the panel: the archer can withdraw it again.
  */
 export function canChangeStatus(from: RegistrationStatus, to: RegistrationStatus): boolean {
-  if (from === to) return true;
-  return from !== 'cancelled' && to !== 'received';
+  return from === to || from !== 'cancelled';
 }
 
 export const PAYMENT_STATUSES = ['to_pay', 'paid'] as const;
