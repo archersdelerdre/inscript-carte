@@ -117,7 +117,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   migration `0003`; rows made before it have `NULL`.
   The request carries a bow **per départ** (`departures: [{ departure, bowType }]`). The usual case stays one bow
   choice; the link « Un arc différent selon le départ ? » (only with 2+ départs) shows one bow menu per départ.
-  One row per départ; one payment reference per request (`R-0001`, club-wide counter). Taken départs are refused.
+  One row per départ; **one payment reference per archer and competition** (`R-0001`, club-wide counter): a later
+  request on the same competition (another départ) reuses it, even if its first départs were withdrawn. References
+  made before 2026-10-07 were per request and were not merged (archers may already have paid with them). Taken
+  départs are refused.
 - Open until the club deadline **included**. Withdraw only while `received` and before the deadline: the row stays in
   the database, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`, but it disappears from "Mon
   suivi" (`GET /api/me/registrations` only returns rows that are not cancelled).

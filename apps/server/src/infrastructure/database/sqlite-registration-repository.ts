@@ -86,11 +86,20 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
   async add(registration: NewRegistration): Promise<AddRegistrationsResult> {
     try {
       return await this.#database.transaction(async (transaction) => {
-        // A club-wide counter, like the old sheet: R-0001, R-0002…
+        // One reference per archer and competition: a second request (another départ) joins the first one, even if its
+        // départs were all withdrawn, so the club sees one payment.
+        const existing: { payment_reference: string } | undefined = await transaction('registrations')
+          .where({
+            competition_ffta_id: registration.competitionId,
+            archer_licence_number: registration.archerLicenceNumber,
+          })
+          .orderBy('id')
+          .first('payment_reference');
+        // Otherwise a club-wide counter, like the old sheet: R-0001, R-0002…
         const { last } = (await transaction('registrations')
           .max({ last: transaction.raw('cast(substr(payment_reference, 3) as integer)') })
           .first()) as { last: number | null };
-        const paymentReference = `R-${String((last ?? 0) + 1).padStart(4, '0')}`;
+        const paymentReference = existing?.payment_reference ?? `R-${String((last ?? 0) + 1).padStart(4, '0')}`;
         await transaction('registrations').insert(
           registration.departures.map(({ departure, bowType }) => ({
             competition_ffta_id: registration.competitionId,

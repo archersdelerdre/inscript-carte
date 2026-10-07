@@ -113,7 +113,7 @@ export class AdminRegistrations {
     return { ok: true };
   }
 
-  /** One archer pays all the départs of one request together: the change applies to all, or to none. */
+  /** One archer pays all their départs of one competition together: the change applies to all, or to none. */
   async updatePaymentReference(
     admin: Archer,
     paymentReference: string,

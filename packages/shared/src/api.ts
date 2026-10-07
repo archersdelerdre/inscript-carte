@@ -125,7 +125,7 @@ export type RegistrationRequest = {
 export type RegistrationCreatedResponse = {
   departures: number[];
   category: AgeCategory;
-  /** One reference for the whole request, to give when paying the club. */
+  /** One reference per archer and competition (a later request reuses it), to give when paying the club. */
   paymentReference: string;
   /** The club deadline: pay before it. */
   paymentDeadline: string;

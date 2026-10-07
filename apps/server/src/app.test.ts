@@ -157,7 +157,7 @@ describe('registration', () => {
     expect((await call(`/api/competitions/${SALLE}/registrations`)).status).toBe(401);
   });
 
-  test('one payment reference per request, the FFTA category, and the public counter', async () => {
+  test('one payment reference per archer and competition, the FFTA category, and the public counter', async () => {
     const adult = await signIn(ADULT);
     const youth = await signIn(YOUTH);
 
@@ -186,6 +186,30 @@ describe('registration', () => {
 
     const list = (await (await call('/api/competitions')).json()) as { competitions: CompetitionDto[] };
     expect(list.competitions.find((competition) => competition.id === SALLE)?.clubRegistrationCount).toBe(3);
+  });
+
+  test('a later request on the same competition keeps the reference, even after a withdrawal', async () => {
+    const cookie = await signIn(ADULT);
+    const register = async (competitionId: string, departures: number[], extra: Record<string, unknown> = {}) =>
+      (
+        (await (
+          await call(`/api/competitions/${competitionId}/registrations`, {
+            method: 'POST',
+            cookie,
+            body: form({ departures, ...extra }),
+          })
+        ).json()) as RegistrationCreatedResponse
+      ).paymentReference;
+
+    expect(await register(SALLE, [1])).toBe('R-0001');
+    const [first] = ((await (await call('/api/me/registrations', { cookie })).json()) as ListMyRegistrationsResponse)
+      .registrations;
+    await call(`/api/me/registrations/${first!.id}`, { method: 'DELETE', cookie });
+
+    expect(await register(SALLE, [2], { paymentMethod: 'transfer' })).toBe('R-0001');
+    expect(await register(SALLE, [3])).toBe('R-0001');
+    // Another competition is another payment.
+    expect(await register(EXTERIEUR, [1], { distance: 'nationales' })).toBe('R-0002');
   });
 
   test('refuses invalid départs, a missing or unknown payment method, and wrong distances', async () => {

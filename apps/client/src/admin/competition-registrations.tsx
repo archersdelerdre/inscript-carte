@@ -56,7 +56,7 @@ type Props = { competitionId: string; onSessionExpired: () => void; onChanged: (
 /** A change waiting for the admin to confirm it: cancelling cannot be undone. */
 type PendingCancel = { label: string; apply: () => Promise<void> };
 
-/** One competition: its registrations grouped by payment reference (one archer's request), with every action. */
+/** One competition: its registrations grouped by payment reference (one per archer), with every action. */
 export function CompetitionRegistrations({ competitionId, onSessionExpired, onChanged }: Props) {
   const [data, setData] = useState<AdminCompetitionRegistrationsResponse | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -307,6 +307,10 @@ function ReferenceCard({
   const referenceStatuses = REGISTRATION_STATUSES.filter((status) =>
     group.activeRows.every((row) => canChangeStatus(row.status, status)),
   );
+  // Each request of the reference may have chosen another way to pay.
+  const paymentMethods = [
+    ...new Set(group.rows.flatMap((row) => (row.paymentMethod ? [PAYMENT_METHOD_LABELS[row.paymentMethod]] : []))),
+  ];
 
   return (
     <section className='bg-card grid gap-3 rounded-lg border p-3'>
@@ -324,7 +328,7 @@ function ReferenceCard({
           </p>
           <p className='text-muted-foreground text-sm'>
             Réf. <strong className='text-foreground'>{group.paymentReference}</strong>
-            {first.paymentMethod && ` · ${PAYMENT_METHOD_LABELS[first.paymentMethod]}`} · demandé le{' '}
+            {paymentMethods.length > 0 && ` · ${paymentMethods.join(', ')}`} · demandé le{' '}
             <span className='whitespace-nowrap'>{formatDateTime(first.createdAt)}</span>
           </p>
         </div>
