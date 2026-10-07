@@ -69,7 +69,8 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
   const [bowByDeparture, setBowByDeparture] = useState<Record<string, BowType> | null>(null);
   const [distance, setDistance] = useState<Distance | ''>('');
   const [trispot, setTrispot] = useState(false);
-  // Not remembered on the device: it depends on each competition.
+  // Not remembered on the device (it depends on each competition); ticked again below for another départ of the
+  // same competition.
   const [carpool, setCarpool] = useState(false);
   const [contact, setContact] = useState(() => localStorage.getItem(STORAGE.contact) ?? '');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>(
@@ -85,16 +86,15 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
   const bowPerDeparture = bowByDeparture !== null && departures.length >= 2;
   const bowFor = (departure: string) => (bowPerDeparture ? (bowByDeparture[departure] ?? bowType) : bowType);
 
-  // Départs this archer already has: shown as taken instead of failing on submit.
+  // Départs this archer already has: shown as taken instead of failing on submit. Covoiturage is ticked again if
+  // they already said yes for this competition: the archer is the same person for every départ.
   useEffect(() => {
     void api<ListMyRegistrationsResponse>(API_ROUTES.myRegistrations).then((result) => {
       if (!result.ok) return;
       // "Mon suivi" only lists active départs.
-      setTaken(
-        result.data.registrations
-          .filter((registration) => registration.competitionId === competition.id)
-          .map((registration) => registration.departure),
-      );
+      const mine = result.data.registrations.filter((registration) => registration.competitionId === competition.id);
+      setTaken(mine.map((registration) => registration.departure));
+      if (mine.some((registration) => registration.carpool)) setCarpool(true);
     });
   }, [competition.id]);
 
