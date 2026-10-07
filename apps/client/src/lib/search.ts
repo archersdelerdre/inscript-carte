@@ -1,5 +1,5 @@
 /** "Dupont-Hélène" and "dupont helene" match: accents, case and dashes are ignored. */
-function searchable(text: string): string {
+export function searchable(text: string): string {
   return text
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

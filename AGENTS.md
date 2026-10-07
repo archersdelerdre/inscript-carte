@@ -128,7 +128,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   the database, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`, but it disappears from "Mon
   suivi" (`GET /api/me/registrations` only returns rows that are not cancelled).
 - Names of registrants are for signed-in members only; the count is public. "Voir les inscrits" shows a
-  "Covoiturage" badge for archers interested; "Mon suivi" and the admin card too.
+  "Covoiturage" badge for archers interested; "Mon suivi" and the admin card too. "Mon suivi" also shows a violet
+  "Trispot" badge on each départ shot on trispot (asked by a member, 2026-10-08).
 
 ## Admin panel (`/admin`, `apps/client/src/admin/`)
 
@@ -226,8 +227,15 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - **Layout like SeLoger**: header, list panel on the left (500 px, own scroll), full-height map on the right. On phones
   the list **covers** the map (never hide the map: Leaflet must keep its real size) and a floating "Carte / Liste"
   button switches.
-- Filters: Département (remembered in `localStorage`, default 44) and Discipline (+ "Para-tir"). The "Cibles" filter
-  of the old site was dropped (no data behind it).
+- **Filters take one line** (`competitions/competition-filters.tsx`, phones need the room): a round icon button
+  (with the number of filters chosen) opens a dialog with Département (remembered in `localStorage`, default 44),
+  Discipline (+ "Para-tir"), a date range (native date inputs; a competition is kept if one of its days is in it) and
+  "Seulement les concours avec des inscrits du club" (`clubArcherCount > 0`). The search field next to it shows the
+  chosen filters as removable chips (they scroll sideways, never wrap) before the **town search**: debounced 300 ms,
+  with our own suggestion list (`town-search.tsx`, ARIA combobox; the user rejected the native `<datalist>` look).
+  Suggestions use the text after a postal code (FFTA towns are sometimes full addresses) and merge spelling variants
+  per département. "Tout effacer" also resets the département to all of France. The "Cibles" filter of the old site
+  was dropped (no data behind it).
 - Cards: date block in the discipline color, title, badges ("Para-tir" light blue, "Reportée" amber), town line with
   **"Voir sur la carte"**, discipline · club, club deadline, links "Mandat (PDF)" (red) and "Détail FFTA" (grey).
 - **Bottom right of the card: "Voir les inscrits" and "S'inscrire"** (the latter only before the club deadline). Each

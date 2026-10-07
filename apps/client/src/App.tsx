@@ -1,30 +1,26 @@
-import {
-  DEPARTMENT_NAMES,
-  DISCIPLINE_LABELS,
-  DISCIPLINES,
-  type Discipline,
-  type GeoPosition,
-} from '@inscript-carte/shared';
+import { DEPARTMENT_NAMES, type GeoPosition } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { ListIcon, MapIcon, MapPinIcon, ShieldCheckIcon, TargetIcon, UserRoundIcon } from 'lucide-react';
+import { ListIcon, MapIcon, ShieldCheckIcon, TargetIcon, UserRoundIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { useSession } from '@/auth/session';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RegistrationActionsProvider, useRegistrationActions } from '@/registrations/registration-actions';
 
+import {
+  ALL,
+  CompetitionFilterBar,
+  type CompetitionFilters,
+  matchesFilters,
+  NO_FILTERS,
+} from './competitions/competition-filters';
 import { CompetitionList } from './competitions/competition-list';
 import { CompetitionMap, type FocusRequest } from './competitions/competition-map';
-import { DISCIPLINE_COLORS } from './competitions/disciplines';
+import { townSuggestions } from './competitions/town-search';
 import { useCompetitions } from './competitions/use-competitions';
 
-const ALL = 'all';
-const PARA_TIR = 'para-tir';
 const DEFAULT_DEPARTMENT = '44';
 const DEPARTMENT_STORAGE_KEY = 'department';
-
-type DisciplineFilter = typeof ALL | typeof PARA_TIR | Discipline;
 
 /** The stored choice if it is still offered, else the club's département, else all of France. */
 function chooseDepartment(stored: string | null, departmentCodes: string[]): string {
@@ -37,7 +33,7 @@ function chooseDepartment(stored: string | null, departmentCodes: string[]): str
 export function App() {
   const [state, reloadCompetitions] = useCompetitions();
   const [storedDepartment, setStoredDepartment] = useState(() => localStorage.getItem(DEPARTMENT_STORAGE_KEY));
-  const [disciplineFilter, setDisciplineFilter] = useState<DisciplineFilter>(ALL);
+  const [filters, setFilters] = useState<CompetitionFilters>(NO_FILTERS);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   /** Phones show either the list or the map; wider screens show both side by side. */
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
@@ -66,14 +62,10 @@ export function App() {
   ) satisfies GeoPosition[];
   // Kept stable between renders: the map re-places its markers (and an open popup) when this array changes.
   const shown = useMemo(
-    () =>
-      inDepartment.filter((competition) => {
-        if (disciplineFilter === ALL) return true;
-        if (disciplineFilter === PARA_TIR) return competition.hasParaTir;
-        return competition.discipline === disciplineFilter;
-      }),
-    [inDepartment, disciplineFilter],
+    () => inDepartment.filter((competition) => matchesFilters(competition, filters)),
+    [inDepartment, filters],
   );
+  const towns = useMemo(() => townSuggestions(inDepartment), [inDepartment]);
 
   function selectDepartment(value: string) {
     localStorage.setItem(DEPARTMENT_STORAGE_KEY, value);
@@ -109,50 +101,15 @@ export function App() {
               mobileView === 'map' && 'max-md:hidden',
             )}
           >
-            <div className='flex flex-wrap gap-2 border-b p-3'>
-              <Select value={department} onValueChange={selectDepartment}>
-                <SelectTrigger
-                  aria-label='Département'
-                  className='min-w-48 flex-1 rounded-full *:data-[slot=select-value]:flex-1'
-                >
-                  <MapPinIcon />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Toute la France</SelectItem>
-                  {departmentCodes.map((code) => (
-                    <SelectItem key={code} value={code}>
-                      {code}
-                      {DEPARTMENT_NAMES[code] && ` - ${DEPARTMENT_NAMES[code]}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={disciplineFilter}
-                onValueChange={(value) => setDisciplineFilter(value as DisciplineFilter)}
-              >
-                <SelectTrigger
-                  aria-label='Discipline'
-                  className='min-w-48 flex-1 rounded-full *:data-[slot=select-value]:flex-1'
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Toutes les disciplines</SelectItem>
-                  {DISCIPLINES.map((discipline) => (
-                    <SelectItem key={discipline} value={discipline}>
-                      <span className='size-3 rounded-full' style={{ background: DISCIPLINE_COLORS[discipline] }} />
-                      {DISCIPLINE_LABELS[discipline]}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={PARA_TIR}>
-                    <span className='size-3 rounded-full bg-sky-500' />
-                    Para-tir
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <CompetitionFilterBar
+              department={department}
+              departmentCodes={departmentCodes}
+              onDepartmentChange={selectDepartment}
+              filters={filters}
+              onFiltersChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
+              towns={towns}
+              resultCount={shown.length}
+            />
 
             <div className='bg-muted/30 min-h-0 flex-1 overflow-y-auto p-4 pb-24 md:pb-4'>
               {state.kind === 'loading' && <p className='text-muted-foreground'>Chargement des concours…</p>}

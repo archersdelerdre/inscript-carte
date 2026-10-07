@@ -54,6 +54,7 @@ export function toMyRegistrationDto({ registration, competition, canWithdraw }: 
     departure: registration.departure,
     bowType: registration.bowType,
     carpool: registration.carpool,
+    trispot: registration.trispot,
     category: registration.category,
     status: registration.status,
     paymentStatus: registration.paymentStatus,

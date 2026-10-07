@@ -6,7 +6,7 @@ import {
   type MyRegistrationDto,
   type SignedInArcher,
 } from '@inscript-carte/shared';
-import { CarIcon } from 'lucide-react';
+import { CarIcon, TargetIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useSession } from '@/auth/session';
@@ -128,6 +128,12 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                       <span className='font-medium'>Départ {registration.departure}</span>
                       <StatusBadge status={registration.status} />
                       <span className='text-muted-foreground text-sm'>{BOW_TYPE_LABELS[registration.bowType]}</span>
+                      {registration.trispot && (
+                        <Badge className='bg-violet-100 font-normal text-violet-900'>
+                          <TargetIcon />
+                          Trispot
+                        </Badge>
+                      )}
                     </div>
                     {registration.paymentStatus === 'to_pay' && (
                       <p className='text-sm'>

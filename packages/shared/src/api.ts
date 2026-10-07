@@ -156,6 +156,7 @@ export type MyRegistrationDto = {
   endDate: string;
   departure: number;
   bowType: BowType;
+  trispot: boolean;
   category: AgeCategory;
   status: RegistrationStatus;
   paymentStatus: PaymentStatus;
