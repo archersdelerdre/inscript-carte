@@ -8,7 +8,6 @@
     "build": "bun build src/main.ts --target=bun --outdir=dist --external=knex --external=better-sqlite3",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "db:rollback": "bun src/infrastructure/database/rollback.ts",
     "db:import-legacy-events": "bun src/infrastructure/database/import-legacy-events.ts",
     "db:import-archers": "bun src/infrastructure/database/import-archers.ts",
     "db:add-admin": "bun src/infrastructure/database/add-admin.ts",

@@ -36,9 +36,10 @@ club members (why and for whom the project exists, no technical content).
 | `bun run --cwd apps/server db:import-archers <export.xlsx>` | sync the club member list (FFTA extranet export) |
 | `bun run --cwd apps/server db:add-admin <licence>` | make an active member an admin, or change their password (typed hidden) |
 | `bun run --cwd apps/server db:remove-admin <licence>` | remove an admin (ends their admin sessions) |
-| `bun run --cwd apps/server db:rollback` | roll back the last migration batch |
 
-Migrations run **when the server starts** (`main.ts`), before it accepts requests.
+Migrations run **when the server starts** (`main.ts`), before it accepts requests. There is no rollback command (removed
+on 2026-10-07: with one migration it only dropped every table); to start over, stop the server and delete the
+`.sqlite`, `-wal` and `-shm` files.
 
 ## Docker (production)
 
