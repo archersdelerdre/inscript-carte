@@ -133,21 +133,18 @@ function Actions({ competition }: { competition: CompetitionDto }) {
   const { register, showRegistrants } = useRegistrationActions();
   const open = competition.clubRegistrationDeadline >= todayInParis();
   const hasRegistrants = competition.clubArcherCount > 0;
-  if (!open && !hasRegistrants) return null;
   return (
-    // Two equal columns across the text column: both edges line up with the lines above, and "S'inscrire" keeps its
-    // place on the right when it is alone.
-    <div className='mt-1 grid grid-cols-2 gap-2'>
-      {hasRegistrants && (
-        <Button variant='outline' onClick={() => showRegistrants(competition)}>
-          Voir les inscrits
-        </Button>
-      )}
-      {open && (
-        <Button className='col-start-2' onClick={() => register(competition)}>
-          S'inscrire
-        </Button>
-      )}
+    // Equal widths across the text column: both edges line up with the lines above.
+    <div className='mt-1 flex gap-2 *:flex-1'>
+      {/* Kept but disabled (ghost) when nobody is registered: a hidden button left an odd empty space. */}
+      <Button
+        variant={hasRegistrants ? 'outline' : 'ghost'}
+        disabled={!hasRegistrants}
+        onClick={() => showRegistrants(competition)}
+      >
+        Voir les inscrits
+      </Button>
+      {open && <Button onClick={() => register(competition)}>S'inscrire</Button>}
     </div>
   );
 }

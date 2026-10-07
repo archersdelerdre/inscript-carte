@@ -238,8 +238,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   field were tried and rejected (cut or squeezed the town field). The "Cibles" filter of the old site was dropped.
 - Cards: date block in the discipline color, title, badges ("Para-tir" light blue, "Reportée" amber), town line with
   **"Voir sur la carte"**, discipline · club, club deadline, links "Mandat (PDF)" (red) and "Détail FFTA" (grey).
-- **Bottom right of the card: "Voir les inscrits" and "S'inscrire"** ("Voir les inscrits" only when `clubArcherCount
-  > 0`; "S'inscrire" only before the club deadline, always in the right half, even alone). Each
+- **Bottom right of the card: "Voir les inscrits" and "S'inscrire"** ("Voir les inscrits" is disabled and ghost when
+  `clubArcherCount` is 0, never hidden: hiding left an odd space; "S'inscrire" only before the club deadline). Each
   action asks to sign in first when needed, then continues. "Mon suivi" is in the header; on its left, an
   "Administration" link to `/admin` shows only for admins (`SignedInArcher.isAdmin`; icon only on phones).
 - **Hovering a card does nothing on the map.** "Voir sur la carte" is the only link from list to map (zoom + popup).
