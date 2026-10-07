@@ -68,7 +68,7 @@ Inner layers never import outer ones.
   `CalendarDate` (`YYYY-MM-DD` strings), repository ports. The domain may import types from `@inscript-carte/shared`
   (shared kernel). The status rule `canChangeStatus` lives in `shared/src/registration.ts` so the client greys out the
   same options.
-- `application/`: `ListUpcomingCompetitions` (drops finished and cancelled, adds the club registration count),
+- `application/`: `ListUpcomingCompetitions` (drops finished and cancelled, adds the club archer count),
   `Authentication`, `ClubRegistrations`, `AdminAuthentication` (sign-in, password change), `AdminAccounts` (admin
   rights: command line and panel),
   `AdminRegistrations`, `ClubMembers` (import, status, list); ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`,
@@ -84,7 +84,7 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 
 | Route | |
 | --- | --- |
-| `GET /api/competitions` | public, with `clubRegistrationCount` (active rows, one per départ) |
+| `GET /api/competitions` | public, with `clubArcherCount` (distinct archers with an active départ; card: "2 archers inscrits") |
 | `GET/POST/DELETE /api/session` | current archer / sign in (licence + birth date) / sign out |
 | `GET/POST /api/competitions/:competitionId/registrations` | members only: who is registered / register |
 | `GET /api/me/registrations`, `DELETE /api/me/registrations/:registrationId` | "Mon suivi" / withdraw a départ |
@@ -114,7 +114,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - **Category** is computed, never typed: `ageCategory(birthYear, competitionDate)` in `shared/src/ffta-category.ts`
   (FFTA table: season N runs 1 Sept N-1 to 31 Aug N, age reached in year N). Stored on each registration row.
 - **Form**: départs 1 to 6 (buttons), bow, distances only for Extérieur (required there), trispot, **covoiturage**
-  (checkbox, `carpool` column from migration `0002`, not remembered on the device), **payment method**
+  (checkbox, `carpool` column from migration `0002`, not remembered on the device, but ticked again when the archer
+  already said yes for that competition, read from "Mon suivi"), **payment method**
   (required: Espèces / Chèque / Virement, remembered on the device), optional contact.
   The request carries a bow **per départ** (`departures: [{ departure, bowType }]`). The usual case stays one bow
   choice; the link « Un arc différent selon le départ ? » (only with 2+ départs) shows one bow menu per départ.
