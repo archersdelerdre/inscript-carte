@@ -154,7 +154,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   per départ** in aligned columns: départ + bow, status select, a **"Payé" checkbox** (green when ticked, amber "En
   attente de paiement" otherwise), a pencil **icon button** for the note. The note and "Modifié par" go under the
   line only when present; cancelled lines are dimmed (the user asked for more contrast and a smaller note button,
-  2026-10-07). Filters: status and payment (Tous / Payés / En attente de paiement). The "Fichier Excel pour
+  2026-10-07). A card whose active départs are **all paid starts closed** ("Tout est payé · N départs" badge; the
+  header toggles it; it does not close by itself after a change). A **search field** above the cards (name, licence
+  or reference, `lib/search.ts`, accents ignored) opens every card found; it does not change the Excel file.
+  Filters: status and payment (Tous / Payés / En attente de paiement). The "Fichier Excel pour
   l'organisateur" button sits at the right of the filter row, its count on its left, and **follows these filters**:
   the user usually sends only the paid départs. "Plus de place" and "Annulée" never go in the file. The payment label
   of `to_pay` is "En attente de paiement" (user's wording, 2026-10-07; not the old status of that name).

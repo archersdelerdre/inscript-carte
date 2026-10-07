@@ -17,7 +17,7 @@ import {
   type UpdateRegistrationRequest,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { DownloadIcon, MessageSquareTextIcon, PencilIcon } from 'lucide-react';
+import { ChevronDownIcon, DownloadIcon, MessageSquareTextIcon, PencilIcon, SearchIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -30,6 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -45,6 +46,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, formatDateTime, formatDay } from '@/lib/dates';
+import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 import { StatusBadge } from '@/registrations/status-badge';
 
@@ -84,6 +86,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   const [paymentFilter, setPaymentFilter] = useState<typeof ALL | PaymentStatus>(ALL);
   const [noteFor, setNoteFor] = useState<AdminRegistrationDto | null>(null);
   const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
+  const [query, setQuery] = useState('');
 
   const showResult = useCallback(
     (result: ApiResult<AdminCompetitionRegistrationsResponse>) => {
@@ -141,10 +144,10 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
 
   async function download() {
     // The file follows the filters on screen: usually only the paid départs go to the organizer.
-    const query = new URLSearchParams();
-    if (statusFilter !== ALL) query.set('status', statusFilter);
-    if (paymentFilter !== ALL) query.set('paymentStatus', paymentFilter);
-    const path = `${apiPath(API_ROUTES.adminCompetitionExport, { competitionId })}?${query}`;
+    const filters = new URLSearchParams();
+    if (statusFilter !== ALL) filters.set('status', statusFilter);
+    if (paymentFilter !== ALL) filters.set('paymentStatus', paymentFilter);
+    const path = `${apiPath(API_ROUTES.adminCompetitionExport, { competitionId })}?${filters}`;
     const response = await fetch(path).catch(() => null);
     if (response?.status === 401) return onSessionExpired();
     if (!response?.ok) return setMessage(ERROR_MESSAGES.network);
@@ -176,7 +179,10 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
         (registration.paymentStatus === paymentFilter &&
           (paymentFilter === 'paid' || registration.status !== 'cancelled'))),
   );
-  const groups = groupByReference(shown, registrations);
+  // The search only narrows what is shown: the Excel file follows the status and payment filters alone.
+  const groups = groupByReference(shown, registrations).filter((group) =>
+    matchesSearch(query, `${group.fullName} ${group.licenceNumber} ${group.paymentReference}`),
+  );
   const paidCount = registrations.filter(
     (registration) => registration.paymentStatus === 'paid' && registration.status !== 'cancelled',
   ).length;
@@ -247,13 +253,29 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
           {message}
         </p>
       )}
-      {groups.length === 0 && <p className='text-muted-foreground'>Aucune inscription avec ces filtres.</p>}
+      <div className='relative max-w-md'>
+        <SearchIcon className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-[1.125rem] -translate-y-1/2' />
+        <Input
+          type='search'
+          aria-label='Chercher un archer'
+          placeholder='Chercher un archer : nom, licence ou référence'
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className='bg-background pl-10'
+        />
+      </div>
+      {groups.length === 0 && (
+        <p className='text-muted-foreground'>
+          {query ? 'Aucun archer ne correspond à cette recherche.' : 'Aucune inscription avec ces filtres.'}
+        </p>
+      )}
 
       <ul className='grid gap-3'>
         {groups.map((group) => (
           <li key={group.paymentReference}>
             <ReferenceCard
               group={group}
+              forceOpen={query.trim() !== ''}
               onRowStatus={changeRowStatus}
               onRowPayment={(registration, paymentStatus) => void updateRow(registration, { paymentStatus })}
               onRowNote={setNoteFor}
@@ -303,6 +325,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
 type Group = {
   paymentReference: string;
   fullName: string;
+  licenceNumber: string;
   /** The rows that match the filters. */
   rows: AdminRegistrationDto[];
   /** Every row of the reference that is not cancelled, shown or not: the reference actions change all of them. */
@@ -319,6 +342,7 @@ function groupByReference(shown: AdminRegistrationDto[], all: AdminRegistrationD
       groups.set(registration.paymentReference, {
         paymentReference: registration.paymentReference,
         fullName: registration.fullName,
+        licenceNumber: registration.licenceNumber,
         rows: [registration],
         activeRows: all.filter(
           (row) => row.paymentReference === registration.paymentReference && row.status !== 'cancelled',
@@ -330,6 +354,8 @@ function groupByReference(shown: AdminRegistrationDto[], all: AdminRegistrationD
 
 type ReferenceCardProps = {
   group: Group;
+  /** While searching, every card found is open. */
+  forceOpen: boolean;
   onRowStatus: (registration: AdminRegistrationDto, status: RegistrationStatus) => void;
   onRowPayment: (registration: AdminRegistrationDto, paymentStatus: PaymentStatus) => void;
   onRowNote: (registration: AdminRegistrationDto) => void;
@@ -339,6 +365,7 @@ type ReferenceCardProps = {
 
 function ReferenceCard({
   group,
+  forceOpen,
   onRowStatus,
   onRowPayment,
   onRowNote,
@@ -356,26 +383,56 @@ function ReferenceCard({
   const paymentMethods = [
     ...new Set(group.rows.flatMap((row) => (row.paymentMethod ? [PAYMENT_METHOD_LABELS[row.paymentMethod]] : []))),
   ];
+  // An archer who paid everything needs nothing more: their card starts closed. It does not close by itself when the
+  // last départ gets paid, so the admin keeps seeing what they just did.
+  const [open, setOpen] = useState(!allPaid);
+  const expanded = open || forceOpen;
+  const departureCount = group.activeRows.length;
 
   return (
     <section className='bg-card overflow-hidden rounded-lg border shadow-sm'>
-      <header className='bg-muted/60 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3'>
-        <div className='grid min-w-0 gap-0.5'>
-          <h3 className='text-base leading-snug font-semibold'>{first.fullName}</h3>
-          <p className='text-muted-foreground text-sm'>
-            Réf. <strong className='text-foreground'>{group.paymentReference}</strong>
-            {paymentMethods.length > 0 && ` · ${paymentMethods.join(', ')}`} · licence {first.licenceNumber} ·{' '}
-            {categoryLabel(first.category, first.sex)}
-            {first.contact && (
-              <>
-                {' · '}
-                <span className='whitespace-nowrap'>{first.contact}</span>
-              </>
+      <header
+        className={cn(
+          'bg-muted/60 flex flex-wrap items-center justify-between gap-3 px-4 py-3',
+          expanded && 'border-b',
+        )}
+      >
+        <button
+          type='button'
+          aria-expanded={expanded}
+          onClick={() => setOpen(!expanded)}
+          className='flex min-w-0 flex-1 basis-72 items-start gap-2 text-left'
+        >
+          <ChevronDownIcon
+            className={cn(
+              'text-muted-foreground mt-0.5 size-5 shrink-0 transition-transform',
+              !expanded && '-rotate-90',
             )}
-            {' · demandé le '}
-            <span className='whitespace-nowrap'>{formatDateTime(first.createdAt)}</span>
-          </p>
-        </div>
+          />
+          <span className='grid min-w-0 gap-0.5'>
+            <span className='flex flex-wrap items-center gap-2'>
+              <span className='text-base leading-snug font-semibold'>{first.fullName}</span>
+              {allPaid && (
+                <Badge className='bg-green-100 text-green-900'>
+                  Tout est payé · {departureCount} {departureCount > 1 ? 'départs' : 'départ'}
+                </Badge>
+              )}
+            </span>
+            <span className='text-muted-foreground text-sm'>
+              Réf. <strong className='text-foreground'>{group.paymentReference}</strong>
+              {paymentMethods.length > 0 && ` · ${paymentMethods.join(', ')}`} · licence {first.licenceNumber} ·{' '}
+              {categoryLabel(first.category, first.sex)}
+              {first.contact && (
+                <>
+                  {' · '}
+                  <span className='whitespace-nowrap'>{first.contact}</span>
+                </>
+              )}
+              {' · demandé le '}
+              <span className='whitespace-nowrap'>{formatDateTime(first.createdAt)}</span>
+            </span>
+          </span>
+        </button>
         {showReferenceActions && (
           <div className='flex flex-wrap gap-2'>
             <Select value='' onValueChange={(value) => onReferenceStatus(value as RegistrationStatus)}>
@@ -400,18 +457,20 @@ function ReferenceCard({
         )}
       </header>
 
-      <ul className='divide-y'>
-        {group.rows.map((registration) => (
-          <li key={registration.id} className='px-4 py-2.5'>
-            <DepartureRow
-              registration={registration}
-              onStatus={(status) => onRowStatus(registration, status)}
-              onPayment={(paymentStatus) => onRowPayment(registration, paymentStatus)}
-              onNote={() => onRowNote(registration)}
-            />
-          </li>
-        ))}
-      </ul>
+      {expanded && (
+        <ul className='divide-y'>
+          {group.rows.map((registration) => (
+            <li key={registration.id} className='px-4 py-2.5'>
+              <DepartureRow
+                registration={registration}
+                onStatus={(status) => onRowStatus(registration, status)}
+                onPayment={(paymentStatus) => onRowPayment(registration, paymentStatus)}
+                onNote={() => onRowNote(registration)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

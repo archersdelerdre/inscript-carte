@@ -56,6 +56,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateTime } from '@/lib/dates';
+import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 
 const PROBLEM_MESSAGES: Record<MemberExportProblem, string> = {
@@ -75,15 +76,6 @@ const PROBLEM_MESSAGES: Record<MemberExportProblem, string> = {
 function problemMessage({ problem, line, detail }: MemberExportErrorResponse): string {
   const where = [detail && `« ${detail} »`, line !== null && `ligne ${line}`].filter(Boolean).join(', ');
   return `${PROBLEM_MESSAGES[problem]}${where ? ` : ${where}` : ''}. Rien n'a été importé.`;
-}
-
-/** "Dupont-Hélène" and "dupont helene" match: accents, case and dashes are ignored. */
-function searchable(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[-']/g, ' ')
-    .toLowerCase();
 }
 
 type StateFilter = 'all' | 'active' | 'left';
@@ -148,11 +140,10 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
     reload();
   }
 
-  const words = searchable(query).split(/\s+/).filter(Boolean);
   const shown = (members ?? []).filter(
     (member) =>
       (stateFilter === 'all' || member.isActive === (stateFilter === 'active')) &&
-      words.every((word) => searchable(`${member.fullName} ${member.licenceNumber}`).includes(word)),
+      matchesSearch(query, `${member.fullName} ${member.licenceNumber}`),
   );
   const leftCount = members?.filter((member) => !member.isActive).length ?? 0;
 
