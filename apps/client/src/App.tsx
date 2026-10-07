@@ -1,9 +1,10 @@
 import { DEPARTMENT_NAMES, type GeoPosition } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { ListIcon, MapIcon, ShieldCheckIcon, TargetIcon, UserRoundIcon } from 'lucide-react';
+import { ListIcon, MapIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { useSession } from '@/auth/session';
+import { TargetLogo } from '@/components/target-logo';
 import { Button } from '@/components/ui/button';
 import { RegistrationActionsProvider, useRegistrationActions } from '@/registrations/registration-actions';
 
@@ -83,7 +84,7 @@ export function App() {
     <RegistrationActionsProvider onRegistrationsChanged={reloadCompetitions}>
       <div className='flex h-svh flex-col'>
         <header className='flex h-14 shrink-0 items-center gap-2 border-b px-4'>
-          <TargetIcon className='text-primary size-6 shrink-0' />
+          <TargetLogo className='size-7 shrink-0' />
           <span className='min-w-0 truncate text-lg font-semibold tracking-tight'>
             Concours de tir à l'arc en France
           </span>
