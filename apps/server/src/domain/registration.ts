@@ -25,6 +25,8 @@ export type Registration = {
   readonly paymentReference: string;
   readonly clubNote: string | null;
   readonly trispot: boolean;
+  /** Would like to share a car from the club. */
+  readonly carpool: boolean;
   readonly distance: Distance | null;
   readonly contact: string | null;
   /** ISO date and time (UTC). */
@@ -41,6 +43,7 @@ export type NewRegistration = {
   readonly departures: readonly DepartureChoice[];
   readonly category: AgeCategory;
   readonly trispot: boolean;
+  readonly carpool: boolean;
   readonly distance: Distance | null;
   readonly contact: string | null;
   readonly paymentMethod: PaymentMethod;

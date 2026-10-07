@@ -113,7 +113,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   only has the birth year.
 - **Category** is computed, never typed: `ageCategory(birthYear, competitionDate)` in `shared/src/ffta-category.ts`
   (FFTA table: season N runs 1 Sept N-1 to 31 Aug N, age reached in year N). Stored on each registration row.
-- **Form**: départs 1 to 6 (buttons), bow, distances only for Extérieur (required there), trispot, **payment method**
+- **Form**: départs 1 to 6 (buttons), bow, distances only for Extérieur (required there), trispot, **covoiturage**
+  (checkbox, `carpool` column from migration `0002`, not remembered on the device), **payment method**
   (required: Espèces / Chèque / Virement, remembered on the device), optional contact.
   The request carries a bow **per départ** (`departures: [{ departure, bowType }]`). The usual case stays one bow
   choice; the link « Un arc différent selon le départ ? » (only with 2+ départs) shows one bow menu per départ.
@@ -124,7 +125,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - Open until the club deadline **included**. Withdraw only while `received` and before the deadline: the row stays in
   the database, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`, but it disappears from "Mon
   suivi" (`GET /api/me/registrations` only returns rows that are not cancelled).
-- Names of registrants are for signed-in members only; the count is public.
+- Names of registrants are for signed-in members only; the count is public. "Voir les inscrits" shows a
+  "Covoiturage" badge for archers interested (any of their active départs of the competition); the admin card too.
 
 ## Admin panel (`/admin`, `apps/client/src/admin/`)
 

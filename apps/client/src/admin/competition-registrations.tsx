@@ -17,7 +17,7 @@ import {
   type UpdateRegistrationRequest,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { ChevronDownIcon, DownloadIcon, MessageSquareTextIcon, PencilIcon, SearchIcon } from 'lucide-react';
+import { CarIcon, ChevronDownIcon, DownloadIcon, MessageSquareTextIcon, PencilIcon, SearchIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -415,6 +415,12 @@ function ReferenceCard({
               {allPaid && (
                 <Badge className='bg-green-100 text-green-900'>
                   Tout est payé · {departureCount} {departureCount > 1 ? 'départs' : 'départ'}
+                </Badge>
+              )}
+              {group.activeRows.some((row) => row.carpool) && (
+                <Badge className='bg-sky-100 text-sky-900'>
+                  <CarIcon />
+                  Covoiturage
                 </Badge>
               )}
             </span>

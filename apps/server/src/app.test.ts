@@ -95,6 +95,7 @@ const form = ({
 }: { departures?: number[]; bowType?: string; [field: string]: unknown } = {}) => ({
   departures: departures.map((departure) => ({ departure, bowType })),
   trispot: false,
+  carpool: false,
   distance: null,
   contact: null,
   paymentMethod: 'cheque',
@@ -292,8 +293,31 @@ describe('registration', () => {
 
     const response = await call(`/api/competitions/${SALLE}/registrations`, { cookie: await signIn(YOUTH) });
     expect((await response.json()) as ListCompetitionRegistrantsResponse).toEqual({
-      registrants: [{ fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1, 3] }],
+      registrants: [{ fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1, 3], carpool: false }],
     });
+  });
+
+  test('an archer interested in carpooling shows it to the other members, for the whole competition', async () => {
+    const adult = await signIn(ADULT);
+    await call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie: adult, body: form() });
+    // A later request for another départ, with another bow, says yes.
+    await call(`/api/competitions/${SALLE}/registrations`, {
+      method: 'POST',
+      cookie: adult,
+      body: form({ departures: [2], bowType: 'poulies', carpool: true }),
+    });
+
+    const response = await call(`/api/competitions/${SALLE}/registrations`, { cookie: await signIn(YOUTH) });
+    expect(((await response.json()) as ListCompetitionRegistrantsResponse).registrants).toEqual([
+      { fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1], carpool: true },
+      { fullName: 'DUPONT JEANNE', bowType: 'poulies', departures: [2], carpool: true },
+    ]);
+    const invalid = await call(`/api/competitions/${SALLE}/registrations`, {
+      method: 'POST',
+      cookie: adult,
+      body: form({ departures: [3], carpool: 'oui' }),
+    });
+    expect(invalid.status).toBe(400);
   });
 
   test('each départ can have its own bow', async () => {
@@ -318,8 +342,8 @@ describe('registration', () => {
     ]);
     const response = await call(`/api/competitions/${SALLE}/registrations`, { cookie });
     expect(((await response.json()) as ListCompetitionRegistrantsResponse).registrants).toEqual([
-      { fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1] },
-      { fullName: 'DUPONT JEANNE', bowType: 'poulies', departures: [2] },
+      { fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1], carpool: false },
+      { fullName: 'DUPONT JEANNE', bowType: 'poulies', departures: [2], carpool: false },
     ]);
   });
 });
@@ -580,6 +604,7 @@ describe('admin registrations', () => {
       departure: 1,
       bowType: 'classique',
       trispot: false,
+      carpool: false,
       distance: null,
       paymentMethod: 'cheque',
       paymentReference: 'R-0001',

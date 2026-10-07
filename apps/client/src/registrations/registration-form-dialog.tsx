@@ -69,6 +69,8 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
   const [bowByDeparture, setBowByDeparture] = useState<Record<string, BowType> | null>(null);
   const [distance, setDistance] = useState<Distance | ''>('');
   const [trispot, setTrispot] = useState(false);
+  // Not remembered on the device: it depends on each competition.
+  const [carpool, setCarpool] = useState(false);
   const [contact, setContact] = useState(() => localStorage.getItem(STORAGE.contact) ?? '');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>(
     () => PAYMENT_METHODS.find((value) => value === localStorage.getItem(STORAGE.paymentMethod)) ?? '',
@@ -110,6 +112,7 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
     const request: RegistrationRequest = {
       departures: sortedDepartures.map((departure) => ({ departure: Number(departure), bowType: bowFor(departure) })),
       trispot,
+      carpool,
       distance: isExterieur && distance ? distance : null,
       contact: contact.trim() || null,
       paymentMethod,
@@ -276,6 +279,11 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
             <Label htmlFor='trispot' className='min-h-10 cursor-pointer'>
               <Checkbox id='trispot' checked={trispot} onCheckedChange={(checked) => setTrispot(checked === true)} />
               Je souhaite tirer sur trispot
+            </Label>
+
+            <Label htmlFor='carpool' className='min-h-10 cursor-pointer'>
+              <Checkbox id='carpool' checked={carpool} onCheckedChange={(checked) => setCarpool(checked === true)} />
+              Je suis intéressé(e) par un covoiturage depuis le club
             </Label>
 
             <div className='grid gap-2'>

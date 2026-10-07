@@ -24,6 +24,7 @@ const MAX_CONTACT_LENGTH = 200;
 export type RegistrationForm = {
   departures: unknown;
   trispot: unknown;
+  carpool: unknown;
   distance: unknown;
   contact: unknown;
   paymentMethod: unknown;
@@ -33,7 +34,7 @@ export type RegisterResult =
   | { ok: true; departures: number[]; category: AgeCategory; paymentReference: string; paymentDeadline: string }
   | { ok: false; reason: 'not_found' | 'invalid_request' | 'registration_closed' | 'already_registered' };
 
-export type RegistrantGroup = { fullName: string; bowType: BowType; departures: number[] };
+export type RegistrantGroup = { fullName: string; bowType: BowType; departures: number[]; carpool: boolean };
 
 export type MyRegistration = { registration: Registration; competition: Competition; canWithdraw: boolean };
 
@@ -65,6 +66,7 @@ export class ClubRegistrations {
     if (
       !departures ||
       typeof form.trispot !== 'boolean' ||
+      typeof form.carpool !== 'boolean' ||
       !paymentMethod ||
       !distanceValid ||
       (form.contact !== null && contact === null) ||
@@ -85,6 +87,7 @@ export class ClubRegistrations {
       departures,
       category,
       trispot: form.trispot,
+      carpool: form.carpool,
       distance: distance satisfies Distance | null,
       contact: contact || null,
       paymentMethod,
@@ -102,8 +105,11 @@ export class ClubRegistrations {
   /** `null` when the competition does not exist. Only for signed-in members: names are private. */
   async registrants(competitionId: string): Promise<RegistrantGroup[] | null> {
     if (!(await this.#competitions.findById(competitionId))) return null;
+    const registrants = await this.#registrations.activeRegistrants(competitionId);
+    // One request (or a later one for another départ) may have said so: the archer is interested for the competition.
+    const carpoolers = new Set(registrants.filter(({ carpool }) => carpool).map((r) => r.archerLicenceNumber));
     const groups = new Map<string, RegistrantGroup>();
-    for (const registrant of await this.#registrations.activeRegistrants(competitionId)) {
+    for (const registrant of registrants) {
       const key = `${registrant.archerLicenceNumber}|${registrant.bowType}`;
       const group = groups.get(key);
       if (group) group.departures.push(registrant.departure);
@@ -112,6 +118,7 @@ export class ClubRegistrations {
           fullName: registrant.fullName,
           bowType: registrant.bowType,
           departures: [registrant.departure],
+          carpool: carpoolers.has(registrant.archerLicenceNumber),
         });
     }
     return [...groups.values()]

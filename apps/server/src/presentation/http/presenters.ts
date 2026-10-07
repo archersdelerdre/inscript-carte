@@ -102,6 +102,7 @@ export function toAdminRegistrationDto({
     departure: registration.departure,
     bowType: registration.bowType,
     trispot: registration.trispot,
+    carpool: registration.carpool,
     distance: registration.distance,
     paymentMethod: registration.paymentMethod,
     paymentReference: registration.paymentReference,

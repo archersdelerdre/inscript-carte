@@ -6,9 +6,11 @@ import {
   type CompetitionRegistrantDto,
   type ListCompetitionRegistrantsResponse,
 } from '@inscript-carte/shared';
+import { CarIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useSession } from '@/auth/session';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
 import { formatDateRange } from '@/lib/dates';
@@ -53,7 +55,15 @@ export function RegistrantsDialog({ competition, onClose }: Props) {
           <ul className='grid gap-2'>
             {registrants.map((registrant) => (
               <li key={`${registrant.fullName}|${registrant.bowType}`} className='rounded-md border px-3 py-2'>
-                <p className='font-medium'>{registrant.fullName}</p>
+                <p className='flex flex-wrap items-center gap-2 font-medium'>
+                  {registrant.fullName}
+                  {registrant.carpool && (
+                    <Badge className='bg-sky-100 font-normal text-sky-900'>
+                      <CarIcon />
+                      Covoiturage
+                    </Badge>
+                  )}
+                </p>
                 <p className='text-muted-foreground text-sm'>
                   {BOW_TYPE_LABELS[registrant.bowType]} · {departuresPhrase(registrant.departures)}
                 </p>

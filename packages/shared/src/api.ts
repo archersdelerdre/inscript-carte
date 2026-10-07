@@ -118,6 +118,8 @@ export type DepartureChoice = {
 export type RegistrationRequest = {
   departures: DepartureChoice[];
   trispot: boolean;
+  /** Would like to share a car from the club. */
+  carpool: boolean;
   /** Required for "Extérieur" competitions, `null` otherwise. */
   distance: Distance | null;
   contact: string | null;
@@ -137,6 +139,8 @@ export type CompetitionRegistrantDto = {
   fullName: string;
   bowType: BowType;
   departures: number[];
+  /** Interested in carpooling from the club, so the members can organize together. */
+  carpool: boolean;
 };
 
 export type ListCompetitionRegistrantsResponse = {
@@ -222,6 +226,7 @@ export type AdminRegistrationDto = {
   departure: number;
   bowType: BowType;
   trispot: boolean;
+  carpool: boolean;
   distance: Distance | null;
   paymentMethod: PaymentMethod | null;
   paymentReference: string;

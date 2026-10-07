@@ -33,6 +33,7 @@ type RegistrationRow = {
   payment_reference: string;
   club_note: string | null;
   trispot: 0 | 1;
+  carpool: 0 | 1;
   distance: Distance | null;
   contact: string | null;
   /** SQLite `CURRENT_TIMESTAMP`: `YYYY-MM-DD HH:MM:SS`, UTC. */
@@ -108,6 +109,7 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
             bow_type: bowType,
             category: registration.category,
             trispot: registration.trispot,
+            carpool: registration.carpool,
             distance: registration.distance,
             contact: registration.contact,
             payment_method: registration.paymentMethod,
@@ -126,22 +128,29 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
   }
 
   async activeRegistrants(competitionId: string): Promise<Registrant[]> {
-    const rows: { archer_licence_number: string; full_name: string; bow_type: BowType; departure: number }[] =
-      await this.#database('registrations')
-        .modify(ACTIVE)
-        .join('archers', 'archers.licence_number', 'registrations.archer_licence_number')
-        .where({ competition_ffta_id: competitionId })
-        .select(
-          'registrations.archer_licence_number',
-          'archers.full_name',
-          'registrations.bow_type',
-          'registrations.departure',
-        );
+    const rows: {
+      archer_licence_number: string;
+      full_name: string;
+      bow_type: BowType;
+      departure: number;
+      carpool: 0 | 1;
+    }[] = await this.#database('registrations')
+      .modify(ACTIVE)
+      .join('archers', 'archers.licence_number', 'registrations.archer_licence_number')
+      .where({ competition_ffta_id: competitionId })
+      .select(
+        'registrations.archer_licence_number',
+        'archers.full_name',
+        'registrations.bow_type',
+        'registrations.departure',
+        'registrations.carpool',
+      );
     return rows.map((row) => ({
       archerLicenceNumber: row.archer_licence_number,
       fullName: row.full_name,
       bowType: row.bow_type,
       departure: row.departure,
+      carpool: row.carpool === 1,
     }));
   }
 
@@ -221,6 +230,7 @@ function toRegistration(row: RegistrationRow): Registration {
     paymentReference: row.payment_reference,
     clubNote: row.club_note,
     trispot: row.trispot === 1,
+    carpool: row.carpool === 1,
     distance: row.distance,
     contact: row.contact,
     createdAt: `${row.created_at.replace(' ', 'T')}Z`,

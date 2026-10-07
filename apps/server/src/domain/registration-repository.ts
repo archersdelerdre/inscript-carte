@@ -9,6 +9,7 @@ export type Registrant = {
   readonly fullName: string;
   readonly bowType: BowType;
   readonly departure: number;
+  readonly carpool: boolean;
 };
 
 export type AddRegistrationsResult =

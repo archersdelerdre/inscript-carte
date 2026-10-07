@@ -97,6 +97,7 @@ export function createRoutes({
         const result = await clubRegistrations.register(archer, request.params.competitionId, {
           departures: body.departures,
           trispot: body.trispot,
+          carpool: body.carpool,
           distance: body.distance,
           contact: body.contact,
           paymentMethod: body.paymentMethod,
