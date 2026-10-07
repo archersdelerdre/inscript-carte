@@ -133,6 +133,8 @@ function Actions({ competition }: { competition: CompetitionDto }) {
   const { register, showRegistrants } = useRegistrationActions();
   const open = competition.clubRegistrationDeadline >= todayInParis();
   const hasRegistrants = competition.clubArcherCount > 0;
+  // Nothing to see and nothing to do: no buttons at all.
+  if (!open && !hasRegistrants) return null;
   return (
     // Equal widths across the text column: both edges line up with the lines above.
     <div className='mt-1 flex gap-2 *:flex-1'>
