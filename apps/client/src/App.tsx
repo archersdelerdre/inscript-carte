@@ -25,6 +25,14 @@ const DEPARTMENT_STORAGE_KEY = 'department';
 
 type DisciplineFilter = typeof ALL | typeof PARA_TIR | Discipline;
 
+/** The stored choice if it is still offered, else the club's département, else all of France. */
+function chooseDepartment(stored: string | null, departmentCodes: string[]): string {
+  if (stored === ALL) return ALL;
+  if (stored && departmentCodes.includes(stored)) return stored;
+  if (departmentCodes.includes(DEFAULT_DEPARTMENT)) return DEFAULT_DEPARTMENT;
+  return ALL;
+}
+
 export function App() {
   const [state, reloadCompetitions] = useCompetitions();
   const [storedDepartment, setStoredDepartment] = useState(() => localStorage.getItem(DEPARTMENT_STORAGE_KEY));
@@ -39,14 +47,7 @@ export function App() {
     [competitions],
   );
 
-  const department =
-    storedDepartment === ALL
-      ? ALL
-      : storedDepartment && departmentCodes.includes(storedDepartment)
-        ? storedDepartment
-        : departmentCodes.includes(DEFAULT_DEPARTMENT)
-          ? DEFAULT_DEPARTMENT
-          : ALL;
+  const department = chooseDepartment(storedDepartment, departmentCodes);
 
   const inDepartment = useMemo(
     () =>
@@ -65,13 +66,11 @@ export function App() {
   // Kept stable between renders: the map re-places its markers (and an open popup) when this array changes.
   const shown = useMemo(
     () =>
-      inDepartment.filter((competition) =>
-        disciplineFilter === ALL
-          ? true
-          : disciplineFilter === PARA_TIR
-            ? competition.hasParaTir
-            : competition.discipline === disciplineFilter,
-      ),
+      inDepartment.filter((competition) => {
+        if (disciplineFilter === ALL) return true;
+        if (disciplineFilter === PARA_TIR) return competition.hasParaTir;
+        return competition.discipline === disciplineFilter;
+      }),
     [inDepartment, disciplineFilter],
   );
 
