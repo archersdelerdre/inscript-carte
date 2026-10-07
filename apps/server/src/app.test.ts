@@ -771,15 +771,14 @@ describe('member list', () => {
         memberCount: 2,
         added: 1,
         updated: 0,
-        deactivated: 1,
         unchanged: 1,
       },
-      activeMemberCount: 2,
+      activeMemberCount: 3,
     };
     expect((await response.json()) as MemberImportResponse).toEqual(expected);
     expect(await (await call('/api/admin/members/import', { cookie })).json()).toEqual(expected);
-    // The youth is missing from the new export: she can no longer sign in.
-    expect((await call('/api/session', { method: 'POST', body: YOUTH })).status).toBe(401);
+    // The youth is missing from the new export: nothing changes for her.
+    expect((await call('/api/session', { method: 'POST', body: YOUTH })).status).toBe(200);
   });
 
   test('a wrong file is refused with the reason and the line, and nothing is imported', async () => {

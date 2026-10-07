@@ -34,7 +34,7 @@ const archer = (licenceNumber: string, overrides: Partial<Archer> = {}): Archer 
 const activeLicences = () =>
   database('archers').where({ is_active: true }).orderBy('licence_number').pluck('licence_number');
 
-test('adds, updates and deactivates members to match the latest export', async () => {
+test('adds and updates members; those missing from the export are left as they are', async () => {
   await memberList.import([archer('0000001A'), archer('0000002B'), archer('0000003C')], null);
 
   const result = await memberList.import(
@@ -42,22 +42,20 @@ test('adds, updates and deactivates members to match the latest export', async (
     null,
   );
 
-  expect(result).toEqual({ added: 1, updated: 1, deactivated: 1, unchanged: 1 });
-  expect(await activeLicences()).toEqual(['0000001A', '0000002B', '0000004D']);
+  expect(result).toEqual({ added: 1, updated: 1, unchanged: 1 });
+  expect(await activeLicences()).toEqual(['0000001A', '0000002B', '0000003C', '0000004D']);
   const renamed = await database('archers').where({ licence_number: '0000002B' }).first();
   expect(renamed.full_name).toBe('NEW NAME');
-  // Members who left are kept (their registrations point to them), only deactivated.
-  const departed = await database('archers').where({ licence_number: '0000003C' }).first();
-  expect(departed.is_active).toBe(0);
 });
 
-test('reactivates a member who comes back in a later export', async () => {
+test('follows the state ("Etat") written in the export', async () => {
   await memberList.import([archer('0000001A'), archer('0000002B')], null);
-  await memberList.import([archer('0000001A')], null);
+  await memberList.import([archer('0000001A'), archer('0000002B', { isActive: false })], null);
+  expect(await activeLicences()).toEqual(['0000001A']);
 
   const result = await memberList.import([archer('0000001A'), archer('0000002B')], null);
 
-  expect(result).toEqual({ added: 0, updated: 1, deactivated: 0, unchanged: 1 });
+  expect(result).toEqual({ added: 0, updated: 1, unchanged: 1 });
   expect(await activeLicences()).toEqual(['0000001A', '0000002B']);
 });
 
@@ -74,9 +72,8 @@ test('remembers the last import and who made it', async () => {
       memberCount: 1,
       added: 0,
       updated: 0,
-      deactivated: 1,
       unchanged: 1,
     },
-    activeMemberCount: 1,
+    activeMemberCount: 2,
   });
 });

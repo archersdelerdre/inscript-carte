@@ -3,22 +3,19 @@ import type { Archer } from './archer.ts';
 export type MemberListSummary = {
   readonly added: number;
   readonly updated: number;
-  /** Members missing from the new export: they left the club and can no longer sign in. */
-  readonly deactivated: number;
   readonly unchanged: number;
 };
 
 export type MemberListSync = {
   /** New and changed members. */
   readonly toSave: readonly Archer[];
-  /** Licence numbers of active members missing from the export. */
-  readonly toDeactivate: readonly string[];
   readonly memberCount: number;
   readonly summary: MemberListSummary;
 };
 
 /**
- * Makes the member list match a full FFTA export. Members are never deleted: their past registrations point to them.
+ * Adds the new members of an FFTA export and updates the others, their state ("Etat") included. Members missing from
+ * the file are not touched (the user decided it).
  */
 export function planMemberListSync(current: readonly Archer[], exported: readonly Archer[]): MemberListSync {
   const existing = new Map(current.map((archer) => [archer.licenceNumber, archer]));
@@ -34,18 +31,12 @@ export function planMemberListSync(current: readonly Archer[], exported: readonl
       known.isActive !== archer.isActive
     );
   });
-  const inExport = new Set(exported.map((archer) => archer.licenceNumber));
-  const toDeactivate = current
-    .filter((archer) => archer.isActive && !inExport.has(archer.licenceNumber))
-    .map((archer) => archer.licenceNumber);
   return {
     toSave,
-    toDeactivate,
     memberCount: exported.length,
     summary: {
       added,
       updated: toSave.length - added,
-      deactivated: toDeactivate.length,
       unchanged: exported.length - toSave.length,
     },
   };

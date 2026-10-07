@@ -286,7 +286,6 @@ export type MemberImportDto = {
   memberCount: number;
   added: number;
   updated: number;
-  deactivated: number;
   unchanged: number;
 };
 

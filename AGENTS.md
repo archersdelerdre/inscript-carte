@@ -63,7 +63,7 @@ Migrations run **when the server starts** (`main.ts`), before it accepts request
 Inner layers never import outer ones.
 
 - `domain/`: `Competition` (+ the 15-day club deadline rule), `Archer`, `Registration` (+ `isClubRegistrationOpen`,
-  `canWithdraw`), `member-list.ts` (`planMemberListSync`: what an FFTA export adds, updates, deactivates),
+  `canWithdraw`), `member-list.ts` (`planMemberListSync`: what an FFTA export adds and updates),
   `CalendarDate` (`YYYY-MM-DD` strings), repository ports. The domain may import types from `@inscript-carte/shared`
   (shared kernel). The status rule `canChangeStatus` lives in `shared/src/registration.ts` so the client greys out the
   same options.
@@ -173,8 +173,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   name without civility ("M "/"Me "), sex, birth date, status ("Active"). Addresses are dropped on purpose.
   Columns are matched by the start of their title (the export adds a sort arrow: "Nom, Prénom↑").
 - An import (command line or admin upload) goes through `ClubMembers.import` → `SqliteMemberListRepository.sync`, in
-  one transaction: adds, updates, and **deactivates members missing from the export** (never deletes them:
-  registrations point to them). Only active members may sign in. A bad row stops the whole import with its line number.
+  one transaction: adds new members and updates the others, their state ("Etat" column) included. **Members missing
+  from the export are not touched** (the user decided it, 2026-10-07; migration `0006` dropped the `deactivated`
+  count): an admin deactivates them by hand from the members page. Members are never deleted (registrations point to
+  them). Only active members may sign in. A bad row stops the whole import with its line number.
 
 ## Data and geocoding
 

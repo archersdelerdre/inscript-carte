@@ -31,7 +31,7 @@ export class SqliteMemberListRepository implements MemberListRepository {
     importedBy: string | null,
   ): Promise<MemberListSummary> {
     return this.#database.transaction(async (transaction) => {
-      const { toSave, toDeactivate, memberCount, summary } = plan(await readArchers(transaction));
+      const { toSave, memberCount, summary } = plan(await readArchers(transaction));
 
       for (let start = 0; start < toSave.length; start += BATCH_SIZE) {
         await transaction('archers')
@@ -48,11 +48,6 @@ export class SqliteMemberListRepository implements MemberListRepository {
           .onConflict('licence_number')
           .merge();
       }
-      for (let start = 0; start < toDeactivate.length; start += BATCH_SIZE) {
-        await transaction('archers')
-          .whereIn('licence_number', toDeactivate.slice(start, start + BATCH_SIZE))
-          .update({ is_active: false, updated_at: transaction.fn.now() });
-      }
 
       await transaction('member_imports').insert({ imported_by: importedBy, member_count: memberCount, ...summary });
       return summary;
@@ -67,7 +62,6 @@ export class SqliteMemberListRepository implements MemberListRepository {
           member_count: number;
           added: number;
           updated: number;
-          deactivated: number;
           unchanged: number;
         }
       | undefined = await this.#database('member_imports')
@@ -81,7 +75,6 @@ export class SqliteMemberListRepository implements MemberListRepository {
           memberCount: row.member_count,
           added: row.added,
           updated: row.updated,
-          deactivated: row.deactivated,
           unchanged: row.unchanged,
         }
       : null;

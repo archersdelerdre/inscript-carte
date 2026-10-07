@@ -25,7 +25,7 @@ try {
   const result = await members.import(archers, null);
   console.log(
     `${archers.length} members in the export: ${result.added} added, ${result.updated} updated, ` +
-      `${result.unchanged} unchanged, ${result.deactivated} deactivated (missing from the export).`,
+      `${result.unchanged} unchanged.`,
   );
 } finally {
   await database.destroy();

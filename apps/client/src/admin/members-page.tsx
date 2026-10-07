@@ -485,8 +485,7 @@ function ImportDialog({ onClose, onImported, onSessionExpired }: ImportDialogPro
         ) : (
           <form onSubmit={submit} className='grid gap-4' noValidate>
             <p className='text-sm'>
-              Les nouveaux licenciés sont ajoutés, les autres mis à jour. Ceux qui ne sont plus dans le fichier ne
-              peuvent plus se connecter (leurs inscriptions passées sont gardées). Le fichier n'est pas conservé.
+              Les nouveaux licenciés sont ajoutés, les autres mis à jour. Le fichier n'est pas conservé.
             </p>
             <div className='grid gap-2'>
               <Label htmlFor='member-export'>Fichier de l'extranet FFTA</Label>
@@ -519,13 +518,12 @@ function ImportDialog({ onClose, onImported, onSessionExpired }: ImportDialogPro
   );
 }
 
-/** "108 licenciés dans le fichier, 2 ajoutés, 1 mis à jour, 3 désactivés, 102 inchangés" */
-function summary({ memberCount, added, updated, deactivated, unchanged }: MemberImportDto): string {
+/** "108 licenciés dans le fichier, 2 ajoutés, 1 mis à jour, 105 inchangés" */
+function summary({ memberCount, added, updated, unchanged }: MemberImportDto): string {
   return [
     `${memberCount} licenciés dans le fichier`,
     `${added} ${added > 1 ? 'ajoutés' : 'ajouté'}`,
     `${updated} mis à jour`,
-    `${deactivated} ${deactivated > 1 ? 'désactivés' : 'désactivé'}`,
     `${unchanged} ${unchanged > 1 ? 'inchangés' : 'inchangé'}`,
   ].join(', ');
 }
