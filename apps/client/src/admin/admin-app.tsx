@@ -17,22 +17,49 @@ import { MembersPage } from './members-page';
 type Admin = AdminSessionResponse['admin'];
 type Section = 'registrations' | 'members';
 
-/** The club secretary's page, at `/admin`. */
+/** Each section is a page with its own address, so it can be bookmarked, reloaded and opened in a new tab. */
+const SECTIONS: Record<Section, { path: string; title: string }> = {
+  registrations: { path: '/admin/inscriptions', title: 'Inscriptions' },
+  members: { path: '/admin/licencies', title: 'Licenciés' },
+};
+
+/** `/admin` and unknown admin paths show the registrations. */
+function sectionFromPath(pathname: string): Section {
+  return pathname.startsWith(SECTIONS.members.path) ? 'members' : 'registrations';
+}
+
+/** The club secretary's pages, under `/admin`. */
 export function AdminApp() {
   /** `undefined` while the first check runs. */
   const [admin, setAdmin] = useState<Admin | null | undefined>(undefined);
-  const [section, setSection] = useState<Section>('registrations');
+  const [section, setSection] = useState<Section>(() => sectionFromPath(location.pathname));
   const [expired, setExpired] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   /** Signed in, with their own password: the panel is open. */
   const ready = admin && !admin.mustChangePassword;
 
   useEffect(() => {
-    document.title = 'Administration – Inscriptions du club';
     void api<AdminSessionResponse>(API_ROUTES.adminSession).then((result) =>
       setAdmin(result.ok ? result.data.admin : null),
     );
+    // `/admin` alone becomes the address of the page it shows.
+    const { path } = SECTIONS[sectionFromPath(location.pathname)];
+    if (location.pathname !== path) history.replaceState(null, '', path);
+    // The browser's back and forward buttons switch sections.
+    const onPopState = () => setSection(sectionFromPath(location.pathname));
+    addEventListener('popstate', onPopState);
+    return () => removeEventListener('popstate', onPopState);
   }, []);
+
+  useEffect(() => {
+    document.title = `${SECTIONS[section].title} – Administration du club`;
+  }, [section]);
+
+  function navigate(target: Section) {
+    if (target === section) return;
+    history.pushState(null, '', SECTIONS[target].path);
+    setSection(target);
+  }
 
   // Stable identity: screens use it in their effects.
   const sessionExpired = useCallback(() => {
@@ -53,12 +80,8 @@ export function AdminApp() {
         <span className='min-w-0 truncate text-lg font-semibold tracking-tight'>Administration</span>
         {ready && (
           <nav className='flex gap-1' aria-label='Rubriques'>
-            <SectionButton active={section === 'registrations'} onClick={() => setSection('registrations')}>
-              Inscriptions
-            </SectionButton>
-            <SectionButton active={section === 'members'} onClick={() => setSection('members')}>
-              Licenciés
-            </SectionButton>
+            <SectionLink section='registrations' active={section === 'registrations'} onNavigate={navigate} />
+            <SectionLink section='members' active={section === 'members'} onNavigate={navigate} />
           </nav>
         )}
         <div className='ml-auto flex items-center gap-2'>
@@ -116,15 +139,23 @@ export function AdminApp() {
   );
 }
 
-function SectionButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
+type SectionLinkProps = { section: Section; active: boolean; onNavigate: (section: Section) => void };
+
+/** A real link: a plain click changes the page without reloading, Ctrl/Cmd/middle click opens a new tab. */
+function SectionLink({ section, active, onNavigate }: SectionLinkProps) {
   return (
-    <Button
-      variant={active ? 'secondary' : 'ghost'}
-      aria-current={active ? 'page' : undefined}
-      className={cn(active && 'font-semibold')}
-      onClick={onClick}
-    >
-      {children}
+    <Button variant={active ? 'secondary' : 'ghost'} className={cn(active && 'font-semibold')} asChild>
+      <a
+        href={SECTIONS[section].path}
+        aria-current={active ? 'page' : undefined}
+        onClick={(event) => {
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          onNavigate(section);
+        }}
+      >
+        {SECTIONS[section].title}
+      </a>
     </Button>
   );
 }
