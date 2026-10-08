@@ -1,4 +1,4 @@
-import { DEPARTMENT_NAMES, type GeoPosition } from '@inscript-carte/shared';
+import type { GeoPosition } from '@inscript-carte/shared';
 import { cn } from 'cn';
 import { ListIcon, MapIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -8,8 +8,8 @@ import { TargetLogo } from '@/components/target-logo';
 import { Button } from '@/components/ui/button';
 import { RegistrationActionsProvider, useRegistrationActions } from '@/registrations/registration-actions';
 
+import { ALL_FRANCE, areaDepartments, areaName, isOfferedArea } from './competitions/areas';
 import {
-  ALL,
   CompetitionFilterBar,
   type CompetitionFilters,
   matchesFilters,
@@ -24,11 +24,11 @@ const DEFAULT_DEPARTMENT = '44';
 const DEPARTMENT_STORAGE_KEY = 'department';
 
 /** The stored choice if it is still offered, else the club's département, else all of France. */
-function chooseDepartment(stored: string | null, departmentCodes: string[]): string {
-  if (stored === ALL) return ALL;
-  if (stored && departmentCodes.includes(stored)) return stored;
+function chooseArea(stored: string | null, departmentCodes: string[]): string {
+  if (stored === ALL_FRANCE) return ALL_FRANCE;
+  if (stored && isOfferedArea(stored, departmentCodes)) return stored;
   if (departmentCodes.includes(DEFAULT_DEPARTMENT)) return DEFAULT_DEPARTMENT;
-  return ALL;
+  return ALL_FRANCE;
 }
 
 export function App() {
@@ -45,18 +45,17 @@ export function App() {
     [competitions],
   );
 
-  const department = chooseDepartment(storedDepartment, departmentCodes);
+  const department = chooseArea(storedDepartment, departmentCodes);
 
-  const inDepartment = useMemo(
-    () =>
-      department === ALL
-        ? competitions
-        : competitions.filter((competition) => competition.departmentCode === department),
-    [competitions, department],
-  );
+  const inDepartment = useMemo(() => {
+    const departments = areaDepartments(department);
+    return departments
+      ? competitions.filter((competition) => departments.has(competition.departmentCode))
+      : competitions;
+  }, [competitions, department]);
   const framedPositions = useMemo(
     () =>
-      department === ALL
+      department === ALL_FRANCE
         ? []
         : inDepartment.flatMap((competition) => (competition.position ? [competition.position] : [])),
     [department, inDepartment],
@@ -82,7 +81,7 @@ export function App() {
     setFocusRequest({ competitionId, requestedAt: Date.now() });
   }
 
-  const area = department === ALL ? 'France' : (DEPARTMENT_NAMES[department] ?? department);
+  const area = areaName(department);
 
   return (
     <RegistrationActionsProvider onRegistrationsChanged={reloadCompetitions}>
@@ -125,7 +124,7 @@ export function App() {
                   <h1 className='mb-3 text-xl font-semibold tracking-tight'>
                     {shown.length} concours à venir – {area}
                   </h1>
-                  <CompetitionList competitions={shown} allFrance={department === ALL} onShowOnMap={showOnMap} />
+                  <CompetitionList competitions={shown} allFrance={department === ALL_FRANCE} onShowOnMap={showOnMap} />
                 </>
               )}
             </div>

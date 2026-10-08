@@ -244,8 +244,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   the list **covers** the map (never hide the map: Leaflet must keep its real size) and a floating "Carte / Liste"
   button switches.
 - **Filters** (`competitions/competition-filters.tsx`, phones need the room). Line 1: a round icon button, then one
-  "where" pill split in two: the Département menu (remembered in `localStorage`, default 44; phones show only the
-  code) and the **town search** (debounced 300 ms, our own suggestion list in `town-search.tsx`, an ARIA combobox; the
+  "where" pill split in two: the place menu (remembered in `localStorage` under `department`, default 44; phones show
+  a département by its code) and the **town search** (debounced 300 ms, our own suggestion list in `town-search.tsx`, an ARIA combobox; the
   user rejected the native `<datalist>` look). Suggestions use the text after a postal code (FFTA towns are sometimes
   full addresses) and merge spelling variants per département. The button (badge = number chosen) opens a dialog with
   Discipline (+ "Para-tir"), a date range (native date inputs; a competition is kept if one of its days is in it),
@@ -255,6 +255,12 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   none has it, a grey note under the checkbox says so, and it disappears by itself. "Tout effacer" there keeps the
   département. Line 2 shows only when some of those are chosen: removable chips that wrap. Chips inside the search
   field were tried and rejected (cut or squeezed the town field).
+- **Regions** (asked 2026-10-08, like the FFTA website): the place menu groups départements under their region
+  (`shared/src/regions.ts`, 13 regions + Outre-mer; a test checks every `DEPARTMENT_NAMES` code is in exactly one).
+  A region row (bold) is selectable and keeps all its départements; the value is `region:<id>`
+  (`competitions/areas.ts`). Filtering stays in the browser like every other filter: `GET /api/competitions` already
+  sends every competition, so a list of départements is never sent to the server (the user asked for it; told why
+  not, 2026-10-08).
 - Cards: date block in the discipline color, title, badges ("Para-tir" light blue, "Cibles mousses" lime, "Reportée"
   amber), town line with
   **"Voir sur la carte"**, discipline · club, club deadline, links "Mandat (PDF)" (red) and "Détail FFTA" (grey).

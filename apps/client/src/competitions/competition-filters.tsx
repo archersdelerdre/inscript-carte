@@ -21,14 +21,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDay } from '@/lib/dates';
 import { matchesSearch } from '@/lib/search';
 
+import { ALL_FRANCE, areaName, groupDepartments, regionArea } from './areas';
 import { DISCIPLINE_COLORS } from './disciplines';
 import { TownSearch, type TownSuggestion } from './town-search';
 
-export const ALL = 'all';
+const ALL = 'all';
 const PARA_TIR = 'para-tir';
 const TOWN_SEARCH_DELAY_MS = 300;
 
@@ -159,7 +160,7 @@ export function CompetitionFilterBar({
     change({ discipline: ALL, from: '', to: '', withClubArchers: false, foamTargets: false });
   }
 
-  const departmentName = DEPARTMENT_NAMES[department] ?? department;
+  const isDepartment = department !== ALL_FRANCE && DEPARTMENT_NAMES[department] !== undefined;
 
   return (
     <div className='flex flex-col gap-2 border-b p-3'>
@@ -186,23 +187,35 @@ export function CompetitionFilterBar({
         <div className='border-input focus-within:border-ring focus-within:ring-ring/50 relative flex h-10 min-w-0 flex-1 items-center rounded-full border focus-within:ring-3'>
           <Select value={department} onValueChange={onDepartmentChange}>
             <SelectTrigger
-              aria-label='Département'
-              className='hover:bg-muted h-full shrink-0 gap-1.5 rounded-l-full rounded-r-none border-0 pr-2 pl-3 focus-visible:ring-0 data-[size=default]:h-full'
+              aria-label='Département ou région'
+              className='hover:bg-muted h-full max-w-[60%] min-w-0 shrink-0 gap-1.5 rounded-l-full rounded-r-none border-0 pr-2 pl-3 focus-visible:ring-0 data-[size=default]:h-full *:data-[slot=select-value]:min-w-0'
             >
               <MapPinIcon className='text-muted-foreground size-4' />
-              {/* Phones show the code only: the town needs the room. */}
+              {/* Phones show a département by its code only: the town needs the room. */}
               <SelectValue>
-                <span className='sm:hidden'>{department === ALL ? 'France' : department}</span>
-                <span className='max-sm:hidden'>{department === ALL ? 'Toute la France' : departmentName}</span>
+                <span className='truncate sm:hidden'>{isDepartment ? department : areaName(department)}</span>
+                <span className='truncate max-sm:hidden'>
+                  {department === ALL_FRANCE ? 'Toute la France' : areaName(department)}
+                </span>
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>Toute la France</SelectItem>
-              {departmentCodes.map((code) => (
-                <SelectItem key={code} value={code}>
-                  {code}
-                  {DEPARTMENT_NAMES[code] && ` - ${DEPARTMENT_NAMES[code]}`}
-                </SelectItem>
+              <SelectItem value={ALL_FRANCE}>Toute la France</SelectItem>
+              {/* Like the FFTA website: each region can be picked, above its départements. */}
+              {groupDepartments(departmentCodes).map(({ region, departments }) => (
+                <SelectGroup key={region?.id ?? 'others'} className='p-0'>
+                  {region && (
+                    <SelectItem value={regionArea(region)} className='font-semibold'>
+                      {region.name}
+                    </SelectItem>
+                  )}
+                  {departments.map((code) => (
+                    <SelectItem key={code} value={code} className={region ? 'pl-6' : undefined}>
+                      {code}
+                      {DEPARTMENT_NAMES[code] && ` - ${DEPARTMENT_NAMES[code]}`}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
