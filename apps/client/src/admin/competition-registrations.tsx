@@ -76,8 +76,8 @@ const CONFIRMATIONS: Record<ConfirmedStatus, { title: (label: string) => string;
   received: {
     title: (label) => `Remettre ${label} à « Reçue » ?`,
     text:
-      "Si l'organisateur a déjà reçu l'inscription, prévenez-le : l'archer pourra de nouveau la retirer lui-même " +
-      'depuis « Mon suivi », et l’organisateur ne le saura pas.',
+      "L'archer pourra de nouveau retirer cette inscription lui-même depuis « Mon suivi », sans que l'organisateur " +
+      "en soit informé. Si vous l'avez déjà transmise, prévenez-le.",
     button: 'Oui, remettre à « Reçue »',
   },
 };
@@ -200,7 +200,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
         <h1 className='text-xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
         <p className='text-muted-foreground'>
           {formatDateRange(competition.startDate, competition.endDate)} · {competition.town} (
-          {competition.departmentCode}) · fin des inscriptions au club le{' '}
+          {competition.departmentCode}) · inscription par le club jusqu'au{' '}
           {formatDay(competition.clubRegistrationDeadline)}
         </p>
         {competition.isCancelled && (
@@ -241,8 +241,10 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Tous les paiements</SelectItem>
-              <SelectItem value='paid'>Payés seulement ({paidCount})</SelectItem>
-              <SelectItem value='to_pay'>En attente de paiement seulement ({competition.toPayCount})</SelectItem>
+              <SelectItem value='paid'>Seulement les départs payés ({paidCount})</SelectItem>
+              <SelectItem value='to_pay'>
+                Seulement les départs en attente de paiement ({competition.toPayCount})
+              </SelectItem>
             </SelectContent>
           </Select>
           {/* On the right of the same row, with how many départs the file will have. */}
@@ -259,7 +261,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
           </div>
         </div>
         <p className='text-muted-foreground text-sm'>
-          Le fichier suit ces filtres, sans jamais les départs « Plus de place » ni « Annulée ».
+          Le fichier reprend les départs affichés avec ces filtres, jamais ceux « Plus de place » ni « Annulée ».
         </p>
       </div>
 
@@ -320,7 +322,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
               <AlertDialogDescription>{CONFIRMATIONS[pendingChange.status].text}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Non, garder</AlertDialogCancel>
+              <AlertDialogCancel>Non, ne rien changer</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
                   void pendingChange.apply();
@@ -455,7 +457,7 @@ function ReferenceCard({
                   <span className='whitespace-nowrap'>{first.contact}</span>
                 </>
               )}
-              {' · demandé le '}
+              {' · inscrit le '}
               <span className='whitespace-nowrap'>{formatDateTime(first.createdAt)}</span>
             </span>
           </span>
@@ -480,7 +482,7 @@ function ReferenceCard({
             </Select>
             {(paidCount > 0 || dueRows.length > 0) && (
               <Button variant='outline' onClick={() => onReferencePayment(allPaid ? 'to_pay' : 'paid')}>
-                {allPaid ? 'Tout remettre en attente de paiement' : 'Tout marquer payé'}
+                {allPaid ? 'Tout remettre en attente de paiement' : 'Tout marquer comme payé'}
               </Button>
             )}
           </div>
@@ -643,7 +645,7 @@ function NoteDialog({ registration, onClose, onSave }: NoteDialogProps) {
           </div>
           <DialogFooter>
             <Button type='button' variant='outline' onClick={onClose}>
-              Fermer
+              Annuler
             </Button>
             <Button type='submit'>Enregistrer</Button>
           </DialogFooter>

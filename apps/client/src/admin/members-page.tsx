@@ -61,14 +61,14 @@ import { ERROR_MESSAGES } from '@/registrations/messages';
 
 const PROBLEM_MESSAGES: Record<MemberExportProblem, string> = {
   unreadable: "Ce fichier n'est pas un fichier Excel (.xlsx)",
-  too_large: 'Ce fichier est trop gros pour être la liste des licenciés',
+  too_large: 'Ce fichier est trop volumineux (5 Mo maximum)',
   empty: 'Ce fichier est vide',
-  missing_column: 'Il manque une colonne attendue dans le fichier',
+  missing_column: 'Une colonne attendue manque dans le fichier',
   no_members: 'Ce fichier ne contient aucun licencié',
   invalid_licence: "Un numéro de licence n'a pas le bon format (7 chiffres et une lettre)",
   duplicate_licence: 'Un numéro de licence apparaît deux fois',
-  missing_name: 'Un nom manque',
-  unknown_sex: 'Le sexe est inconnu (attendu : Masculin ou Féminin)',
+  missing_name: 'Il manque un nom',
+  unknown_sex: "Un sexe n'est pas reconnu (attendu : Masculin ou Féminin)",
   invalid_birth_date: 'Une date de naissance manque ou est illisible',
 };
 
@@ -183,8 +183,8 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value='all'>Tous les licenciés</SelectItem>
-            <SelectItem value='active'>Actifs seulement</SelectItem>
-            <SelectItem value='left'>Plus au club seulement</SelectItem>
+            <SelectItem value='active'>Seulement les licenciés du club</SelectItem>
+            <SelectItem value='left'>Seulement ceux qui ont quitté le club</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -236,7 +236,7 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
                     </td>
                     <td className='px-3 py-2 whitespace-nowrap tabular-nums'>{member.licenceNumber}</td>
                     <td className='px-3 py-2 whitespace-nowrap'>{categoryLabel(member.category, member.sex)}</td>
-                    <td className='px-3 py-2 whitespace-nowrap'>{member.isActive ? 'Actif' : 'Plus au club'}</td>
+                    <td className='px-3 py-2 whitespace-nowrap'>{member.isActive ? 'Au club' : 'A quitté le club'}</td>
                     <td className='bg-background sticky right-0 px-3 py-1 text-right'>
                       {member.licenceNumber === currentLicenceNumber ? (
                         <span className='text-muted-foreground text-sm'>Vous</span>
@@ -319,34 +319,36 @@ function LastImport({ lastImport }: { lastImport: MemberImportDto | null }) {
 
 /** What each action does, said before it is done. */
 function confirmation(action: MemberAction, member: AdminMemberDto): { title: string; text: string; button: string } {
+  const female = member.sex === 'female';
+  const [They, they, e] = female ? ['Elle', 'elle', 'e'] : ['Il', 'il', ''];
   const nextImport = 'La prochaine mise à jour de la liste FFTA remettra l’état indiqué dans le fichier.';
   switch (action) {
     case 'deactivate':
       return {
         title: `Désactiver ${member.fullName} ?`,
-        text: `Il ne pourra plus se connecter ni s’inscrire. Ses inscriptions passées sont gardées.${
-          member.isAdmin ? ' Il perd aussi l’accès à l’administration tant qu’il est désactivé.' : ''
+        text: `${They} ne pourra plus se connecter ni s’inscrire. Ses inscriptions passées sont conservées.${
+          member.isAdmin ? ` ${They} perd aussi l’accès à l’administration tant qu’${they} est désactivé${e}.` : ''
         } ${nextImport}`,
         button: 'Oui, désactiver',
       };
     case 'reactivate':
       return {
         title: `Réactiver ${member.fullName} ?`,
-        text: `Il pourra de nouveau se connecter et s’inscrire. ${nextImport}`,
+        text: `${They} pourra de nouveau se connecter et s’inscrire. ${nextImport}`,
         button: 'Oui, réactiver',
       };
     case 'grant':
       return {
-        title: `Nommer ${member.fullName} administrateur ?`,
+        title: `Nommer ${member.fullName} ${female ? 'administratrice' : 'administrateur'} ?`,
         text:
-          'Il verra toutes les inscriptions et les coordonnées des licenciés. Un mot de passe provisoire va être ' +
-          'créé : vous devrez le lui donner. À sa première connexion, il choisira le sien.',
+          `${They} verra toutes les inscriptions et les coordonnées des licenciés. Un mot de passe provisoire va être ` +
+          `créé : vous devrez le lui donner. À sa première connexion, ${they} choisira le sien.`,
         button: 'Oui, nommer admin',
       };
     case 'revoke':
       return {
         title: `Retirer les droits d’administrateur de ${member.fullName} ?`,
-        text: 'Il est déconnecté de l’administration tout de suite. Il reste licencié et peut toujours s’inscrire.',
+        text: `${They} est déconnecté${e} de l’administration tout de suite. ${They} reste licencié${e} et peut toujours s’inscrire.`,
         button: 'Oui, retirer',
       };
   }
@@ -392,7 +394,9 @@ function GrantedPasswordDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{member.fullName} est administrateur</DialogTitle>
+          <DialogTitle>
+            {member.fullName} est {member.sex === 'female' ? 'administratrice' : 'administrateur'}
+          </DialogTitle>
           <DialogDescription>
             Donnez-lui ce mot de passe provisoire, de préférence de vive voix. Il ne sera plus jamais affiché.
           </DialogDescription>
@@ -401,8 +405,9 @@ function GrantedPasswordDialog({
           {password}
         </p>
         <p className='text-sm'>
-          Pour se connecter : aller sur la page d’administration, se connecter avec sa licence et sa date de naissance,
-          puis taper ce mot de passe. Il devra ensuite choisir son propre mot de passe.
+          Pour se connecter, {member.sex === 'female' ? 'elle' : 'il'} devra aller sur la page d’administration,
+          s’identifier avec son numéro de licence et sa date de naissance, puis taper ce mot de passe. L’application lui
+          demandera ensuite d’en choisir un nouveau.
         </p>
         <DialogFooter>
           <Button

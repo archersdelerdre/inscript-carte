@@ -10,18 +10,16 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   not_found: "Ce concours ou cette inscription n'existe plus.",
   invalid_request: 'Le formulaire est incomplet. Vérifiez les champs et réessayez.',
   not_signed_in: 'Votre session a expiré. Merci de vous reconnecter.',
-  invalid_credentials:
-    'Ces informations ne correspondent à aucun licencié du club. Vérifiez le numéro de licence et la date de naissance sur votre licence.',
+  invalid_credentials: 'Numéro de licence ou date de naissance incorrects. Vérifiez-les sur votre licence.',
   too_many_attempts: 'Trop de tentatives. Réessayez dans quelques minutes.',
   registration_closed: "La date limite d'inscription par le club est passée.",
   already_registered: "Vous êtes déjà inscrit sur l'un de ces départs.",
   cannot_withdraw:
     "Cette inscription ne peut plus être retirée ici : la date limite est passée ou le club l'a déjà transmise. Contactez le club.",
   admin_sign_in_required: 'Votre session administrateur a expiré. Merci de retaper votre mot de passe.',
-  not_admin: "Votre licence n'a pas accès à l'administration.",
-  status_change_not_allowed:
-    'Ce changement de statut est impossible : une inscription annulée le reste. L’archer peut se réinscrire.',
-  invalid_member_export: "Ce fichier n'est pas la liste des licenciés attendue.",
+  not_admin: "Vous n'avez pas accès à l'administration du club.",
+  status_change_not_allowed: 'Une inscription annulée ne peut pas être réactivée : l’archer doit se réinscrire.',
+  invalid_member_export: "Ce fichier n'est pas une liste de licenciés exportée de l'extranet FFTA.",
   password_change_required: 'Choisissez d’abord votre propre mot de passe.',
   password_too_short: 'Le mot de passe doit avoir au moins 10 caractères.',
   cannot_change_self: 'Vous ne pouvez pas faire cette action sur votre propre compte.',

@@ -157,8 +157,9 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
         })}
 
         <p className='text-muted-foreground text-sm'>
-          Pour ajouter un départ, cliquez sur « S'inscrire » sur le concours. Pour changer de départ, retirez l'ancien
-          puis inscrivez-vous au nouveau. Une fois l'inscription transmise par le club, seul le club peut la modifier.
+          Pour ajouter un départ, cliquez sur « S'inscrire » sur la fiche du concours. Pour changer de départ, retirez
+          l'ancien puis inscrivez-vous au nouveau. Une fois l'inscription transmise par le club, seul le club peut la
+          modifier.
         </p>
       </DialogContent>
 

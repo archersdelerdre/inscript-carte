@@ -39,7 +39,7 @@ export class CloudflareBlockedError extends Error {
   readonly url: string;
 
   constructor(url: string) {
-    super(`Cloudflare blocked ${url}`);
+    super(`le site de la FFTA a bloqué la lecture (protection Cloudflare) sur ${url}`);
     this.url = url;
   }
 }

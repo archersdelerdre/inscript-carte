@@ -126,7 +126,7 @@ export function ScraperPage({ onSessionExpired }: Props) {
 
 const STEPS = [
   { step: 'list', label: 'Lecture du calendrier' },
-  { step: 'details', label: 'Lecture des fiches des concours nouveaux ou modifiés' },
+  { step: 'details', label: 'Lecture des fiches des concours à mettre à jour' },
   { step: 'saving', label: 'Enregistrement' },
 ] as const;
 
@@ -152,7 +152,9 @@ function CurrentRun({ run, listPages }: { run: ScraperRunDto; listPages: number 
             <span className='absolute inline-flex size-full animate-ping rounded-full bg-sky-400 opacity-75' />
             <span className='relative inline-flex size-3 rounded-full bg-sky-500' />
           </span>
-          {run.kind === 'competition' ? `Mise à jour du concours ${run.fftaId}` : 'Mise à jour du calendrier en cours'}
+          {run.kind === 'competition'
+            ? `Mise à jour du concours ${run.fftaId} en cours`
+            : 'Mise à jour du calendrier en cours'}
         </h2>
         <p className='text-muted-foreground'>
           {run.startedByName ? `Lancée par ${run.startedByName}` : 'Lancée automatiquement'} le{' '}
@@ -231,11 +233,18 @@ function reportSummary(report: ScraperReport): string {
     report.added > 0 && `${count.format(report.added)} nouveau${report.added > 1 ? 'x' : ''}`,
     report.changed > 0 && `${count.format(report.changed)} modifié${report.changed > 1 ? 's' : ''}`,
     report.missing > 0 && `${count.format(report.missing)} disparu${report.missing > 1 ? 's' : ''} du calendrier FFTA`,
-    report.detailsLeft > 0 && `${count.format(report.detailsLeft)} fiches pour la prochaine fois`,
-    report.positions.notFound > 0 &&
-      `${count.format(report.positions.notFound)} non localisé${report.positions.notFound > 1 ? 's' : ''}`,
+    report.detailsLeft > 0 && `${count.format(report.detailsLeft)} fiches restent à lire`,
+    report.positions.notFound > 0 && `${count.format(report.positions.notFound)} sans position sur la carte`,
   ];
   return parts.filter(Boolean).join(' · ') || 'Rien n’a changé';
+}
+
+/** "Dernière mise à jour réussie le …", "La mise à jour du … a échoué / a été interrompue". */
+function latestRunTitle(run: ScraperRunDto): string {
+  if (run.status === 'succeeded')
+    return `Dernière mise à jour réussie le ${formatDateTime(run.finishedAt ?? run.startedAt)}`;
+  const outcome = run.status === 'interrupted' ? 'a été interrompue' : 'a échoué';
+  return `La mise à jour du ${formatDateTime(run.startedAt)} ${outcome}`;
 }
 
 function LatestRun({ run }: { run: ScraperRunDto }) {
@@ -250,8 +259,7 @@ function LatestRun({ run }: { run: ScraperRunDto }) {
     >
       <p className='flex items-center gap-2 font-medium'>
         {failed ? <CircleAlertIcon className='size-5' aria-hidden /> : <CheckIcon className='size-5' aria-hidden />}
-        Dernière mise à jour le {formatDateTime(run.finishedAt ?? run.startedAt)} :{' '}
-        {failed ? 'elle n’a pas abouti' : 'réussie'}
+        {latestRunTitle(run)}
       </p>
       {run.error && <p>{run.error}</p>}
       {run.report && !run.error && <p>{reportSummary(run.report)}</p>}
@@ -287,8 +295,8 @@ function StartButtons({ busy, firstRun, onStart }: StartButtonsProps) {
         <div className='grid gap-1'>
           <h2 className='font-semibold'>Tout le calendrier</h2>
           <p className='text-muted-foreground text-sm'>
-            Relit tous les concours de France.{' '}
-            {firstRun ? 'La première fois : environ 40 minutes.' : 'Environ 2 à 3 minutes.'}
+            Relit tout le calendrier de la FFTA.{' '}
+            {firstRun ? 'La première fois, cela prend environ 40 minutes.' : 'Cela prend environ 2 à 3 minutes.'}
           </p>
         </div>
         <Button disabled={busy} onClick={() => setConfirming(true)}>
@@ -301,7 +309,7 @@ function StartButtons({ busy, firstRun, onStart }: StartButtonsProps) {
         <div className='grid gap-2'>
           <h2 className='font-semibold'>Un seul concours</h2>
           <Label htmlFor='scraper-competition' className='text-muted-foreground text-sm font-normal'>
-            Numéro FFTA ou lien de la fiche du concours (quelques secondes)
+            Numéro du concours ou lien vers sa fiche sur le site de la FFTA (quelques secondes)
           </Label>
           <Input
             id='scraper-competition'

@@ -163,7 +163,7 @@ function CompetitionItem({
         {/* What is left to do, in the same colors as the badges of the detail. */}
         <span className='flex flex-wrap items-center gap-1.5'>
           {competition.isCancelled && <Badge className='bg-red-100 text-red-900'>Concours annulé</Badge>}
-          {competition.isPostponed && <Badge className='bg-amber-100 text-amber-900'>Reportée</Badge>}
+          {competition.isPostponed && <Badge className='bg-amber-100 text-amber-900'>Concours reporté</Badge>}
           {received > 0 && <Badge className='bg-sky-100 text-sky-900'>{received} à transmettre</Badge>}
           {competition.toPayCount > 0 && (
             <Badge className='bg-amber-100 text-amber-900'>{competition.toPayCount} en attente de paiement</Badge>

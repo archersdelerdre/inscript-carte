@@ -35,7 +35,7 @@ function ChangePasswordForm({ forced, onChanged, onSessionExpired, onCancel }: F
     // At the first sign-in the generated password was just typed: it is not asked again.
     if (!forced && !currentPassword) return setMessage('Merci de taper votre mot de passe actuel.');
     if (newPassword.length < MIN_ADMIN_PASSWORD_LENGTH) return setMessage(ERROR_MESSAGES.password_too_short);
-    if (newPassword !== confirmation) return setMessage('Les deux nouveaux mots de passe ne sont pas identiques.');
+    if (newPassword !== confirmation) return setMessage('Les deux mots de passe ne sont pas identiques.');
     if (!forced && newPassword === currentPassword) {
       return setMessage('Le nouveau mot de passe doit être différent de l’ancien.');
     }
@@ -52,7 +52,7 @@ function ChangePasswordForm({ forced, onChanged, onSessionExpired, onCancel }: F
       invalid_credentials: 'Le mot de passe actuel est incorrect.',
       // The only other reason: the new password is the old one.
       invalid_request: forced
-        ? 'Choisissez un mot de passe différent de celui reçu.'
+        ? 'Choisissez un mot de passe différent de celui que vous avez reçu.'
         : 'Le nouveau mot de passe doit être différent de l’ancien.',
     };
     setMessage(messages[result.error] ?? ERROR_MESSAGES[result.error]);
@@ -85,7 +85,7 @@ function ChangePasswordForm({ forced, onChanged, onSessionExpired, onCancel }: F
         />
       </div>
       <div className='grid gap-2'>
-        <Label htmlFor='confirm-password'>Nouveau mot de passe, encore une fois</Label>
+        <Label htmlFor='confirm-password'>Confirmez le nouveau mot de passe</Label>
         <Input
           id='confirm-password'
           type='password'
@@ -141,7 +141,7 @@ export function ChangePasswordDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Changer mon mot de passe</DialogTitle>
-          <DialogDescription>Le mot de passe de l'espace administration, pas celui de la licence.</DialogDescription>
+          <DialogDescription>Ce mot de passe sert uniquement à l'espace d'administration.</DialogDescription>
         </DialogHeader>
         {done ? (
           <>

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/main.ts",
+    "dev": "CHROME_PATH=/tmp/ic-browsers/chrome-headless-shell/mac_arm-155.0.8059.39/chrome-headless-shell-mac-arm64/chrome-headless-shell bun --watch src/main.ts",
     "start": "bun src/main.ts",
     "build": "bun build src/main.ts --target=bun --outdir=dist --external=knex --external=better-sqlite3",
     "typecheck": "tsc --noEmit",

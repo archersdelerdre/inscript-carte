@@ -8,8 +8,11 @@ import type { LoginAttemptLimiter } from './ports/login-attempt-limiter.ts';
 import type { PasswordHasher } from './ports/password-hasher.ts';
 import type { SessionStore } from './ports/session-store.ts';
 
-/** Short: the panel shows every member's registrations and contacts. */
-const ADMIN_SESSION_HOURS = 12;
+/**
+ * One year (the user's choice, 2026-10-09): the secretary types the password once per device. Removing an admin, or
+ * the member leaving the club, still ends the session at once.
+ */
+const ADMIN_SESSION_DAYS = 365;
 
 export type AdminSignInResult =
   | { ok: true; token: string; expiresAt: Date; mustChangePassword: boolean }
@@ -63,7 +66,7 @@ export class AdminAuthentication {
     }
 
     this.#limiter.clear(`licence:${member.licenceNumber}`);
-    const expiresAt = new Date(now.getTime() + ADMIN_SESSION_HOURS * 60 * 60 * 1000);
+    const expiresAt = new Date(now.getTime() + ADMIN_SESSION_DAYS * 24 * 60 * 60 * 1000);
     const token = await this.#sessions.create(member.licenceNumber, expiresAt, now);
     return { ok: true, token, expiresAt, mustChangePassword: account.mustChangePassword };
   }

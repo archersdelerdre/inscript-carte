@@ -139,7 +139,7 @@ export class SyncFftaCalendar {
     const stored = await this.#store.listings();
     const knownUpcoming = stored.filter((row) => row.startDate >= today && !row.missingSince).length;
     if (knownUpcoming >= MIN_KNOWN_FOR_SHARE && list.competitions.length < knownUpcoming * MIN_LISTED_SHARE) {
-      report.aborted = `Seulement ${list.competitions.length} concours lus pour ${knownUpcoming} connus : la liste FFTA n'est pas fiable, rien n'est changé.`;
+      report.aborted = `Seulement ${list.competitions.length} concours lus alors que ${knownUpcoming} sont déjà connus : la liste FFTA semble incomplète, rien n'a été changé.`;
       return finish();
     }
 
@@ -223,7 +223,7 @@ export class SyncFftaCalendar {
     const { detail } = page;
     if (!detail) {
       report.skippedUnreadable = 1;
-      report.aborted = `La fiche FFTA ${fftaId} n'est pas lisible (concours supprimé ?) : rien n'est changé.`;
+      report.aborted = `La fiche FFTA ${fftaId} n'est pas lisible (concours supprimé ?) : rien n'a été changé.`;
       return finish();
     }
     if (!detail.departmentCode) {

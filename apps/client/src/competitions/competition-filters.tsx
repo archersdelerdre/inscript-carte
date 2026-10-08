@@ -256,7 +256,7 @@ export function CompetitionFilterBar({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Filtres</DialogTitle>
-            <DialogDescription>La liste et la carte changent tout de suite.</DialogDescription>
+            <DialogDescription>La liste et la carte se mettent à jour immédiatement.</DialogDescription>
           </DialogHeader>
 
           <div className='grid gap-2'>
@@ -335,7 +335,7 @@ export function CompetitionFilterBar({
             {/* Disappears by itself once the scraper fills the information. */}
             {!foamTargetsKnown && (
               <p className='text-muted-foreground pl-7 text-sm'>
-                Cette information n'est pas encore connue : aucun concours ne s'affichera pour le moment.
+                Cette information n'est pas encore disponible : pour le moment, aucun concours ne sera affiché.
               </p>
             )}
           </div>

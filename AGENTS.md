@@ -159,7 +159,7 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - **Sign-in in two steps**: the normal member sign-in, then a **personal password** (the user chose this: a birth
   date can be guessed, and the panel shows every member's contact). Admins are rows of `admins` (FK to `archers`,
   argon2id hash, `must_change_password`). Max 10 wrong passwords per licence and 50 per address
-  in 15 minutes (the password change shares this limit). Admin session: 12 hours, `admin_sessions` table, cookie
+  in 15 minutes (the password change shares this limit). Admin session: **1 year** (user's choice, 2026-10-09; was 12 hours), `admin_sessions` table, cookie
   `admin_session` with `Path=/api/admin`, `HttpOnly`, `SameSite=Strict`. An admin who leaves the club or is removed
   loses access at once.
 - **Becoming an admin**: `db:add-admin` (the person types their own password), or "Nommer admin" on the members page.

@@ -105,7 +105,8 @@ function Deadline({ competition }: { competition: CompetitionDto }) {
   if (competition.clubRegistrationDeadline < todayInParis()) {
     return (
       <p className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
-        Date limite du club dépassée. Il reste peut-être possible de s'inscrire directement auprès de l'organisateur.
+        La date limite d'inscription par le club est passée. Vous pouvez peut-être encore vous inscrire directement
+        auprès de l'organisateur.
       </p>
     );
   }
