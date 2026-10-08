@@ -895,12 +895,35 @@ describe('admin registrations', () => {
       ['Email :', null],
       ['Tél :', null],
     ]);
+    // No mandate read: the amounts stay empty rather than wrong.
     expect(rows.slice(8)).toEqual([
       ['NOM Prénom', 'N° licence', 'Catég.', "Type d'arc", 'Départ 1', 'Départ 2', 'Trispot', 'Montant'],
-      ['DUPONT JEANNE', ADULT.licenceNumber, 'Senior 2 Femme', 'Classique', 'X', null, 'Non', 0],
-      ['MARTIN LOU', YOUTH.licenceNumber, 'U18 Femme', 'Classique', null, 'X', 'Non', 0],
-      ['Total', null, null, null, null, null, null, 0],
+      ['DUPONT JEANNE', ADULT.licenceNumber, 'Senior 2 Femme', 'Classique', 'X', null, 'Non', null],
+      ['MARTIN LOU', YOUTH.licenceNumber, 'U18 Femme', 'Classique', null, 'X', 'Non', null],
+      ['Total', null, null, null, null, null, null, null],
     ]);
+
+    // The mandate's prices: adult or youth (every Uxx), by number of départs.
+    await database('competitions').where({ ffta_id: SALLE }).update({ mandate_url: 'https://extranet.ffta.fr/m.pdf' });
+    await database('competition_mandates').insert({
+      ffta_id: SALLE,
+      mandate_url: 'https://extranet.ffta.fr/m.pdf',
+      status: 'parsed',
+      data: JSON.stringify({
+        departures: [],
+        prices: [
+          { audience: 'adult', departures: 1, amountEuros: 9 },
+          { audience: 'youth', departures: 1, amountEuros: 6.5 },
+        ],
+        foamTargets: 'not_mentioned',
+        evidence: { departures: null, prices: null, foamTargets: null },
+      }),
+      read_at: new Date().toISOString(),
+    });
+    const priced = await readSheet(
+      Buffer.from(await (await call(`/api/admin/competitions/${SALLE}/export`, { cookie })).arrayBuffer()),
+    );
+    expect(priced.slice(9).map((row) => row.at(-1))).toEqual([9, 6.5, 15.5]);
   });
 
   test("the grid shows the exporting admin's stored email and phone", async () => {

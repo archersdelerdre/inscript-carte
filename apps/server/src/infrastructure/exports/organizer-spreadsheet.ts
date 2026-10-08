@@ -1,13 +1,12 @@
-import { BOW_TYPE_LABELS, categoryLabel, CLUB_NAME, DISTANCE_LABELS } from '@inscript-carte/shared';
+import { BOW_TYPE_LABELS, categoryLabel, CLUB_NAME, DISTANCE_LABELS, type AgeCategory } from '@inscript-carte/shared';
 import writeXlsxFile, { type Cell, type Row } from 'write-excel-file/node';
 
 import type { Responsible } from '../../domain/archer.ts';
 import { toFrenchDate } from '../../domain/calendar-date.ts';
 import type { Competition } from '../../domain/competition.ts';
+import { registrationPrice } from '../../domain/pricing.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 
-/** Not known yet: the price will come from the FFTA mandate once the scraper reads it. */
-const PRICE_PER_DEPARTURE = 0;
 const EUROS = '#,##0.00 "€"';
 
 const BOLD = { fontWeight: 'bold' } as const;
@@ -19,6 +18,7 @@ const CENTERED = { ...BOX, align: 'center' } as const;
 type ArcherLine = {
   fullName: string;
   licenceNumber: string;
+  ageCategory: AgeCategory;
   category: string;
   bow: string;
   distance: string;
@@ -26,8 +26,25 @@ type ArcherLine = {
   departures: Set<number>;
 };
 
-function amountOf(line: ArcherLine): number {
-  return line.departures.size * PRICE_PER_DEPARTURE;
+/**
+ * What each line pays: the archer's price for all their départs in the file, from the mandate, on their first line
+ * (their other lines get `0`). `null` when the mandate gives no price for them: the cell stays empty.
+ */
+function amounts(lines: readonly ArcherLine[], competition: Competition): (number | null)[] {
+  const departures = new Map<string, number>();
+  for (const line of lines) {
+    departures.set(line.licenceNumber, (departures.get(line.licenceNumber) ?? 0) + line.departures.size);
+  }
+  const priced = new Set<string>();
+  return lines.map((line) => {
+    if (priced.has(line.licenceNumber)) return 0;
+    priced.add(line.licenceNumber);
+    return registrationPrice(competition.prices, line.ageCategory, departures.get(line.licenceNumber)!);
+  });
+}
+
+function amountCell(amount: number | null, style: Cell = {}): Cell {
+  return amount === null ? { value: '', ...BOX, ...style } : { value: amount, format: EUROS, ...BOX, ...style };
 }
 
 /**
@@ -44,6 +61,9 @@ export async function organizerSpreadsheet(
     (a, b) => a - b,
   );
   const lines = archerLines(registrations);
+  const lineAmounts = amounts(lines, competition);
+  // Unknown for one archer: no total rather than a wrong one.
+  const total = lineAmounts.includes(null) ? null : lineAmounts.reduce<number>((sum, amount) => sum + (amount ?? 0), 0);
   const header = [
     'NOM Prénom',
     'N° licence',
@@ -67,7 +87,7 @@ export async function organizerSpreadsheet(
     [{ value: 'Tél :', ...BOLD }, responsible.phone ?? ''],
     [],
     header.map((title): Cell => ({ value: title, ...HEADER })),
-    ...lines.map((line): Row => [
+    ...lines.map((line, index): Row => [
       { value: line.fullName, ...BOX },
       { value: line.licenceNumber, ...BOX },
       { value: line.category, ...BOX },
@@ -75,12 +95,12 @@ export async function organizerSpreadsheet(
       ...(withDistance ? [{ value: line.distance, ...BOX }] : []),
       ...departures.map((departure): Cell => ({ value: line.departures.has(departure) ? 'X' : '', ...CENTERED })),
       { value: line.trispot ? 'Oui' : 'Non', ...CENTERED },
-      { value: amountOf(line), format: EUROS, ...BOX },
+      amountCell(lineAmounts[index]!),
     ]),
     [
       { value: 'Total', ...BOLD, ...BOX },
       ...header.slice(1, -1).map((): Cell => ({ value: '', ...BOX })),
-      { value: lines.reduce((total, line) => total + amountOf(line), 0), format: EUROS, ...BOLD, ...BOX },
+      amountCell(total, BOLD),
     ],
   ];
 
@@ -117,6 +137,7 @@ function archerLines(registrations: readonly RegistrationDetails[]): ArcherLine[
     lines.set(key, {
       fullName,
       licenceNumber: registration.archerLicenceNumber,
+      ageCategory: registration.category,
       category: categoryLabel(registration.category, sex),
       bow: BOW_TYPE_LABELS[registration.bowType],
       distance: registration.distance ? DISTANCE_LABELS[registration.distance] : '',

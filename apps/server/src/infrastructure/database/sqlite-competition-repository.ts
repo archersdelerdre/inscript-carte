@@ -69,6 +69,8 @@ export class SqliteCompetitionRepository implements CompetitionRepository {
 }
 
 function toCompetition(row: CompetitionRow): Competition {
+  // Stored only after `checkMandateData`.
+  const mandate = row.mandate_data ? (JSON.parse(row.mandate_data) as MandateData) : null;
   return {
     id: row.ffta_id,
     title: row.title,
@@ -84,13 +86,7 @@ function toCompetition(row: CompetitionRow): Competition {
     position:
       row.latitude === null || row.longitude === null ? null : { latitude: row.latitude, longitude: row.longitude },
     mandateUrl: row.mandate_url,
-    departures: departuresOf(row.mandate_data),
+    departures: mandate?.departures.length ? mandate.departures : null,
+    prices: mandate?.prices.length ? mandate.prices : null,
   };
-}
-
-function departuresOf(mandateData: string | null): Competition['departures'] {
-  if (!mandateData) return null;
-  // Stored only after `checkMandateData`.
-  const { departures } = JSON.parse(mandateData) as MandateData;
-  return departures.length > 0 ? departures : null;
 }

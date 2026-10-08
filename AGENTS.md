@@ -222,7 +222,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports) with their
   "Email" and "Tél" (empty when not stored), then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |
   (Distances) | Départ N… | Trispot | Montant`), an "X" in each départ column (only the départs in the file), and a
-  "Total" line. `PRICE_PER_DEPARTURE` is 0 €: the prices read from the mandates are not used in the file.
+  "Total" line. **Montant** comes from the mandate's prices (`domain/pricing.ts`): "jeunes" are every Uxx category
+  (U11 to U21, the user's rule), the others adults; the price for the archer's number of départs in the file, else
+  the biggest offers that fit added up, else the "all" prices. Put on the archer's first line (0 on their other
+  bow lines). No price that fits (or no mandate read): the cell stays empty, and so does the total.
 - "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
   "⋯" menu per row (Désactiver / Réactiver, Nommer admin / Retirer les droits d'admin, each with a confirmation; the
   admin's own row shows "Vous"). The actions column is pinned to the right so phones see it. The upload is in the
@@ -285,8 +288,8 @@ Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** start
 night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
 every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
 Mandates are read by an LLM (the user's decision; model chosen 2026-10-09: GLM 5.3 Flash). What it reads (départs,
-prices, foam targets) is stored; the app uses the foam targets flag and the départs (registration form), not the
-prices.
+prices, foam targets) is stored; the app uses the foam targets flag, the départs (registration form) and the prices
+(Excel file).
 
 - **Mandates** (`application/read-mandates.ts`, table `competition_mandates`, migration `0007`, one row per
   competition): after the save, every upcoming, listed, not cancelled competition whose mandate link has no reading,
@@ -436,7 +439,7 @@ Material Design baseline, do not exaggerate:
 - Competitions that cannot be located: planned to be stored but not displayed, their **count shown in the admin
   panel**, and the admin can re-run a Google Maps lookup (results should then live in the DB instead of
   `known-places.ts`).
-- The prices read from the mandates are stored but not used yet: not in the Excel file or the admin page.
+- The prices read from the mandates are not shown on the admin page (only used in the Excel file).
 
 ## Traps already hit
 

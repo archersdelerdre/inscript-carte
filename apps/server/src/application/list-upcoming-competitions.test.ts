@@ -25,6 +25,7 @@ function competition(
     position: null,
     mandateUrl: null,
     departures: null,
+    prices: null,
   };
 }
 
