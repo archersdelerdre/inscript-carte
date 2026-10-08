@@ -36,7 +36,11 @@ export type AdminHttpDependencies = {
   adminRegistrations: AdminRegistrations;
   clubMembers: ClubMembers;
   readMemberExport: (bytes: Buffer) => Promise<Archer[]>;
-  organizerSpreadsheet: (competition: Competition, registrations: readonly RegistrationDetails[]) => Promise<Buffer>;
+  organizerSpreadsheet: (
+    competition: Competition,
+    registrations: readonly RegistrationDetails[],
+    responsible: string,
+  ) => Promise<Buffer>;
 };
 
 export function createAdminRoutes({
@@ -161,7 +165,7 @@ export function createAdminRoutes({
     },
 
     [API_ROUTES.adminCompetitionExport]: {
-      GET: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminCompetitionExport>) => {
+      GET: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminCompetitionExport>, admin) => {
         // `?status=…&paymentStatus=…`: the filters shown in the panel. Missing means "all".
         const query = new URL(request.url).searchParams;
         const result = await adminRegistrations.organizerList(request.params.competitionId, {
@@ -170,7 +174,8 @@ export function createAdminRoutes({
         });
         if (result === 'invalid') return error('invalid_request', 400);
         if (result === 'not_found') return error('not_found', 404);
-        const file = await organizerSpreadsheet(result.competition, result.registrations);
+        // The admin who makes the file is the club's contact on it ("Responsable").
+        const file = await organizerSpreadsheet(result.competition, result.registrations, admin.fullName);
         return new Response(file, {
           headers: {
             'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

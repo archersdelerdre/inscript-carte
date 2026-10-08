@@ -177,6 +177,11 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   putting the départ back to another status makes it due again. The row shows a half-ticked, greyed, disabled
   checkbox; the "à payer" counts, the "En attente de paiement" filter and "Mon suivi" leave it out, and "Tout marquer
   payé" skips it (no `updated_by` on it either). A départ already paid stays "Payé" (the club may owe a refund).
+- **Excel file layout** (`organizer-spreadsheet.ts`), copied from the registration grids of FFTA mandates (user's
+  examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports), empty "Email" and
+  "Tél" for the admin to fill, then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |
+  (Distances) | Départ N… | Trispot | Montant`), an "X" in each départ column (only the départs in the file), and a
+  "Total" line. `PRICE_PER_DEPARTURE` is 0 € until the scraper reads the price from the mandate.
 - "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
   "⋯" menu per row (Désactiver / Réactiver, Nommer admin / Retirer les droits d'admin, each with a confirmation; the
   admin's own row shows "Vous"). The actions column is pinned to the right so phones see it. The upload is in the

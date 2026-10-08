@@ -828,10 +828,26 @@ describe('admin registrations', () => {
       `attachment; filename="inscriptions-2027-01-09-${SALLE}.xlsx"`,
     );
     const rows = await readSheet(Buffer.from(await response.arrayBuffer()));
-    expect(rows.slice(3)).toEqual([
-      ['Départ', 'Nom et prénom', 'N° de licence', 'Catégorie', 'Arc', 'Trispot'],
-      [1, 'DUPONT JEANNE', ADULT.licenceNumber, 'Senior 2 Femme', 'Classique', 'Non'],
-      [2, 'MARTIN LOU', YOUTH.licenceNumber, 'U18 Femme', 'Classique', 'Non'],
+    // The admin who exports is the club's contact on the grid, like on the FFTA mandates.
+    expect(rows.slice(3, 5).map((row) => row.slice(0, 2))).toEqual([
+      ['Nom du club :', "Les Archers de l'Erdre"],
+      ['Responsable :', 'DUPONT JEANNE'],
+    ]);
+    expect(rows.slice(8)).toEqual([
+      ['NOM Prénom', 'N° licence', 'Catég.', "Type d'arc", 'Départ 1', 'Départ 2', 'Trispot', 'Montant'],
+      ['DUPONT JEANNE', ADULT.licenceNumber, 'Senior 2 Femme', 'Classique', 'X', null, 'Non', 0],
+      ['MARTIN LOU', YOUTH.licenceNumber, 'U18 Femme', 'Classique', null, 'X', 'Non', 0],
+      ['Total', null, null, null, null, null, null, 0],
+    ]);
+  });
+
+  test('one grid line per archer and bow, with a mark in each of their départs', async () => {
+    await registerBoth();
+    const response = await call(`/api/admin/competitions/${SALLE}/export`, { cookie });
+    const [header, ...lines] = (await readSheet(Buffer.from(await response.arrayBuffer()))).slice(8, -1);
+    expect(lines.map((line) => [line[0], header!.filter((_, column) => line[column] === 'X')])).toEqual([
+      ['DUPONT JEANNE', ['Départ 1']],
+      ['MARTIN LOU', ['Départ 1', 'Départ 2']],
     ]);
   });
 
@@ -842,7 +858,10 @@ describe('admin registrations', () => {
     await call('/api/admin/payment-references/R-0002', { method: 'PATCH', cookie, body: { paymentStatus: 'paid' } });
     const exported = async (query: string) => {
       const response = await call(`/api/admin/competitions/${SALLE}/export?${query}`, { cookie });
-      return (await readSheet(Buffer.from(await response.arrayBuffer()))).slice(4).map((row) => [row[0], row[1]]);
+      const [header, ...lines] = (await readSheet(Buffer.from(await response.arrayBuffer()))).slice(8, -1);
+      return lines.flatMap((line) =>
+        header!.flatMap((title, column) => (line[column] === 'X' ? [[Number(String(title).slice(-1)), line[0]]] : [])),
+      );
     };
 
     expect(await exported('paymentStatus=paid')).toEqual([[1, 'DUPONT JEANNE']]);
