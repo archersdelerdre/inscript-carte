@@ -19,7 +19,15 @@ import {
   type UpdateRegistrationRequest,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { CarIcon, ChevronDownIcon, DownloadIcon, MessageSquareTextIcon, PencilIcon, SearchIcon } from 'lucide-react';
+import {
+  CarIcon,
+  ChevronDownIcon,
+  DownloadIcon,
+  FileTextIcon,
+  MessageSquareTextIcon,
+  PencilIcon,
+  SearchIcon,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -51,8 +59,6 @@ import { formatDateRange, formatDateTime, formatDay } from '@/lib/dates';
 import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 import { StatusBadge, StatusDot } from '@/registrations/status-badge';
-
-import { RefreshFromFftaButton } from './scraper-page';
 
 const ALL = 'all';
 const MAX_CLUB_NOTE_LENGTH = 500;
@@ -197,7 +203,20 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   return (
     <div className='grid gap-4 p-4'>
       <header className='grid gap-1'>
-        <h1 className='text-xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
+        <div className='flex flex-wrap items-baseline gap-x-4 gap-y-1'>
+          <h1 className='text-xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
+          {competition.mandateUrl && (
+            <a
+              href={competition.mandateUrl}
+              target='_blank'
+              rel='noopener'
+              className='text-primary inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline'
+            >
+              <FileTextIcon className='size-4' />
+              Mandat (PDF)
+            </a>
+          )}
+        </div>
         <p className='text-muted-foreground'>
           {formatDateRange(competition.startDate, competition.endDate)} · {competition.town} (
           {competition.departmentCode}) · inscription par le club jusqu'au{' '}
@@ -208,15 +227,6 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
             Ce concours a été annulé par l'organisateur.
           </p>
         )}
-        {/* An admin who sees a wrong date or place re-reads this competition from the FFTA site. */}
-        <RefreshFromFftaButton
-          fftaId={competition.id}
-          onDone={() => {
-            void reload();
-            onChanged();
-          }}
-          onSessionExpired={onSessionExpired}
-        />
       </header>
 
       <div className='grid gap-1'>

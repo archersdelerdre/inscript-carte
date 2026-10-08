@@ -84,6 +84,7 @@ export function toAdminCompetitionDto({
     clubRegistrationDeadline: clubRegistrationDeadline(competition),
     town: competition.town,
     departmentCode: competition.departmentCode,
+    mandateUrl: competition.mandateUrl,
     isPostponed: competition.status === 'postponed',
     isCancelled: competition.status === 'cancelled',
     isFinished,

@@ -214,6 +214,7 @@ export type AdminCompetitionDto = {
   clubRegistrationDeadline: string;
   town: string;
   departmentCode: string;
+  mandateUrl: string | null;
   isPostponed: boolean;
   /** Cancelled by the organizer while the club still has registrations. */
   isCancelled: boolean;

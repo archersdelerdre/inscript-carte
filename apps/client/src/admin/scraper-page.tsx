@@ -8,8 +8,9 @@ import {
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
 import { CheckIcon, CircleAlertIcon, LoaderCircleIcon, RefreshCwIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
+import { useCompetitions } from '@/competitions/use-competitions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,12 +23,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
-import { formatDateTime } from '@/lib/dates';
+import { formatDateRange, formatDateTime } from '@/lib/dates';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 
+import { CompetitionSearch } from './competition-search';
 import { useScraperStatus } from './use-scraper-status';
 
 /** Measured on 2026-10-08: a list page or a detail page takes about a second (with the polite pause). */
@@ -275,18 +276,24 @@ type StartButtonsProps = {
 
 function StartButtons({ busy, firstRun, onStart }: StartButtonsProps) {
   const [confirming, setConfirming] = useState(false);
-  const [competition, setCompetition] = useState('');
+  const [competitionsState] = useCompetitions();
+  const competitions = competitionsState.kind === 'loaded' ? competitionsState.competitions : [];
+  // The field always holds what is sent: picking a suggestion writes its FFTA number.
+  const [competitionText, setCompetitionText] = useState('');
   const [competitionError, setCompetitionError] = useState<string | null>(null);
-  const fftaId = fftaIdFrom(competition);
+  const fftaId = fftaIdFrom(competitionText);
+  const known = fftaId ? competitions.find((competition) => competition.id === fftaId) : undefined;
 
   function startOne(event: React.FormEvent) {
     event.preventDefault();
     if (!fftaId) {
-      setCompetitionError('Collez le numéro du concours ou le lien de sa fiche sur le site de la FFTA.');
+      setCompetitionError(
+        'Choisissez un concours dans la liste, ou collez son numéro ou le lien de sa fiche sur le site de la FFTA.',
+      );
       return;
     }
     setCompetitionError(null);
-    void onStart({ kind: 'competition', fftaId }).then((started) => started && setCompetition(''));
+    void onStart({ kind: 'competition', fftaId }).then((started) => started && setCompetitionText(''));
   }
 
   return (
@@ -309,15 +316,25 @@ function StartButtons({ busy, firstRun, onStart }: StartButtonsProps) {
         <div className='grid gap-2'>
           <h2 className='font-semibold'>Un seul concours</h2>
           <Label htmlFor='scraper-competition' className='text-muted-foreground text-sm font-normal'>
-            Numéro du concours ou lien vers sa fiche sur le site de la FFTA (quelques secondes)
+            Nom, ville ou numéro du concours, ou lien vers sa fiche sur le site de la FFTA (quelques secondes)
           </Label>
-          <Input
+          <CompetitionSearch
             id='scraper-competition'
-            value={competition}
-            placeholder='Ex. : 27469'
-            aria-invalid={competitionError ? true : undefined}
-            onChange={(event) => setCompetition(event.target.value)}
+            value={competitionText}
+            placeholder='Ex. : Carquefou'
+            invalid={competitionError !== null}
+            competitions={competitions}
+            onType={setCompetitionText}
+            onPick={(competition) => {
+              setCompetitionText(competition.id);
+              setCompetitionError(null);
+            }}
           />
+          {known && (
+            <p className='text-muted-foreground text-sm'>
+              {known.title} · {formatDateRange(known.startDate, known.endDate)} · {known.town}
+            </p>
+          )}
           {competitionError && <p className='text-destructive text-sm'>{competitionError}</p>}
         </div>
         <Button type='submit' variant='outline' disabled={busy}>
@@ -391,57 +408,4 @@ function History({ runs }: { runs: ScraperStatusResponse['recent'] }) {
 function stepState(index: number, current: number): 'done' | 'current' | 'waiting' {
   if (index < current) return 'done';
   return index === current ? 'current' : 'waiting';
-}
-
-/** Re-reads one competition from the FFTA, for the competition's admin page; `onDone` reloads it. */
-export function RefreshFromFftaButton({
-  fftaId,
-  onDone,
-  onSessionExpired,
-}: {
-  fftaId: string;
-  onDone: () => void;
-  onSessionExpired: () => void;
-}) {
-  const [state, setState] = useState<'idle' | 'running' | 'done'>('idle');
-  const [message, setMessage] = useState<string | null>(null);
-  // Closed when the page goes away during a run, so it never keeps a connection open for nothing.
-  const source = useRef<EventSource | null>(null);
-  useEffect(() => () => source.current?.close(), []);
-
-  async function refresh() {
-    setMessage(null);
-    const result = await api<StartScraperRunResponse>(API_ROUTES.adminScraperRuns, {
-      method: 'POST',
-      body: { kind: 'competition', fftaId } satisfies StartScraperRunRequest,
-    });
-    if (!result.ok) {
-      if (result.error === 'admin_sign_in_required') onSessionExpired();
-      else setMessage(ERROR_MESSAGES[result.error]);
-      return;
-    }
-    setState('running');
-    // A detail page takes a few seconds: follow the run until it is finished.
-    const events = new EventSource(API_ROUTES.adminScraperEvents);
-    source.current = events;
-    events.addEventListener('message', (event: MessageEvent<string>) => {
-      const status = JSON.parse(event.data) as ScraperStatusResponse;
-      const run = status.recent.find(({ id }) => id === result.data.run.id);
-      if (!run) return;
-      events.close();
-      setState('done');
-      setMessage(run.status === 'succeeded' ? 'Concours mis à jour depuis la FFTA.' : run.error);
-      onDone();
-    });
-  }
-
-  return (
-    <span className='flex flex-wrap items-center gap-2'>
-      <Button variant='outline' disabled={state === 'running'} onClick={() => void refresh()}>
-        <RefreshCwIcon className={cn(state === 'running' && 'animate-spin')} />
-        {state === 'running' ? 'Lecture de la fiche FFTA…' : 'Mettre à jour depuis la FFTA'}
-      </Button>
-      {message && <span className='text-muted-foreground text-sm'>{message}</span>}
-    </span>
-  );
 }

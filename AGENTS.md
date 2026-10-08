@@ -278,8 +278,10 @@ mandates.
 - **Live page** (`admin/scraper-page.tsx`, "Calendrier FFTA" tab): last result, then the run going on with its steps
   (list page N / ~75, detail pages N / total, saving), progress bars, elapsed time and an estimate (about 1 s per
   page), who started it; "Mettre à jour tout le calendrier" behind a confirmation that says how long and that the
-  page can be closed; one competition by FFTA number or pasted link (`fftaIdFrom`); the last 10 runs. Every admin
-  with the page open sees the same thing. A competition's admin page has "Mettre à jour depuis la FFTA".
+  page can be closed; one competition, picked from an autocomplete over the public list (title, town or number,
+  `admin/competition-search.tsx`) or by pasted number or link (`fftaIdFrom`); the last 10 runs. Every admin with the
+  page open sees the same thing. The competition's admin page has no refresh button any more (removed 2026-10-08, the
+  user's choice): it shows a "Mandat (PDF)" link next to the title.
 - **SSE** (`presentation/http/scraper-events.ts`): the run is written by another process, so the server reads its
   row every second, **only while a page is open**, and pushes the status when it changed; a keep-alive comment every
   15 s. Bun closes idle connections after 10 s: the route calls `server.timeout(request, 0)`. `x-accel-buffering: no`
