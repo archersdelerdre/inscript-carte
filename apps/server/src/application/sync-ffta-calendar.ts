@@ -1,7 +1,6 @@
 import type { GeoPosition, ScraperProgress, ScraperReport } from '@inscript-carte/shared';
 
 import type { CalendarDate } from '../domain/calendar-date.ts';
-import { checkDepartmentPosition } from '../domain/department-area.ts';
 import type { Clock } from './ports/clock.ts';
 import type { CompetitionDetail, FftaCalendar, ListedCompetition } from './ports/ffta-calendar.ts';
 import type {
@@ -283,10 +282,7 @@ export class SyncFftaCalendar {
     });
   }
 
-  /**
-   * The FFTA's own map point when it lies in the competition's département (swapped back when typed the wrong way
-   * round), else the address service (never in a dry run), counted in the report.
-   */
+  /** The FFTA's own map point, else the address service (never in a dry run), counted in the report. */
   async #position(
     detail: CompetitionDetail,
     departmentCode: string,
@@ -296,19 +292,8 @@ export class SyncFftaCalendar {
     located: Map<string, GeoPosition | null>,
   ): Promise<GeoPosition | null> {
     if (detail.position) {
-      const checked = checkDepartmentPosition(detail.position, departmentCode);
-      if (checked) {
-        report.positions.fromFfta++;
-        if (checked.swapped) {
-          report.problems.push(
-            `Concours ${detail.fftaId} : la latitude et la longitude de la fiche FFTA étaient inversées, corrigées.`,
-          );
-        }
-        return checked.position;
-      }
-      report.problems.push(
-        `Concours ${detail.fftaId} : le point GPS de la fiche FFTA n’est pas dans le département ${departmentCode}, la ville est cherchée à la place.`,
-      );
+      report.positions.fromFfta++;
+      return detail.position;
     }
     if (dryRun) {
       report.positions.notTried++;

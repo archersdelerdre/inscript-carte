@@ -384,10 +384,7 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   hidden from the public list,
   never deleted; cleared when listed again; only after a complete list). The list's values win over the detail
   page's (they are what the fingerprint covers); `has_foam_targets` and `created_at` are never touched. Position:
-  the FFTA's GPS when it lies in the competition's département area (`domain/department-area.ts`: mainland +
-  Corsica, or that overseas code), swapped back when latitude and longitude were typed the wrong way round
-  (Grosbreuil, Vendée, sat next to Mogadishu); both reported in the run's problems. Else the geocoder on the postal
-  line's commune (else the title's town). Migration `0008` fixed the points stored before. Abroad and unreadable
+  the FFTA's GPS, else the geocoder on the postal line's commune (else the title's town). Abroad and unreadable
   detail pages are skipped and read again next run; so are the ones beyond `--max-details`.
 - **Safety**: nothing is written if the list cannot be read (Cloudflare), or holds less than half of the upcoming
   competitions already known (once 100+ are known). Cloudflare stopping the detail pages keeps what was read.
@@ -457,6 +454,9 @@ Material Design baseline, do not exaggerate:
 
 ## Traps already hit
 
+- Never remove a migration production has applied: the server would not start (Knex refuses missing migrations).
+  Undo it there first, with the image that still has it (`createDatabase(DATABASE_PATH).migrate.down()` through
+  `docker exec -i <container> bun run -`), then deploy the code without it (done for `0008`, 2026-10-09).
 - Do not overwrite or delete the SQLite file (or its `-wal`/`-shm`) while the server runs: it keeps serving old data.
   Stop the server first.
 - To move the database elsewhere (a server, a Docker volume), never copy `inscript-carte.sqlite` alone: recent writes
