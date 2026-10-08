@@ -7,6 +7,7 @@ import * as foamTargets from './0004-foam-targets.ts';
 import * as fftaDetails from './0005-ffta-details.ts';
 import * as scraperRuns from './0006-scraper-runs.ts';
 import * as competitionMandates from './0007-competition-mandates.ts';
+import * as fixSwappedPositions from './0008-fix-swapped-positions.ts';
 
 /** Listed explicitly so migrations survive `bun build`. Append new ones at the end; never rename. */
 const migrations: Record<string, Knex.Migration> = {
@@ -17,6 +18,7 @@ const migrations: Record<string, Knex.Migration> = {
   '0005-ffta-details': fftaDetails,
   '0006-scraper-runs': scraperRuns,
   '0007-competition-mandates': competitionMandates,
+  '0008-fix-swapped-positions': fixSwappedPositions,
 };
 
 export const migrationSource: Knex.MigrationSource<string> = {

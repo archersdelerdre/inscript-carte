@@ -384,7 +384,10 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   hidden from the public list,
   never deleted; cleared when listed again; only after a complete list). The list's values win over the detail
   page's (they are what the fingerprint covers); `has_foam_targets` and `created_at` are never touched. Position:
-  the FFTA's GPS, else the geocoder on the postal line's commune (else the title's town). Abroad and unreadable
+  the FFTA's GPS when it lies in the competition's département area (`domain/department-area.ts`: mainland +
+  Corsica, or that overseas code), swapped back when latitude and longitude were typed the wrong way round
+  (Grosbreuil, Vendée, sat next to Mogadishu); both reported in the run's problems. Else the geocoder on the postal
+  line's commune (else the title's town). Migration `0008` fixed the points stored before. Abroad and unreadable
   detail pages are skipped and read again next run; so are the ones beyond `--max-details`.
 - **Safety**: nothing is written if the list cannot be read (Cloudflare), or holds less than half of the upcoming
   competitions already known (once 100+ are known). Cloudflare stopping the detail pages keeps what was read.
