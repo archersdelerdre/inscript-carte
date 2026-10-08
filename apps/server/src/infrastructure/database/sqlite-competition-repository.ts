@@ -10,6 +10,7 @@ type CompetitionRow = {
   discipline: Discipline;
   status: CompetitionStatus;
   has_para_tir: 0 | 1;
+  has_foam_targets: 0 | 1;
   start_date: string;
   end_date: string;
   organizer_club: string | null;
@@ -26,6 +27,7 @@ const COLUMNS: (keyof CompetitionRow)[] = [
   'discipline',
   'status',
   'has_para_tir',
+  'has_foam_targets',
   'start_date',
   'end_date',
   'organizer_club',
@@ -61,6 +63,7 @@ function toCompetition(row: CompetitionRow): Competition {
     discipline: row.discipline,
     status: row.status,
     hasParaTir: row.has_para_tir === 1,
+    hasFoamTargets: row.has_foam_targets === 1,
     startDate: row.start_date,
     endDate: row.end_date,
     organizerClub: row.organizer_club,

@@ -67,6 +67,10 @@ export function App() {
     [inDepartment, filters],
   );
   const towns = useMemo(() => townSuggestions(inDepartment), [inDepartment]);
+  const foamTargetsKnown = useMemo(
+    () => competitions.some((competition) => competition.hasFoamTargets),
+    [competitions],
+  );
 
   function selectDepartment(value: string) {
     localStorage.setItem(DEPARTMENT_STORAGE_KEY, value);
@@ -109,6 +113,7 @@ export function App() {
               filters={filters}
               onFiltersChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
               towns={towns}
+              foamTargetsKnown={foamTargetsKnown}
               resultCount={shown.length}
             />
 

@@ -72,6 +72,8 @@ export type CompetitionDto = {
   discipline: Discipline;
   isPostponed: boolean;
   hasParaTir: boolean;
+  /** Shot on foam targets ("cibles mousses"). Not known yet for any competition: the scraper will fill it. */
+  hasFoamTargets: boolean;
   startDate: string;
   endDate: string;
   clubRegistrationDeadline: string;

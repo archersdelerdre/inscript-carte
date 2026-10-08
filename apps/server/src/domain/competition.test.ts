@@ -8,6 +8,7 @@ const competition: Competition = {
   discipline: 'salle',
   status: 'scheduled',
   hasParaTir: true,
+  hasFoamTargets: false,
   startDate: '2027-01-09',
   endDate: '2027-01-10',
   organizerClub: "Archers de l'Erdre",

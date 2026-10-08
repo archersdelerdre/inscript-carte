@@ -13,6 +13,8 @@ export type Competition = {
   readonly discipline: Discipline;
   readonly status: CompetitionStatus;
   readonly hasParaTir: boolean;
+  /** Shot on foam targets ("cibles mousses"); not in the legacy data, `false` until the scraper fills it. */
+  readonly hasFoamTargets: boolean;
   readonly startDate: CalendarDate;
   readonly endDate: CalendarDate;
   readonly organizerClub: string | null;

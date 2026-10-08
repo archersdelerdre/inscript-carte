@@ -41,10 +41,18 @@ export type CompetitionFilters = {
   from: string;
   to: string;
   withClubArchers: boolean;
+  foamTargets: boolean;
   town: string;
 };
 
-export const NO_FILTERS: CompetitionFilters = { discipline: ALL, from: '', to: '', withClubArchers: false, town: '' };
+export const NO_FILTERS: CompetitionFilters = {
+  discipline: ALL,
+  from: '',
+  to: '',
+  withClubArchers: false,
+  foamTargets: false,
+  town: '',
+};
 
 export function matchesFilters(competition: CompetitionDto, filters: CompetitionFilters): boolean {
   if (filters.discipline === PARA_TIR && !competition.hasParaTir) return false;
@@ -54,6 +62,7 @@ export function matchesFilters(competition: CompetitionDto, filters: Competition
   if (filters.from && competition.endDate < filters.from) return false;
   if (filters.to && competition.startDate > filters.to) return false;
   if (filters.withClubArchers && competition.clubArcherCount === 0) return false;
+  if (filters.foamTargets && !competition.hasFoamTargets) return false;
   return matchesSearch(filters.town, competition.town);
 }
 
@@ -80,6 +89,8 @@ type Props = {
   onFiltersChange: (patch: Partial<CompetitionFilters>) => void;
   /** Suggested while typing a town. */
   towns: TownSuggestion[];
+  /** `false` while no competition says whether it uses foam targets (the scraper will add it). */
+  foamTargetsKnown: boolean;
   resultCount: number;
 };
 
@@ -94,6 +105,7 @@ export function CompetitionFilterBar({
   filters,
   onFiltersChange: change,
   towns,
+  foamTargetsKnown,
   resultCount,
 }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -137,10 +149,14 @@ export function CompetitionFilterBar({
     const text = 'Avec des inscrits du club';
     chips.push({ key: 'club', text, remove: () => change({ withClubArchers: false }) });
   }
+  if (filters.foamTargets) {
+    const text = 'Cibles mousses';
+    chips.push({ key: 'foam', text, remove: () => change({ foamTargets: false }) });
+  }
 
   /** The département stays: it has its own menu in the bar, remembered on the device. */
   function clearFilters() {
-    change({ discipline: ALL, from: '', to: '', withClubArchers: false });
+    change({ discipline: ALL, from: '', to: '', withClubArchers: false, foamTargets: false });
   }
 
   const departmentName = DEPARTMENT_NAMES[department] ?? department;
@@ -293,6 +309,23 @@ export function CompetitionFilterBar({
             />
             Seulement les concours avec des inscrits du club
           </Label>
+
+          <div className='grid gap-1'>
+            <Label htmlFor='filter-foam' className='min-h-10 cursor-pointer'>
+              <Checkbox
+                id='filter-foam'
+                checked={filters.foamTargets}
+                onCheckedChange={(checked) => change({ foamTargets: checked === true })}
+              />
+              Seulement les concours sur cibles mousses
+            </Label>
+            {/* Disappears by itself once the scraper fills the information. */}
+            {!foamTargetsKnown && (
+              <p className='text-muted-foreground pl-7 text-sm'>
+                Cette information n'est pas encore connue : aucun concours ne s'affichera pour le moment.
+              </p>
+            )}
+          </div>
 
           <DialogFooter>
             <Button variant='ghost' onClick={clearFilters}>

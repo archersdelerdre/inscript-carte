@@ -248,11 +248,15 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   code) and the **town search** (debounced 300 ms, our own suggestion list in `town-search.tsx`, an ARIA combobox; the
   user rejected the native `<datalist>` look). Suggestions use the text after a postal code (FFTA towns are sometimes
   full addresses) and merge spelling variants per département. The button (badge = number chosen) opens a dialog with
-  Discipline (+ "Para-tir"), a date range (native date inputs; a competition is kept if one of its days is in it) and
-  "Seulement les concours avec des inscrits du club" (`clubArcherCount > 0`); "Tout effacer" there keeps the
+  Discipline (+ "Para-tir"), a date range (native date inputs; a competition is kept if one of its days is in it),
+  "Seulement les concours avec des inscrits du club" (`clubArcherCount > 0`) and "Seulement les concours sur cibles
+  mousses" (`hasFoamTargets`, column `competitions.has_foam_targets`, migration `0004`, asked 2026-10-08). No
+  competition has that information yet (the scraper will fill it; the legacy import never touches the column): while
+  none has it, a grey note under the checkbox says so, and it disappears by itself. "Tout effacer" there keeps the
   département. Line 2 shows only when some of those are chosen: removable chips that wrap. Chips inside the search
-  field were tried and rejected (cut or squeezed the town field). The "Cibles" filter of the old site was dropped.
-- Cards: date block in the discipline color, title, badges ("Para-tir" light blue, "Reportée" amber), town line with
+  field were tried and rejected (cut or squeezed the town field).
+- Cards: date block in the discipline color, title, badges ("Para-tir" light blue, "Cibles mousses" lime, "Reportée"
+  amber), town line with
   **"Voir sur la carte"**, discipline · club, club deadline, links "Mandat (PDF)" (red) and "Détail FFTA" (grey).
 - **Bottom right of the card: "Voir les inscrits" and "S'inscrire"** ("Voir les inscrits" is disabled and ghost when
   `clubArcherCount` is 0: hiding it left an odd space; "S'inscrire" only before the club deadline; no buttons at all

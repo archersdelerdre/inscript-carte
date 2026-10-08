@@ -16,6 +16,7 @@ function competition(
     discipline: 'salle',
     status,
     hasParaTir: false,
+    hasFoamTargets: false,
     startDate,
     endDate,
     organizerClub: null,

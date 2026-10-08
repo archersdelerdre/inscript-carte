@@ -22,6 +22,7 @@ export function toCompetitionDto({ competition, clubArcherCount }: UpcomingCompe
     discipline: competition.discipline,
     isPostponed: competition.status === 'postponed',
     hasParaTir: competition.hasParaTir,
+    hasFoamTargets: competition.hasFoamTargets,
     startDate: competition.startDate,
     endDate: competition.endDate,
     clubRegistrationDeadline: clubRegistrationDeadline(competition),
