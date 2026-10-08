@@ -86,7 +86,6 @@ export async function organizerSpreadsheet(
     [{ value: 'Email :', ...BOLD }, responsible.email ?? ''],
     [{ value: 'Tél :', ...BOLD }, responsible.phone ?? ''],
     [],
-    [],
     header.map((title): Cell => ({ value: title, ...HEADER })),
     ...lines.map((line, index): Row => [
       { value: line.fullName, ...BOX },

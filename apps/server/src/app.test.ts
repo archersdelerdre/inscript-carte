@@ -896,7 +896,7 @@ describe('admin registrations', () => {
       ['Tél :', null],
     ]);
     // No mandate read: the amounts stay empty rather than wrong.
-    expect(rows.slice(9)).toEqual([
+    expect(rows.slice(8)).toEqual([
       ['NOM Prénom', 'N° licence', 'Catég.', "Type d'arc", 'Départ 1', 'Départ 2', 'Trispot', 'Montant'],
       ['DUPONT JEANNE', ADULT.licenceNumber, 'Senior 2 Femme', 'Classique', 'X', null, 'Non', null],
       ['MARTIN LOU', YOUTH.licenceNumber, 'U18 Femme', 'Classique', null, 'X', 'Non', null],
@@ -923,7 +923,7 @@ describe('admin registrations', () => {
     const priced = await readSheet(
       Buffer.from(await (await call(`/api/admin/competitions/${SALLE}/export`, { cookie })).arrayBuffer()),
     );
-    expect(priced.slice(10).map((row) => row.at(-1))).toEqual([9, 6.5, 15.5]);
+    expect(priced.slice(9).map((row) => row.at(-1))).toEqual([9, 6.5, 15.5]);
   });
 
   test("the grid shows the exporting admin's stored email and phone", async () => {
@@ -942,7 +942,7 @@ describe('admin registrations', () => {
   test('one grid line per archer and bow, with a mark in each of their départs', async () => {
     await registerBoth();
     const response = await call(`/api/admin/competitions/${SALLE}/export`, { cookie });
-    const [header, ...lines] = (await readSheet(Buffer.from(await response.arrayBuffer()))).slice(9, -1);
+    const [header, ...lines] = (await readSheet(Buffer.from(await response.arrayBuffer()))).slice(8, -1);
     expect(lines.map((line) => [line[0], header!.filter((_, column) => line[column] === 'X')])).toEqual([
       ['DUPONT JEANNE', ['Départ 1']],
       ['MARTIN LOU', ['Départ 1', 'Départ 2']],
@@ -956,7 +956,7 @@ describe('admin registrations', () => {
     await call('/api/admin/payment-references/R-0002', { method: 'PATCH', cookie, body: { paymentStatus: 'paid' } });
     const exported = async (query: string) => {
       const response = await call(`/api/admin/competitions/${SALLE}/export?${query}`, { cookie });
-      const [header, ...lines] = (await readSheet(Buffer.from(await response.arrayBuffer()))).slice(9, -1);
+      const [header, ...lines] = (await readSheet(Buffer.from(await response.arrayBuffer()))).slice(8, -1);
       return lines.flatMap((line) =>
         header!.flatMap((title, column) => (line[column] === 'X' ? [[Number(String(title).slice(-1)), line[0]]] : [])),
       );
