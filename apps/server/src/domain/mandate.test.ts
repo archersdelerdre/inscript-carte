@@ -4,6 +4,8 @@ import { checkMandateData, mandateAnswerJsonSchema } from './mandate.ts';
 
 const COMPETITION = { startDate: '2026-10-31', endDate: '2026-11-01' };
 
+const price = (amountEuros: number) => ({ audience: 'all' as const, departures: 1, amountEuros });
+
 const answer = (overrides: Record<string, unknown> = {}) => ({
   departures: [
     { date: '2026-10-31', label: 'Samedi après-midi', registrationOpens: '13:30', shootingStarts: '14:30' },
@@ -27,20 +29,28 @@ describe('checkMandateData', () => {
     expect(checkMandateData(answer({ departures: [], prices: [] }), COMPETITION).ok).toBe(true);
   });
 
-  test('refuses a day outside the competition and a price given twice', () => {
-    const check = checkMandateData(
-      answer({
-        departures: [{ date: '2026-11-02', label: 'Lundi', registrationOpens: null, shootingStarts: null }],
-        prices: [
-          { audience: 'adult', departures: 2, amountEuros: 16 },
-          { audience: 'adult', departures: 2, amountEuros: 18 },
-        ],
-      }),
-      COMPETITION,
-    );
-    expect(check).toEqual({
+  test('keeps only the départs of the competition’s days: one mandate often covers two FFTA competitions', () => {
+    const weekend = [
+      { date: '2026-10-31', label: 'Samedi', registrationOpens: null, shootingStarts: '14:00' },
+      { date: '2026-11-02', label: 'Lundi', registrationOpens: null, shootingStarts: null },
+      { date: null, label: 'Départ Vegas', registrationOpens: null, shootingStarts: null },
+    ];
+    const check = checkMandateData(answer({ departures: weekend }), COMPETITION);
+    expect(check.ok && check.data.departures.map(({ label }) => label)).toEqual(['Samedi', 'Départ Vegas']);
+
+    // None of its days: that reading is not about this competition.
+    expect(checkMandateData(answer({ departures: [weekend[1]] }), COMPETITION)).toEqual({
       ok: false,
-      problems: ['Départ 1 : le 2026-11-02 n’est pas un jour du concours.', 'Tarif 2 : donné deux fois.'],
+      problems: ['Aucun départ du mandat ne tombe un jour du concours.'],
+    });
+  });
+
+  test('keeps a price given twice with the same amount once, refuses two different amounts', () => {
+    const same = checkMandateData(answer({ prices: [price(10), price(10)] }), COMPETITION);
+    expect(same.ok && same.data.prices).toEqual([price(10)]);
+    expect(checkMandateData(answer({ prices: [price(10), price(12)] }), COMPETITION)).toEqual({
+      ok: false,
+      problems: ['Tarif 2 : deux montants différents pour le même cas.'],
     });
   });
 

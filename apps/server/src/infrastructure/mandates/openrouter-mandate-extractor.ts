@@ -21,6 +21,8 @@ const INSTRUCTIONS = `Tu lis le mandat d'un concours de tir à l'arc de la FFTA 
 
 Réponds uniquement avec le JSON demandé. Ne devine jamais : ce qui n'est pas écrit dans le mandat reste vide (liste vide ou null).
 
+Un même mandat sert souvent à plusieurs concours FFTA (un samedi et un dimanche) : ne donne que les départs des jours de ce concours.
+
 departures : chaque départ (séance de tir) du concours, dans l'ordre. Un concours sur deux jours a souvent "samedi après-midi, dimanche matin, dimanche après-midi".
 - date : le jour du départ (AAAA-MM-JJ), parmi les jours du concours ; null si le mandat ne dit pas quel jour.
 - label : le nom du départ tel que le mandat l'écrit, court ("Samedi après-midi", "Départ 2").
@@ -85,14 +87,30 @@ export class OpenRouterMandateExtractor implements MandateExtractor {
       { timeoutMs: TIMEOUT_MS },
     );
     if (!('choices' in result)) throw new Error('réponse inattendue (flux)');
-    const content = result.choices[0]?.message.content;
+    const [choice] = result.choices;
+    const content = choice?.message.content;
     if (typeof content !== 'string' || !content.trim()) throw new Error('réponse vide');
-    let answer: unknown;
-    try {
-      answer = JSON.parse(content);
-    } catch {
-      throw new Error('la réponse n’est pas du JSON');
+    const answer = answerJson(content);
+    if (answer === undefined) {
+      // Never the content itself: it quotes the mandate, which names the organizers.
+      const cut = choice?.finishReason === 'length' ? ', coupée par la limite de longueur' : '';
+      throw new Error(`la réponse n’est pas du JSON (${content.length} caractères${cut})`);
     }
     return { answer, model: result.model, costUsd: result.usage?.cost ?? null };
   }
+}
+
+/**
+ * The JSON in the LLM's answer. Some providers wrap it in a ```json fence or a sentence despite the schema: the object
+ * between the first "{" and the last "}" is tried then. `undefined` when there is none.
+ */
+export function answerJson(content: string): unknown {
+  for (const candidate of [content, content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)]) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try the next form.
+    }
+  }
+  return undefined;
 }

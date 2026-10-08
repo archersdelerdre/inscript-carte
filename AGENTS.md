@@ -308,7 +308,10 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
     temperature 0, reasoning effort `medium` (user's choice; some providers refuse reasoning off), `dataCollection: 'deny'` (mandates name organizers), `requireParameters`, JSON
     schema from zod. The prompt is in French in that file.
   - The answer is checked by `checkMandateData` (`domain/mandate.ts`, zod `MandateAnswer`, also the JSON schema sent
-    to the LLM): shape, ranges (≤ 12 départs, 0–150 €), départ days inside the competition, no price given twice.
+    to the LLM): shape, ranges (≤ 12 départs, 0–150 €). One mandate often covers a weekend the FFTA lists as two
+    competitions (seen in the first full run, 2026-10-08): départs on other days are left out, refused only when
+    none is on the competition's days; a price given twice with the same amount is kept once, two amounts for the
+    same case are refused. The answer's JSON is also read inside a ```json fence or a sentence (`answerJson`).
     Refused → `invalid`, raw answer and problems kept, nothing used. `foamTargets` is `yes` / `no` /
     `not_mentioned`; `has_foam_targets` is set from a `parsed` reading only.
   - Errors never fail the run: the row is `failed` with the reason, tried again next run. The report counts read /

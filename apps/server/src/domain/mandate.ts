@@ -49,8 +49,11 @@ export const mandateAnswerJsonSchema = z.toJSONSchema(MandateAnswer);
 export type MandateCheck = { ok: true; data: MandateData } | { ok: false; problems: string[] };
 
 /**
- * The LLM's answer is never trusted as is: out of shape, out of range, or not matching the competition, the whole
- * reading is refused (kept, to be looked at) rather than half-stored. A wrong price is worse than no price.
+ * The LLM's answer is never trusted as is: out of shape, out of range, or contradicting itself, the whole reading is
+ * refused (kept, to be looked at) rather than half-stored. A wrong price is worse than no price.
+ *
+ * One mandate often covers a weekend that the FFTA lists as two competitions (Saturday, Sunday): the départs of the
+ * other days are left out, not refused. A price given twice with the same amount is kept once.
  */
 export function checkMandateData(
   raw: unknown,
@@ -63,18 +66,23 @@ export function checkMandateData(
       problems: parsed.error.issues.map((issue) => `${issue.path.join('.') || 'réponse'} : ${issue.message}`),
     };
   }
-  const data = parsed.data;
+  const onItsDays = parsed.data.departures.filter(
+    ({ date }) => !date || (date >= competition.startDate && date <= competition.endDate),
+  );
+  if (parsed.data.departures.length > 0 && onItsDays.length === 0) {
+    return { ok: false, problems: ['Aucun départ du mandat ne tombe un jour du concours.'] };
+  }
+
   const problems: string[] = [];
-  data.departures.forEach(({ date }, index) => {
-    if (date && (date < competition.startDate || date > competition.endDate)) {
-      problems.push(`Départ ${index + 1} : le ${date} n’est pas un jour du concours.`);
+  const prices = new Map<string, MandateData['prices'][number]>();
+  parsed.data.prices.forEach((price, index) => {
+    const key = `${price.audience}|${price.departures}`;
+    const known = prices.get(key);
+    if (known && known.amountEuros !== price.amountEuros) {
+      problems.push(`Tarif ${index + 1} : deux montants différents pour le même cas.`);
     }
+    if (!known) prices.set(key, price);
   });
-  const seen = new Set<string>();
-  data.prices.forEach(({ audience, departures }, index) => {
-    const key = `${audience}|${departures}`;
-    if (seen.has(key)) problems.push(`Tarif ${index + 1} : donné deux fois.`);
-    seen.add(key);
-  });
-  return problems.length > 0 ? { ok: false, problems } : { ok: true, data };
+  if (problems.length > 0) return { ok: false, problems };
+  return { ok: true, data: { ...parsed.data, departures: onItsDays, prices: [...prices.values()] } };
 }
