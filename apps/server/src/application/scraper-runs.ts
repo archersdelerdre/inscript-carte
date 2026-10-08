@@ -94,7 +94,7 @@ export class ExecuteScraperRun {
 
   async execute(
     run: ScraperRun,
-    options: { maxDetails?: number; onProgress?: (progress: ScraperProgress) => void } = {},
+    options: { maxDetails?: number; maxMandates?: number; onProgress?: (progress: ScraperProgress) => void } = {},
   ): Promise<ScraperReport | null> {
     let lastProgress: ScraperProgress | null = null;
     let lastWrite = 0;
@@ -115,7 +115,12 @@ export class ExecuteScraperRun {
       const report =
         run.kind === 'competition' && run.fftaId
           ? await this.#sync.runOne(run.fftaId, { dryRun: run.dryRun, onProgress })
-          : await this.#sync.run({ dryRun: run.dryRun, maxDetails: options.maxDetails, onProgress });
+          : await this.#sync.run({
+              dryRun: run.dryRun,
+              maxDetails: options.maxDetails,
+              maxMandates: options.maxMandates,
+              onProgress,
+            });
       await this.#store.finish(
         run.id,
         report.aborted ? 'failed' : 'succeeded',

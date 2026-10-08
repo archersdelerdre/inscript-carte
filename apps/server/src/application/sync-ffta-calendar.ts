@@ -9,6 +9,7 @@ import type {
   ScrapedCompetitionStore,
   StoredListing,
 } from './ports/scraped-competition-store.ts';
+import type { ReadMandates } from './read-mandates.ts';
 
 /**
  * Below this share of the upcoming competitions already known, the list read is not trusted (the site changed, or
@@ -81,6 +82,8 @@ export type SyncOptions = {
   dryRun: boolean;
   /** At most this many detail pages in one run (about 1 s each); the rest waits for the next run. */
   maxDetails?: number;
+  /** At most this many mandates sent to the LLM in one run; the rest waits for the next run. */
+  maxMandates?: number;
   onProgress?: (progress: ScraperProgress) => void;
 };
 
@@ -100,6 +103,7 @@ function emptyReport(dryRun: boolean): ScraperReport {
     skippedAbroad: 0,
     skippedUnreadable: 0,
     positions: { fromFfta: 0, geocoded: 0, notFound: 0, notTried: 0 },
+    mandates: null,
     problems: [],
     durationMs: 0,
   };
@@ -110,16 +114,30 @@ export class SyncFftaCalendar {
   readonly #calendar: FftaCalendar;
   readonly #store: ScrapedCompetitionStore;
   readonly #locator: PlaceLocator;
+  /** `null` without an OpenRouter key: the competitions are still stored, their mandates wait. */
+  readonly #mandates: ReadMandates | null;
   readonly #clock: Clock;
 
-  constructor(calendar: FftaCalendar, store: ScrapedCompetitionStore, locator: PlaceLocator, clock: Clock) {
+  constructor(
+    calendar: FftaCalendar,
+    store: ScrapedCompetitionStore,
+    locator: PlaceLocator,
+    mandates: ReadMandates | null,
+    clock: Clock,
+  ) {
     this.#calendar = calendar;
     this.#store = store;
     this.#locator = locator;
+    this.#mandates = mandates;
     this.#clock = clock;
   }
 
-  async run({ dryRun, maxDetails = Infinity, onProgress = () => {} }: SyncOptions): Promise<ScraperReport> {
+  async run({
+    dryRun,
+    maxDetails = Infinity,
+    maxMandates,
+    onProgress = () => {},
+  }: SyncOptions): Promise<ScraperReport> {
     const started = this.#clock.now();
     const today = this.#clock.today();
     const report = emptyReport(dryRun);
@@ -196,6 +214,8 @@ export class SyncFftaCalendar {
       await this.#store.save(scraped, listedAt);
       await this.#store.markListed(plan.unchanged, listedAt);
       await this.#store.markMissing(plan.missing, today);
+      // After the save: the competitions just stored (and older ones still waiting) have their mandate link.
+      await this.#readMandates(report, { today, limit: maxMandates }, onProgress);
     }
     return finish();
   }
@@ -238,8 +258,27 @@ export class SyncFftaCalendar {
     if (!dryRun) {
       onProgress({ step: 'saving' });
       await this.#store.saveDetail(detail, detail.departmentCode, position, this.#clock.now());
+      await this.#readMandates(report, { today: this.#clock.today(), fftaIds: [fftaId] }, onProgress);
     }
     return finish();
+  }
+
+  async #readMandates(
+    report: ScraperReport,
+    options: { today: CalendarDate; fftaIds?: string[]; limit?: number },
+    onProgress: (progress: ScraperProgress) => void,
+  ): Promise<void> {
+    if (!this.#mandates) {
+      report.problems.push(
+        'Les mandats n’ont pas été lus : la clé OpenRouter (OPENROUTER_API_KEY) n’est pas réglée sur ce serveur.',
+      );
+      return;
+    }
+    report.mandates = await this.#mandates.run({
+      ...options,
+      onProgress: (done, total) => onProgress({ step: 'mandates', done, total }),
+      onProblem: (fftaId, problem) => report.problems.push(`Concours ${fftaId} : ${problem}`),
+    });
   }
 
   /** The FFTA's own map point, else the address service (never in a dry run), counted in the report. */

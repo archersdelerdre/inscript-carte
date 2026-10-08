@@ -346,7 +346,24 @@ export type MemberExportErrorResponse = {
 export type ScraperProgress =
   | { step: 'list'; page: number; found: number }
   | { step: 'details'; done: number; total: number }
-  | { step: 'saving' };
+  | { step: 'saving' }
+  | { step: 'mandates'; done: number; total: number };
+
+/** The mandates (organizers' PDFs) a run sent to the LLM. */
+export type MandateCounts = {
+  /** Read and checked: their départs, prices and foam targets are stored. */
+  read: number;
+  /** A new link, but the very same file as before: nothing sent to the LLM. */
+  unchanged: number;
+  /** The LLM answered something the checks refused: kept to look at, tried again later. */
+  invalid: number;
+  /** Download, page images or LLM call failed: tried again by a later run. */
+  failed: number;
+  /** Beyond the run's limit: read by a later run. */
+  left: number;
+  /** What OpenRouter billed, in US dollars. */
+  costUsd: number;
+};
 
 /** The counts of a finished run. Never names, emails or phone numbers: FFTA text in `problems` only. */
 export type ScraperReport = {
@@ -367,6 +384,8 @@ export type ScraperReport = {
   skippedAbroad: number;
   skippedUnreadable: number;
   positions: { fromFfta: number; geocoded: number; notFound: number; notTried: number };
+  /** `null` when the run read no mandate: a dry run, or no OpenRouter key on this server. */
+  mandates: MandateCounts | null;
   problems: string[];
   durationMs: number;
 };

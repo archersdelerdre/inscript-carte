@@ -116,7 +116,7 @@ describe('SyncFftaCalendar', () => {
   };
 
   const sync = (list: ListedCompetition[], details: Record<string, CompetitionDetail | null>) =>
-    new SyncFftaCalendar(calendar(list, details), store, locator, clock);
+    new SyncFftaCalendar(calendar(list, details), store, locator, null, clock);
   const rows = () => database('competitions').orderBy('ffta_id');
 
   beforeEach(async () => {
@@ -217,7 +217,7 @@ describe('SyncFftaCalendar', () => {
       },
       readCompetition: async () => ({ detail: null, problems: [] }),
     };
-    const blocked = await new SyncFftaCalendar(failing, store, locator, clock).run({ dryRun: false });
+    const blocked = await new SyncFftaCalendar(failing, store, locator, null, clock).run({ dryRun: false });
     expect(blocked.aborted).toContain('Cloudflare blocked');
 
     const known = Array.from({ length: 120 }, (_, index) => listed(String(index)));

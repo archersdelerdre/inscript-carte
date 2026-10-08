@@ -219,7 +219,7 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports) with their
   "Email" and "Tél" (empty when not stored), then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |
   (Distances) | Départ N… | Trispot | Montant`), an "X" in each départ column (only the départs in the file), and a
-  "Total" line. `PRICE_PER_DEPARTURE` is 0 € until the scraper reads the price from the mandate.
+  "Total" line. `PRICE_PER_DEPARTURE` is 0 €: the prices read from the mandates are not used in the file.
 - "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
   "⋯" menu per row (Désactiver / Réactiver, Nommer admin / Retirer les droits d'admin, each with a confirmation; the
   admin's own row shows "Vous"). The actions column is pinned to the right so phones see it. The upload is in the
@@ -281,9 +281,30 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** started by the server (`Bun.spawn`) at
 night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
 every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
-Mandates will be read by a cheap LLM (the user's decision). Built so far: the list, the detail pages, storing them,
-and runs started by the server or by hand, followed live on `/admin/calendrier`, in the Docker image too. Not yet:
-mandates.
+Mandates are read by an LLM (the user's decision; model chosen 2026-10-09: GLM 5.3 Flash). What it reads (départs,
+prices, foam targets) is stored; only the foam targets flag is used by the app.
+
+- **Mandates** (`application/read-mandates.ts`, table `competition_mandates`, migration `0007`, one row per
+  competition): after the save, every upcoming, listed, not cancelled competition whose mandate link has no reading,
+  a reading of another link, or a failed one (fewer than 3 tries per link) is read, soonest first, 3 at a time
+  (they don't touch www.ffta.fr). `--max-mandates N` caps a run; "Mettre à jour un concours" reads its mandate too;
+  a dry run reads none.
+  - `PdfMandateFetcher`: plain HTTP (extranet.ffta.fr is not behind Cloudflare), `https://*.ffta.fr` only (also
+    after redirects), 10 MB max, must start with `%PDF-`. poppler (`poppler-utils` in the image, `brew install
+    poppler` on a Mac): first 6 pages as JPEG at 110 DPI (about 80–200 KB each) + `pdftotext -layout`.
+  - Same SHA-256 as the last good reading → not sent again (only the link is updated).
+  - `OpenRouterMandateExtractor` (`@openrouter/sdk`): `OPENROUTER_API_KEY` (never logged; without it the run still
+    stores competitions and says the mandates were not read), `MANDATE_MODEL` (default `z-ai/glm-5.3-flash`),
+    temperature 0, reasoning effort `medium` (user's choice; some providers refuse reasoning off), `dataCollection: 'deny'` (mandates name organizers), `requireParameters`, JSON
+    schema from zod. The prompt is in French in that file.
+  - The answer is checked by `checkMandateData` (`domain/mandate.ts`, zod `MandateAnswer`, also the JSON schema sent
+    to the LLM): shape, ranges (≤ 12 départs, 0–150 €), départ days inside the competition, no price given twice.
+    Refused → `invalid`, raw answer and problems kept, nothing used. `foamTargets` is `yes` / `no` /
+    `not_mentioned`; `has_foam_targets` is set from a `parsed` reading only.
+  - Errors never fail the run: the row is `failed` with the reason, tried again next run. The report counts read /
+    same file / refused / failed / left and the OpenRouter cost (`usage.cost`).
+  - `bun run --cwd apps/server mandate:read <url> <start> [end]`: reads one mandate and prints the result, writes
+    nothing (to check quality).
 
 - **Runs** (`application/scraper-runs.ts`, table `scraper_runs`, migration `0006`): the server takes the lock, then
   starts `scrape.ts --run <id>` (`ProcessScraperLauncher`, `nice -n 10`, stdout ignored); the process reads its row
@@ -408,9 +429,11 @@ Material Design baseline, do not exaggerate:
 
 ## Not done yet
 
-- FFTA scraper. Planned: competitions that cannot be located are stored but not displayed, their **count is shown in
-  the admin panel**, and the admin can re-run a Google Maps lookup (results should then live in the DB instead of
+- Competitions that cannot be located: planned to be stored but not displayed, their **count shown in the admin
+  panel**, and the admin can re-run a Google Maps lookup (results should then live in the DB instead of
   `known-places.ts`).
+- The départs and prices read from the mandates are stored but not used yet: not in the Excel file, the registration
+  form, or the admin page.
 
 ## Traps already hit
 

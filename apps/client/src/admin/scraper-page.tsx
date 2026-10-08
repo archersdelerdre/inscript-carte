@@ -39,6 +39,8 @@ const USUAL_LIST_PAGES = 75;
 
 const count = new Intl.NumberFormat('fr-FR');
 
+const mandatesRead = (n: number) => `${count.format(n)} ${n > 1 ? 'mandats lus' : 'mandat lu'}`;
+const mandatesToRetry = (n: number) => `${count.format(n)} ${n > 1 ? 'mandats à relire' : 'mandat à relire'}`;
 /** 45 000 → "45 s", 129 000 → "2 min 09 s", 2 040 000 → "34 min", 4 320 000 → "1 h 12 min". */
 export function formatDuration(ms: number): string {
   const seconds = Math.max(0, Math.round(ms / 1000));
@@ -129,6 +131,7 @@ const STEPS = [
   { step: 'list', label: 'Lecture du calendrier' },
   { step: 'details', label: 'Lecture des fiches des concours à mettre à jour' },
   { step: 'saving', label: 'Enregistrement' },
+  { step: 'mandates', label: 'Lecture des nouveaux mandats' },
 ] as const;
 
 /** The run going on, for every admin with the page open: its steps, progress, time spent and left. */
@@ -144,6 +147,7 @@ function CurrentRun({ run, listPages }: { run: ScraperRunDto; listPages: number 
   let remaining: number | null = null;
   if (progress?.step === 'list') remaining = Math.max(listPages - progress.page, 0) * SECONDS_PER_PAGE * 1000;
   if (progress?.step === 'details') remaining = (progress.total - progress.done) * SECONDS_PER_DETAIL * 1000;
+  if (progress?.step === 'mandates') remaining = (progress.total - progress.done) * SECONDS_PER_MANDATE * 1000;
 
   return (
     <section aria-labelledby='current-run' className='bg-card grid gap-4 rounded-xl border-2 border-sky-300 p-4'>
@@ -184,7 +188,7 @@ function CurrentRun({ run, listPages }: { run: ScraperRunDto; listPages: number 
                     page {progress.page} · {count.format(progress.found)} concours
                   </span>
                 )}
-                {state === 'current' && progress?.step === 'details' && (
+                {state === 'current' && (progress?.step === 'details' || progress?.step === 'mandates') && (
                   <span className='text-muted-foreground ml-auto text-sm'>
                     {count.format(progress.done)} / {count.format(progress.total)}
                   </span>
@@ -193,9 +197,9 @@ function CurrentRun({ run, listPages }: { run: ScraperRunDto; listPages: number 
               {state === 'current' && progress?.step === 'list' && (
                 <ProgressBar value={progress.page} max={Math.max(listPages, progress.page)} label={label} />
               )}
-              {state === 'current' && progress?.step === 'details' && progress.total > 0 && (
-                <ProgressBar value={progress.done} max={progress.total} label={label} />
-              )}
+              {state === 'current' &&
+                (progress?.step === 'details' || progress?.step === 'mandates') &&
+                progress.total > 0 && <ProgressBar value={progress.done} max={progress.total} label={label} />}
             </li>
           );
         })}
@@ -236,6 +240,10 @@ function reportSummary(report: ScraperReport): string {
     report.missing > 0 && `${count.format(report.missing)} disparu${report.missing > 1 ? 's' : ''} du calendrier FFTA`,
     report.detailsLeft > 0 && `${count.format(report.detailsLeft)} fiches restent à lire`,
     report.positions.notFound > 0 && `${count.format(report.positions.notFound)} sans position sur la carte`,
+    report.mandates && report.mandates.read > 0 && mandatesRead(report.mandates.read),
+    report.mandates &&
+      report.mandates.failed + report.mandates.invalid > 0 &&
+      mandatesToRetry(report.mandates.failed + report.mandates.invalid),
   ];
   return parts.filter(Boolean).join(' · ') || 'Rien n’a changé';
 }
@@ -264,7 +272,26 @@ function LatestRun({ run }: { run: ScraperRunDto }) {
       </p>
       {run.error && <p>{run.error}</p>}
       {run.report && !run.error && <p>{reportSummary(run.report)}</p>}
+      {run.report && run.report.problems.length > 0 && <ReportProblems problems={run.report.problems} />}
     </section>
+  );
+}
+
+/** Problems are rare and short; past a few the list is noise, the count is enough. */
+const SHOWN_PROBLEMS = 5;
+
+function ReportProblems({ problems }: { problems: string[] }) {
+  const hidden = problems.length - SHOWN_PROBLEMS;
+  return (
+    <div className='grid gap-1'>
+      <p className='font-medium'>{problems.length > 1 ? 'Points à vérifier :' : 'Point à vérifier :'}</p>
+      <ul className='grid list-disc gap-1 pl-5'>
+        {problems.slice(0, SHOWN_PROBLEMS).map((problem) => (
+          <li key={problem}>{problem}</li>
+        ))}
+      </ul>
+      {hidden > 0 && <p className='text-muted-foreground'>Et {hidden > 1 ? `${hidden} autres` : 'un autre'}.</p>}
+    </div>
   );
 }
 

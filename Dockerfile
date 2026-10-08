@@ -46,7 +46,9 @@ RUN bun install --frozen-lockfile --ignore-scripts --production --filter @inscri
 # Headless Chrome for the FFTA scraper (www.ffta.fr is behind Cloudflare): the light build, at the version tested
 # with the stealth plugin. `--install-deps` adds the system libraries Chrome needs. Linux builds exist for amd64 only.
 ARG CHROME_VERSION=155.0.8059.39
+# poppler-utils: `pdftoppm` / `pdftotext` turn the FFTA mandates (PDF) into page images and text for the LLM.
 RUN apt-get update \
+  && apt-get install -y --no-install-recommends poppler-utils \
   && bunx @puppeteer/browsers@2 install chrome-headless-shell@${CHROME_VERSION} --path /opt/chrome --install-deps \
   && rm -rf /var/lib/apt/lists/* /root/.bun/install/cache
 # A container gives Chrome no user namespaces for its sandbox (`CHROME_NO_SANDBOX`): it only opens www.ffta.fr,
