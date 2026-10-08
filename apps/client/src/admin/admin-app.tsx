@@ -13,19 +13,22 @@ import { ERROR_MESSAGES } from '@/registrations/messages';
 import { AdminCompetitions } from './admin-competitions';
 import { ChangePasswordDialog, ForcedPasswordChange } from './change-password';
 import { MembersPage } from './members-page';
+import { ScraperPage } from './scraper-page';
 
 type Admin = AdminSessionResponse['admin'];
-type Section = 'registrations' | 'members';
+type Section = 'registrations' | 'members' | 'scraper';
 
 /** Each section is a page with its own address, so it can be bookmarked, reloaded and opened in a new tab. */
 const SECTIONS: Record<Section, { path: string; title: string }> = {
   registrations: { path: '/admin/inscriptions', title: 'Inscriptions' },
   members: { path: '/admin/licencies', title: 'Licenciés' },
+  scraper: { path: '/admin/calendrier', title: 'Calendrier FFTA' },
 };
 
 /** `/admin` and unknown admin paths show the registrations. */
 function sectionFromPath(pathname: string): Section {
-  return pathname.startsWith(SECTIONS.members.path) ? 'members' : 'registrations';
+  if (pathname.startsWith(SECTIONS.members.path)) return 'members';
+  return pathname.startsWith(SECTIONS.scraper.path) ? 'scraper' : 'registrations';
 }
 
 /** `/admin/inscriptions/26492` → `26492`: the competition open on the registrations page. */
@@ -93,6 +96,7 @@ export function AdminApp() {
           <nav className='flex gap-1' aria-label='Rubriques'>
             <SectionLink section='registrations' active={section === 'registrations'} onNavigate={navigate} />
             <SectionLink section='members' active={section === 'members'} onNavigate={navigate} />
+            <SectionLink section='scraper' active={section === 'scraper'} onNavigate={navigate} />
           </nav>
         )}
         <div className='ml-auto flex items-center gap-2'>
@@ -145,6 +149,11 @@ export function AdminApp() {
           <MembersPage currentLicenceNumber={admin.licenceNumber} onSessionExpired={sessionExpired} />
         </div>
       )}
+      {ready && section === 'scraper' && (
+        <div className='min-h-0 flex-1 overflow-y-auto'>
+          <ScraperPage onSessionExpired={sessionExpired} />
+        </div>
+      )}
       {changingPassword && (
         <ChangePasswordDialog onClose={() => setChangingPassword(false)} onSessionExpired={sessionExpired} />
       )}
@@ -176,7 +185,7 @@ function SectionLink({ section, active, onNavigate }: SectionLinkProps) {
 /** `/admin` alone (or an unknown admin path) becomes the address of the page it shows. Runs once, at start. */
 function normalizedPathname(): string {
   const current = location.pathname;
-  const known = current.startsWith(SECTIONS.registrations.path) || current.startsWith(SECTIONS.members.path);
+  const known = Object.values(SECTIONS).some(({ path }) => current.startsWith(path));
   if (!known) history.replaceState(null, '', SECTIONS.registrations.path);
   return known ? current : SECTIONS.registrations.path;
 }

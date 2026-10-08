@@ -25,6 +25,7 @@ import type { RegistrationDetails } from '../../domain/registration-repository.t
 import { MemberExportError } from '../../infrastructure/members/ffta-member-export.ts';
 import { error, isHttps, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
 import { toAdminCompetitionDto, toAdminMemberDto, toAdminRegistrationDto, toScraperRunDto } from './presenters.ts';
+import { createScraperEvents } from './scraper-events.ts';
 
 const ADMIN_COOKIE = 'admin_session';
 /** The admin cookie is only sent to the admin API. */
@@ -73,6 +74,16 @@ export function createAdminRoutes({
       return handler(request, signedIn.archer, server);
     };
   }
+
+  async function scraperStatus(): Promise<ScraperStatusResponse> {
+    const { current, recent } = await scraperRuns.status();
+    return {
+      available: scraperRuns.available,
+      current: current && toScraperRunDto(current),
+      recent: recent.map(toScraperRunDto),
+    };
+  }
+  const scraperEvents = createScraperEvents(scraperStatus);
 
   return {
     [API_ROUTES.adminSession]: {
@@ -280,17 +291,11 @@ export function createAdminRoutes({
     },
 
     [API_ROUTES.adminScraper]: {
-      GET: asAdmin(async () => {
-        const { current, recent } = await scraperRuns.status();
-        return Response.json(
-          {
-            available: scraperRuns.available,
-            current: current && toScraperRunDto(current),
-            recent: recent.map(toScraperRunDto),
-          } satisfies ScraperStatusResponse,
-          { headers: { 'cache-control': 'no-store' } },
-        );
-      }),
+      GET: asAdmin(async () => Response.json(await scraperStatus(), { headers: { 'cache-control': 'no-store' } })),
+    },
+
+    [API_ROUTES.adminScraperEvents]: {
+      GET: asAdmin(async (request: BunRequest, _admin, server) => scraperEvents(request, server)),
     },
 
     [API_ROUTES.adminScraperRuns]: {

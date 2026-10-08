@@ -24,8 +24,13 @@ export class ProcessScraperLauncher implements ScraperLauncher {
       stderr: 'inherit',
     });
     // The process finishes its row itself; if it died first (killed, out of memory), say so.
+    // The code stays at the end for whoever looks into it; the admins read the sentence.
     void child.exited.then((code) =>
-      this.#store.failIfRunning(runId, `Le processus s'est arrêté sans finir (code ${code}).`, this.#clock.now()),
+      this.#store.failIfRunning(
+        runId,
+        `La mise à jour s'est arrêtée avant la fin (code ${code}). Rien n'est perdu : relancez-la.`,
+        this.#clock.now(),
+      ),
     );
   }
 }

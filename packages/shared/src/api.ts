@@ -23,6 +23,8 @@ export const API_ROUTES = {
   adminMemberAdminRights: '/api/admin/members/:licenceNumber/admin',
   adminScraper: '/api/admin/scraper',
   adminScraperRuns: '/api/admin/scraper/runs',
+  /** Server-sent events: the `ScraperStatusResponse` at once, then each time it changes. */
+  adminScraperEvents: '/api/admin/scraper/events',
 } as const;
 
 export function apiPath(route: string, params: Record<string, string | number>): string {

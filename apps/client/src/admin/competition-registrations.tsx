@@ -52,6 +52,8 @@ import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 import { StatusBadge, StatusDot } from '@/registrations/status-badge';
 
+import { RefreshFromFftaButton } from './scraper-page';
+
 const ALL = 'all';
 const MAX_CLUB_NOTE_LENGTH = 500;
 /** What the organizer may receive, as on the server: not "Plus de place", not "Annulée". */
@@ -206,6 +208,15 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
             Ce concours a été annulé par l'organisateur.
           </p>
         )}
+        {/* An admin who sees a wrong date or place re-reads this competition from the FFTA site. */}
+        <RefreshFromFftaButton
+          fftaId={competition.id}
+          onDone={() => {
+            void reload();
+            onChanged();
+          }}
+          onSessionExpired={onSessionExpired}
+        />
       </header>
 
       <div className='grid gap-1'>

@@ -101,6 +101,7 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 | `POST/DELETE /api/admin/members/:licenceNumber/admin` | give admin rights (returns the generated password once) / remove them (never one's own) |
 | `GET/POST /api/admin/members/import` | last import + active count / upload the FFTA export (multipart `file`) |
 | `GET /api/admin/scraper` | FFTA scraper: `available` (a browser is set up), the current run, the last 10 finished |
+| `GET /api/admin/scraper/events` | server-sent events: that same status at once, then each time it changes |
 | `POST /api/admin/scraper/runs` | `{ kind: 'full' }` or `{ kind: 'competition', fftaId }`: `202` with the run (its process goes on alone), `409 scraper_busy` with the run already going, `503 scraper_unavailable` without `CHROME_PATH` |
 
 Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without a valid admin session, and
@@ -136,7 +137,7 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 
 ## Admin panel (`/admin`, `apps/client/src/admin/`)
 
-- **Pages**: `/admin/inscriptions`, `/admin/inscriptions/<ffta_id>` (that competition open) and `/admin/licencies`
+- **Pages**: `/admin/inscriptions`, `/admin/inscriptions/<ffta_id>` (that competition open), `/admin/licencies` and `/admin/calendrier`
   (`SECTIONS` in `admin-app.tsx`); `/admin` alone is replaced by `/admin/inscriptions`. The address is the only source
   of truth: `AdminApp` keeps `pathname` in state and passes the selected competition down. No router library:
   `history.pushState` + `popstate` (back/forward switch competitions too), and the tabs are real `<a>` links
@@ -247,7 +248,8 @@ Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** start
 night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
 every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
 Mandates will be read by a cheap LLM (the user's decision). Built so far: the list, the detail pages, storing them,
-and runs started by the server or by hand. Not yet: SSE and the admin page, Chrome in the Docker image, mandates.
+and runs started by the server or by hand, followed live on `/admin/calendrier`. Not yet: Chrome in the Docker
+image, mandates.
 
 - **Runs** (`application/scraper-runs.ts`, table `scraper_runs`, migration `0006`): the server takes the lock, then
   starts `scrape.ts --run <id>` (`ProcessScraperLauncher`, `nice -n 10`, stdout ignored); the process reads its row
@@ -260,6 +262,16 @@ and runs started by the server or by hand. Not yet: SSE and the admin page, Chro
 - Chrome runs with `pipe: true`: with the default WebSocket, a `kill -9` of the scraper left five Chrome processes
   behind; through a pipe, Chrome quits when its parent dies (checked 2026-10-08). SIGTERM is handled by Puppeteer:
   it closes Chrome, the run then fails cleanly with its reason.
+- **Live page** (`admin/scraper-page.tsx`, "Calendrier FFTA" tab): last result, then the run going on with its steps
+  (list page N / ~75, detail pages N / total, saving), progress bars, elapsed time and an estimate (about 1 s per
+  page), who started it; "Mettre à jour tout le calendrier" behind a confirmation that says how long and that the
+  page can be closed; one competition by FFTA number or pasted link (`fftaIdFrom`); the last 10 runs. Every admin
+  with the page open sees the same thing. A competition's admin page has "Mettre à jour depuis la FFTA".
+- **SSE** (`presentation/http/scraper-events.ts`): the run is written by another process, so the server reads its
+  row every second, **only while a page is open**, and pushes the status when it changed; a keep-alive comment every
+  15 s. Bun closes idle connections after 10 s: the route calls `server.timeout(request, 0)`. `x-accel-buffering: no`
+  so nginx does not hold events back (other proxies: turn response buffering off for that path). The client is a
+  plain `EventSource` (reconnects alone); on an error it asks `GET /api/admin/scraper` to tell an expired session.
 
 - **Cloudflare** blocks plain HTTP (403 "Just a moment…", even with browser headers) and a plain headless Chrome.
   `puppeteer-core` + `puppeteer-extra` stealth (`addExtra(puppeteerCore)`: its own types expect the full `puppeteer`)

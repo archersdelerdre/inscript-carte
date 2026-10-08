@@ -1,7 +1,10 @@
 import type { ApiError } from '@inscript-carte/shared';
 
-/** The part of Bun's server the routes use. */
-export type ClientAddressSource = { requestIP(request: Request): { address: string } | null };
+/** The part of Bun's server the routes use. `timeout(request, 0)` keeps a long response (SSE) from being cut. */
+export type ClientAddressSource = {
+  requestIP(request: Request): { address: string } | null;
+  timeout(request: Request, seconds: number): void;
+};
 
 export const STATUS_BY_REASON = {
   not_found: 404,

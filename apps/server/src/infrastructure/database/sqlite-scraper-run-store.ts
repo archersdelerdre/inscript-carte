@@ -64,7 +64,7 @@ export class SqliteScraperRunStore implements ScraperRunStore {
         .where('heartbeat_at', '<', staleBefore.toISOString())
         .update({
           status: 'interrupted',
-          error: 'Le processus ne donnait plus de nouvelles (arrêt du serveur ?).',
+          error: "La mise à jour ne donnait plus de nouvelles (serveur redémarré ?). Rien n'est perdu : relancez-la.",
           finished_at: now.toISOString(),
         });
       try {

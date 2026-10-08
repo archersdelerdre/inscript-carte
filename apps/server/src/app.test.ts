@@ -1120,6 +1120,25 @@ describe('FFTA scraper runs', () => {
     expect((await status()).recent).toMatchObject([{ id: first.id, status: 'interrupted' }]);
   });
 
+  test('streams the status at once, then its changes, to an open admin page', async () => {
+    const response = await call('/api/admin/scraper/events', { cookie });
+    expect(response.headers.get('content-type')).toBe('text/event-stream');
+    const reader = response.body!.getReader();
+    const nextEvent = async () => {
+      const { value } = await reader.read();
+      return JSON.parse(new TextDecoder().decode(value).replace(/^data: /, '')) as ScraperStatusResponse;
+    };
+    expect(await nextEvent()).toMatchObject({ available: true, current: null });
+
+    await start({ kind: 'full' });
+    expect(await nextEvent()).toMatchObject({ current: { kind: 'full', status: 'running' } });
+    await reader.cancel();
+  });
+
+  test('the event stream is for admins only', async () => {
+    expect((await call('/api/admin/scraper/events', { cookie: await signIn(YOUTH) })).status).toBe(401);
+  });
+
   test('refuses unknown kinds and competition ids that are not FFTA numbers', async () => {
     for (const body of [{ kind: 'everything' }, { kind: 'competition' }, { kind: 'competition', fftaId: '../x' }]) {
       expect((await start(body)).status).toBe(400);
