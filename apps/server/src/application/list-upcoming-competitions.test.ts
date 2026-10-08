@@ -24,6 +24,7 @@ function competition(
     departmentCode: '44',
     position: null,
     mandateUrl: null,
+    departures: null,
   };
 }
 

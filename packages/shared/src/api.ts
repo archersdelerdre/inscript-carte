@@ -1,5 +1,6 @@
 import type { Discipline } from './discipline.ts';
 import type { AgeCategory } from './ffta-category.ts';
+import type { MandateDeparture } from './mandate.ts';
 import type { BowType, Distance, PaymentMethod, PaymentStatus, RegistrationStatus, Sex } from './registration.ts';
 
 /** Bun route patterns; the client fills the `:params` with `apiPath`. */
@@ -91,6 +92,11 @@ export type CompetitionDto = {
   /** `null` when the town could not be located. */
   position: GeoPosition | null;
   mandateUrl: string | null;
+  /**
+   * The départs read in the mandate, in order: départ N is the Nth. `null` when the mandate was not read (or lists
+   * none): the form then offers 1 to `DEFAULT_DEPARTURE_COUNT`.
+   */
+  departures: MandateDeparture[] | null;
   /** Club archers registered (on at least one départ not cancelled), each counted once. Public: names are protected. */
   clubArcherCount: number;
 };

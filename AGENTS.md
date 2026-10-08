@@ -151,7 +151,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   only has the birth year.
 - **Category** is computed, never typed: `ageCategory(birthYear, competitionDate)` in `shared/src/ffta-category.ts`
   (FFTA table: season N runs 1 Sept N-1 to 31 Aug N, age reached in year N). Stored on each registration row.
-- **Form**: départs 1 to 6 (buttons), bow, distances only for Extérieur (required there), trispot, **covoiturage**
+- **Form**: the départs of the mandate when a checked reading of the current mandate link has some (one button per
+  départ: name, day when the competition lasts several days, greffe and shooting times; the server refuses a number
+  beyond them), else départs 1 to 4 (`DEFAULT_DEPARTURE_COUNT`) with a warning that a départ that does not exist may
+  be cancelled. Then bow, distances only for Extérieur (required there), trispot, **covoiturage**
   (checkbox, `carpool` column from migration `0002`; one answer per archer and competition: each request sets it on
   all the archer's active départs of that competition, so unticking removes it everywhere; the form opens ticked when
   the archer already said yes, read from "Mon suivi"; not remembered across competitions), **payment method**
@@ -282,7 +285,8 @@ Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** start
 night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
 every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
 Mandates are read by an LLM (the user's decision; model chosen 2026-10-09: GLM 5.3 Flash). What it reads (départs,
-prices, foam targets) is stored; only the foam targets flag is used by the app.
+prices, foam targets) is stored; the app uses the foam targets flag and the départs (registration form), not the
+prices.
 
 - **Mandates** (`application/read-mandates.ts`, table `competition_mandates`, migration `0007`, one row per
   competition): after the save, every upcoming, listed, not cancelled competition whose mandate link has no reading,
@@ -432,8 +436,7 @@ Material Design baseline, do not exaggerate:
 - Competitions that cannot be located: planned to be stored but not displayed, their **count shown in the admin
   panel**, and the admin can re-run a Google Maps lookup (results should then live in the DB instead of
   `known-places.ts`).
-- The départs and prices read from the mandates are stored but not used yet: not in the Excel file, the registration
-  form, or the admin page.
+- The prices read from the mandates are stored but not used yet: not in the Excel file or the admin page.
 
 ## Traps already hit
 

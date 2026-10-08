@@ -2,7 +2,6 @@ import {
   ageCategory,
   BOW_TYPES,
   DISTANCES,
-  MAX_DEPARTURE,
   PAYMENT_METHODS,
   type AgeCategory,
   type BowType,
@@ -13,7 +12,7 @@ import {
 import { birthYear, type Archer } from '../domain/archer.ts';
 import { toFrenchDate } from '../domain/calendar-date.ts';
 import type { CompetitionRepository } from '../domain/competition-repository.ts';
-import { clubRegistrationDeadline, type Competition } from '../domain/competition.ts';
+import { clubRegistrationDeadline, departureCount, type Competition } from '../domain/competition.ts';
 import type { RegistrationRepository } from '../domain/registration-repository.ts';
 import { canWithdraw, isClubRegistrationOpen, type Registration } from '../domain/registration.ts';
 import type { Clock } from './ports/clock.ts';
@@ -57,7 +56,7 @@ export class ClubRegistrations {
     if (!competition) return { ok: false, reason: 'not_found' };
     if (!isClubRegistrationOpen(competition, this.#clock.today())) return { ok: false, reason: 'registration_closed' };
 
-    const departures = parseDepartures(form.departures);
+    const departures = parseDepartures(form.departures, departureCount(competition));
     const paymentMethod = PAYMENT_METHODS.find((value) => value === form.paymentMethod);
     // Distances only exist for "Extérieur" competitions, where they are required.
     const distance = DISTANCES.find((value) => value === form.distance) ?? null;
@@ -166,14 +165,14 @@ export class ClubRegistrations {
   }
 }
 
-/** One to MAX_DEPARTURE distinct départs, each with a known bow, sorted by départ number. */
-function parseDepartures(value: unknown): DepartureChoice[] | null {
+/** One to `count` distinct départs (the mandate's, else `DEFAULT_DEPARTURE_COUNT`), each with a known bow, sorted. */
+function parseDepartures(value: unknown, count: number): DepartureChoice[] | null {
   if (!Array.isArray(value) || value.length === 0) return null;
   const choices = value.flatMap((item: unknown): DepartureChoice[] => {
     if (typeof item !== 'object' || item === null) return [];
     const { departure, bowType } = item as Record<string, unknown>;
     const bow = BOW_TYPES.find((known) => known === bowType);
-    return Number.isInteger(departure) && (departure as number) >= 1 && (departure as number) <= MAX_DEPARTURE && bow
+    return Number.isInteger(departure) && (departure as number) >= 1 && (departure as number) <= count && bow
       ? [{ departure: departure as number, bowType: bow }]
       : [];
   });

@@ -16,6 +16,7 @@ const competition: Competition = {
   departmentCode: '44',
   position: { latitude: 47.297, longitude: -1.49 },
   mandateUrl: null,
+  departures: null,
 };
 
 describe('clubRegistrationDeadline', () => {

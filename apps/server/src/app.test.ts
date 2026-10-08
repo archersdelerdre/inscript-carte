@@ -242,7 +242,8 @@ describe('registration', () => {
     const cookie = await signIn(ADULT);
     for (const [competition, body] of [
       [SALLE, form({ departures: [] })],
-      [SALLE, form({ departures: [7] })],
+      // Mandate not read: 1 to 4.
+      [SALLE, form({ departures: [5] })],
       [SALLE, form({ departures: [1, 1] })],
       [SALLE, form({ bowType: 'arbalete' })],
       [SALLE, form({ distance: 'nationales' })],
@@ -259,6 +260,48 @@ describe('registration', () => {
       body: form({ distance: 'internationales' }),
     });
     expect(exterieur.status).toBe(201);
+  });
+
+  test('offers and accepts only the départs of the mandate, once a reading of its current link passed the checks', async () => {
+    const cookie = await signIn(ADULT);
+    const reading = (mandateUrl: string, status: string) => ({
+      ffta_id: SALLE,
+      mandate_url: mandateUrl,
+      status,
+      data: JSON.stringify({
+        departures: [mandateDeparture('Matin'), mandateDeparture('Après-midi')],
+        prices: [],
+        foamTargets: 'not_mentioned',
+        evidence: { departures: null, prices: null, foamTargets: null },
+      }),
+      read_at: new Date().toISOString(),
+    });
+    const offered = async () =>
+      ((await (await call('/api/competitions')).json()) as { competitions: CompetitionDto[] }).competitions.find(
+        (competition) => competition.id === SALLE,
+      )?.departures;
+    const registerOn = async (departures: number[]) =>
+      (
+        await call(`/api/competitions/${SALLE}/registrations`, {
+          method: 'POST',
+          cookie,
+          body: form({ departures }),
+        })
+      ).status;
+
+    await database('competitions')
+      .where({ ffta_id: SALLE })
+      .update({ mandate_url: 'https://extranet.ffta.fr/new.pdf' });
+    // A reading of an older mandate, or one the checks refused, is not used: 1 to 4 as before.
+    await database('competition_mandates').insert(reading('https://extranet.ffta.fr/old.pdf', 'parsed'));
+    expect(await offered()).toBeNull();
+    await database('competition_mandates').update(reading('https://extranet.ffta.fr/new.pdf', 'invalid'));
+    expect(await offered()).toBeNull();
+
+    await database('competition_mandates').update({ status: 'parsed' });
+    expect((await offered())?.map(({ label }) => label)).toEqual(['Matin', 'Après-midi']);
+    expect(await registerOn([3])).toBe(400);
+    expect(await registerOn([1, 2])).toBe(201);
   });
 
   test('refuses a départ already taken by the same member, but another départ is fine', async () => {
@@ -1146,3 +1189,7 @@ describe('FFTA scraper runs', () => {
     expect(launched).toEqual([]);
   });
 });
+
+function mandateDeparture(label: string) {
+  return { date: null, label, registrationOpens: '08:00', shootingStarts: null };
+}

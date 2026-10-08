@@ -7,7 +7,6 @@ import {
   categoryLabel,
   DISTANCE_LABELS,
   DISTANCES,
-  MAX_DEPARTURE,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   type BowType,
@@ -19,7 +18,7 @@ import {
   type RegistrationRequest,
   type SignedInArcher,
 } from '@inscript-carte/shared';
-import { CheckIcon } from 'lucide-react';
+import { CheckIcon, FileTextIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useSession } from '@/auth/session';
@@ -40,7 +39,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { api } from '@/lib/api';
 import { formatDateRange, formatDay } from '@/lib/dates';
+import { cn } from '@/lib/utils';
 
+import { departureOptions } from './departures';
 import { departuresPhrase, ERROR_MESSAGES, PAYMENT_METHOD_PHRASES } from './messages';
 
 /** Remembered on the device so the next registration is pre-filled ("never ask twice"). */
@@ -49,7 +50,6 @@ const STORAGE = {
   contact: 'registration.contact',
   paymentMethod: 'registration.paymentMethod',
 } as const;
-const DEPARTURE_NUMBERS = Array.from({ length: MAX_DEPARTURE }, (_, index) => index + 1);
 
 type Props = {
   competition: CompetitionDto;
@@ -82,6 +82,9 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
 
   const isExterieur = competition.discipline === 'exterieur';
   const category = categoryLabel(ageCategory(archer.birthYear, competition.startDate), archer.sex);
+  const options = departureOptions(competition);
+  const fromMandate = competition.departures !== null;
+  const nameOf = (departure: string) => options.find(({ number }) => String(number) === departure)?.name ?? departure;
   const sortedDepartures = departures.toSorted((a, b) => Number(a) - Number(b));
   const bowPerDeparture = bowByDeparture !== null && departures.length >= 2;
   const bowFor = (departure: string) => (bowPerDeparture ? (bowByDeparture[departure] ?? bowType) : bowType);
@@ -170,43 +173,59 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
             </p>
 
             <fieldset className='grid gap-2'>
-              <legend className='mb-2 font-medium'>Départ(s) souhaité(s)</legend>
+              <legend className='mb-2 flex items-baseline gap-3 font-medium'>
+                Départ(s) souhaité(s)
+                {competition.mandateUrl && (
+                  <a
+                    href={competition.mandateUrl}
+                    target='_blank'
+                    rel='noopener'
+                    className='text-muted-foreground inline-flex items-center gap-1 self-center text-sm font-normal underline'
+                  >
+                    <FileTextIcon className='size-4' aria-hidden />
+                    Mandat
+                  </a>
+                )}
+              </legend>
               <ToggleGroup
                 type='multiple'
                 variant='outline'
                 value={departures}
                 onValueChange={setDepartures}
-                className='flex-wrap'
+                className={cn(fromMandate ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'flex-wrap')}
               >
-                {DEPARTURE_NUMBERS.map((departure) => (
+                {options.map(({ number, name, details }) => (
                   <ToggleGroupItem
-                    key={departure}
-                    value={String(departure)}
-                    disabled={taken.includes(departure)}
-                    aria-label={`Départ ${departure}`}
-                    className='border-input data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground min-w-12'
+                    key={number}
+                    value={String(number)}
+                    disabled={taken.includes(number)}
+                    aria-label={details ? `${name}, ${details}` : name}
+                    className={cn(
+                      'border-input data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+                      fromMandate
+                        ? 'h-auto min-h-14 min-w-0 justify-start gap-2 px-3 py-2 text-left whitespace-normal'
+                        : 'min-w-12',
+                    )}
                   >
-                    {departures.includes(String(departure)) && <CheckIcon />}
-                    {departure}
+                    {departures.includes(String(number)) && <CheckIcon />}
+                    {fromMandate ? (
+                      <span className='grid'>
+                        <span className='text-base font-medium'>{name}</span>
+                        {details && <span className='text-sm font-normal'>{details}</span>}
+                      </span>
+                    ) : (
+                      number
+                    )}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
               <p className='text-muted-foreground text-sm'>
                 {taken.length > 0 &&
                   `Vous êtes déjà inscrit${archer.sex === 'female' ? 'e' : ''} (${departuresPhrase(taken)}). `}
-                Les horaires des départs sont indiqués dans le mandat
-                {competition.mandateUrl ? (
-                  <>
-                    {' '}
-                    (
-                    <a href={competition.mandateUrl} target='_blank' rel='noopener' className='underline'>
-                      ouvrir le mandat
-                    </a>
-                    ).
-                  </>
-                ) : (
-                  '.'
-                )}
+                {fromMandate && 'Départs et horaires repris du mandat.'}
+                {!fromMandate && !competition.mandateUrl && 'Le mandat n’est pas encore publié. '}
+                {!fromMandate &&
+                  'Le nombre de départs n’est pas encore connu : une inscription sur un départ qui n’existe pas pourra être annulée.'}
               </p>
             </fieldset>
 
@@ -215,12 +234,12 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
                 <legend className='mb-1 font-medium'>Arc pour chaque départ</legend>
                 {sortedDepartures.map((departure) => (
                   <div key={departure} className='flex items-center justify-between gap-3'>
-                    <span>Départ {departure}</span>
+                    <span>{nameOf(departure)}</span>
                     <Select
                       value={bowFor(departure)}
                       onValueChange={(value) => setBowByDeparture({ ...bowByDeparture, [departure]: value as BowType })}
                     >
-                      <SelectTrigger aria-label={`Arc pour le départ ${departure}`} className='w-48'>
+                      <SelectTrigger aria-label={`Arc pour : ${nameOf(departure)}`} className='w-48'>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

@@ -67,5 +67,8 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   transfer: 'Virement',
 };
 
-/** Départs are numbered from 1; the form offers 1 to this number. */
-export const MAX_DEPARTURE = 6;
+/**
+ * Départs are numbered from 1. Until the mandate is read, the form offers 1 to this number (most competitions have
+ * two to four); a départ that turns out not to exist is cancelled by the club.
+ */
+export const DEFAULT_DEPARTURE_COUNT = 4;

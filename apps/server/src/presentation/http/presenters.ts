@@ -33,6 +33,7 @@ export function toCompetitionDto({ competition, clubArcherCount }: UpcomingCompe
     departmentCode: competition.departmentCode,
     position: competition.position,
     mandateUrl: competition.mandateUrl,
+    departures: competition.departures ? [...competition.departures] : null,
     clubArcherCount,
   };
 }

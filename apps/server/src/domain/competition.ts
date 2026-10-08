@@ -1,4 +1,4 @@
-import type { Discipline } from '@inscript-carte/shared';
+import { DEFAULT_DEPARTURE_COUNT, type Discipline, type MandateDeparture } from '@inscript-carte/shared';
 
 import { addDays, type CalendarDate } from './calendar-date.ts';
 
@@ -22,7 +22,14 @@ export type Competition = {
   readonly departmentCode: string;
   readonly position: { readonly latitude: number; readonly longitude: number } | null;
   readonly mandateUrl: string | null;
+  /** The départs the mandate lists, in order (départ N is the Nth); `null` when no checked reading has any. */
+  readonly departures: readonly MandateDeparture[] | null;
 };
+
+/** The départ numbers an archer may pick: the mandate's, else 1 to `DEFAULT_DEPARTURE_COUNT` (mandate not read). */
+export function departureCount(competition: Competition): number {
+  return competition.departures?.length ?? DEFAULT_DEPARTURE_COUNT;
+}
 
 export function clubRegistrationDeadline(competition: Competition): CalendarDate {
   return addDays(competition.startDate, -CLUB_REGISTRATION_DAYS_BEFORE_START);
