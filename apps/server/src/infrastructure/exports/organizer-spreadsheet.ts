@@ -1,6 +1,7 @@
 import { BOW_TYPE_LABELS, categoryLabel, CLUB_NAME, DISTANCE_LABELS } from '@inscript-carte/shared';
 import writeXlsxFile, { type Cell, type Row } from 'write-excel-file/node';
 
+import type { Responsible } from '../../domain/archer.ts';
 import { toFrenchDate } from '../../domain/calendar-date.ts';
 import type { Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
@@ -36,7 +37,7 @@ function amountOf(line: ArcherLine): number {
 export async function organizerSpreadsheet(
   competition: Competition,
   registrations: readonly RegistrationDetails[],
-  responsible: string,
+  responsible: Responsible,
 ): Promise<Buffer> {
   const withDistance = competition.discipline === 'exterieur';
   const departures = [...new Set(registrations.map(({ registration }) => registration.departure))].toSorted(
@@ -60,9 +61,10 @@ export async function organizerSpreadsheet(
     [`${dates}, ${competition.town}`],
     [],
     [{ value: 'Nom du club :', ...BOLD }, CLUB_NAME],
-    [{ value: 'Responsable :', ...BOLD }, responsible],
-    [{ value: 'Email :', ...BOLD }],
-    [{ value: 'Tél :', ...BOLD }],
+    // The admin who makes the file is the club's contact; email and phone stay empty until stored for them.
+    [{ value: 'Responsable :', ...BOLD }, responsible.fullName],
+    [{ value: 'Email :', ...BOLD }, responsible.email ?? ''],
+    [{ value: 'Tél :', ...BOLD }, responsible.phone ?? ''],
     [],
     header.map((title): Cell => ({ value: title, ...HEADER })),
     ...lines.map((line): Row => [

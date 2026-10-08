@@ -54,7 +54,7 @@ export function createApp(database: Knex, clock: Clock) {
       clock,
     ),
     adminAccounts: new AdminAccounts(archers, admins, passwordHasher),
-    adminRegistrations: new AdminRegistrations(competitions, registrations, clock),
+    adminRegistrations: new AdminRegistrations(competitions, registrations, archers, clock),
     clubMembers: new ClubMembers(new SqliteMemberListRepository(database), admins, clock),
     readMemberExport,
     organizerSpreadsheet,

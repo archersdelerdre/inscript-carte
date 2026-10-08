@@ -12,6 +12,15 @@ export type Archer = {
   readonly isActive: boolean;
 };
 
+/** Stored only for the organizer's Excel file ("Responsable"), never shown in the app. */
+export type ArcherContact = {
+  readonly email: string | null;
+  readonly phone: string | null;
+};
+
+/** The club's contact on the organizer's file: the admin who makes it. */
+export type Responsible = ArcherContact & { readonly fullName: string };
+
 export function birthYear(archer: Archer): number {
   return Number(archer.birthDate.slice(0, 4));
 }

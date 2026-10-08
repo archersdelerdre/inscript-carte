@@ -178,8 +178,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   checkbox; the "à payer" counts, the "En attente de paiement" filter and "Mon suivi" leave it out, and "Tout marquer
   payé" skips it (no `updated_by` on it either). A départ already paid stays "Payé" (the club may owe a refund).
 - **Excel file layout** (`organizer-spreadsheet.ts`), copied from the registration grids of FFTA mandates (user's
-  examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports), empty "Email" and
-  "Tél" for the admin to fill, then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |
+  examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports) with their
+  "Email" and "Tél" (empty when not stored), then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |
   (Distances) | Départ N… | Trispot | Montant`), an "X" in each départ column (only the départs in the file), and a
   "Total" line. `PRICE_PER_DEPARTURE` is 0 € until the scraper reads the price from the mandate.
 - "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
@@ -199,6 +199,12 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   `admins`, `admin_sessions`, `member_imports`. Value lists are `CHECK` constraints. One active registration per
   (competition, archer, départ): partial unique index ignoring `cancelled`. SQLite cannot change a `CHECK`: changing a
   value list means copying the table into a new one inside the migration.
+- `archers.email` / `archers.phone` (migration `0003`, nullable): **storage only**, read by the organizer Excel
+  file for the exporting admin (`ArcherRepository.contactOf`), never shown in the app and not part of `Archer`. The
+  FFTA export has neither, so they are set by hand for now. The image has no `sqlite3`; use Bun's built-in SQLite:
+  `docker exec -it <container> bun -e "new (require('bun:sqlite').Database)('/data/inscript-carte.sqlite').run(\"UPDATE
+  archers SET email = ?, phone = ? WHERE licence_number = ?\", ['…', '…', '…'])"`. The member import never touches
+  them (`.merge()` only updates the columns it writes).
 - Migrations are TS files listed explicitly in `migrations/index.ts` (so they survive `bun build`). On 2026-10-07 the
   user reset every database and all migrations were merged into `0001-initial-schema`. From now on the databases
   hold data again: **any schema change is a new migration** (`0002`…), never an edit of `0001`.

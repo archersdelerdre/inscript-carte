@@ -7,7 +7,8 @@ import {
   type RegistrationStatus,
 } from '@inscript-carte/shared';
 
-import type { Archer } from '../domain/archer.ts';
+import type { ArcherRepository } from '../domain/archer-repository.ts';
+import type { Archer, Responsible } from '../domain/archer.ts';
 import { toFrenchDate, type CalendarDate } from '../domain/calendar-date.ts';
 import type { CompetitionRepository } from '../domain/competition-repository.ts';
 import { isFinished, type Competition } from '../domain/competition.ts';
@@ -33,6 +34,12 @@ export type AdminCompetition = {
 
 export type CompetitionRegistrations = { competition: AdminCompetition; registrations: RegistrationDetails[] };
 
+export type OrganizerList = {
+  competition: Competition;
+  registrations: RegistrationDetails[];
+  responsible: Responsible;
+};
+
 /** The request body, as sent; every field is checked here. Missing fields stay as they are. */
 export type RegistrationUpdateForm = { status?: unknown; paymentStatus?: unknown; clubNote?: unknown };
 
@@ -46,11 +53,18 @@ type RegistrationUpdate = { status?: RegistrationStatus; paymentStatus?: Payment
 export class AdminRegistrations {
   readonly #competitions: CompetitionRepository;
   readonly #registrations: RegistrationRepository;
+  readonly #archers: ArcherRepository;
   readonly #clock: Clock;
 
-  constructor(competitions: CompetitionRepository, registrations: RegistrationRepository, clock: Clock) {
+  constructor(
+    competitions: CompetitionRepository,
+    registrations: RegistrationRepository,
+    archers: ArcherRepository,
+    clock: Clock,
+  ) {
     this.#competitions = competitions;
     this.#registrations = registrations;
+    this.#archers = archers;
     this.#clock = clock;
   }
 
@@ -92,11 +106,13 @@ export class AdminRegistrations {
   /**
    * The départs to send to the organizer (not cancelled, not refused for lack of places), by départ then name. The
    * panel's filters narrow it: usually only the paid départs are sent. `invalid` when a filter value is unknown.
+   * The admin who asks is the club's contact on the file, with their stored email and phone.
    */
   async organizerList(
+    admin: Archer,
     competitionId: string,
     filters: { status?: unknown; paymentStatus?: unknown },
-  ): Promise<{ competition: Competition; registrations: RegistrationDetails[] } | 'not_found' | 'invalid'> {
+  ): Promise<OrganizerList | 'not_found' | 'invalid'> {
     const status =
       filters.status === undefined ? undefined : REGISTRATION_STATUSES.find((known) => known === filters.status);
     const paymentStatus =
@@ -118,7 +134,8 @@ export class AdminRegistrations {
       .toSorted(
         (a, b) => a.registration.departure - b.registration.departure || a.fullName.localeCompare(b.fullName, 'fr'),
       );
-    return { competition, registrations };
+    const responsible = { fullName: admin.fullName, ...(await this.#archers.contactOf(admin.licenceNumber)) };
+    return { competition, registrations, responsible };
   }
 
   async updateRegistration(admin: Archer, registrationId: number, form: RegistrationUpdateForm): Promise<UpdateResult> {

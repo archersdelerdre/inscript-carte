@@ -15,7 +15,7 @@ import type { AdminAccounts } from '../../application/admin-accounts.ts';
 import type { AdminAuthentication } from '../../application/admin-authentication.ts';
 import type { AdminRegistrations, UpdateResult } from '../../application/admin-registrations.ts';
 import type { ClubMembers } from '../../application/club-members.ts';
-import type { Archer } from '../../domain/archer.ts';
+import type { Archer, Responsible } from '../../domain/archer.ts';
 import type { Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 import { MemberExportError } from '../../infrastructure/members/ffta-member-export.ts';
@@ -39,7 +39,7 @@ export type AdminHttpDependencies = {
   organizerSpreadsheet: (
     competition: Competition,
     registrations: readonly RegistrationDetails[],
-    responsible: string,
+    responsible: Responsible,
   ) => Promise<Buffer>;
 };
 
@@ -168,14 +168,13 @@ export function createAdminRoutes({
       GET: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminCompetitionExport>, admin) => {
         // `?status=…&paymentStatus=…`: the filters shown in the panel. Missing means "all".
         const query = new URL(request.url).searchParams;
-        const result = await adminRegistrations.organizerList(request.params.competitionId, {
+        const result = await adminRegistrations.organizerList(admin, request.params.competitionId, {
           status: query.get('status') ?? undefined,
           paymentStatus: query.get('paymentStatus') ?? undefined,
         });
         if (result === 'invalid') return error('invalid_request', 400);
         if (result === 'not_found') return error('not_found', 404);
-        // The admin who makes the file is the club's contact on it ("Responsable").
-        const file = await organizerSpreadsheet(result.competition, result.registrations, admin.fullName);
+        const file = await organizerSpreadsheet(result.competition, result.registrations, result.responsible);
         return new Response(file, {
           headers: {
             'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
