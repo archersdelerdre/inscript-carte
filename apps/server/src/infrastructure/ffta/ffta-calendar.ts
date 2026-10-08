@@ -1,5 +1,6 @@
 import { addDays, type CalendarDate } from '../../domain/calendar-date.ts';
 import { mergeParaTir, parseCalendarPage, type ListedCompetition } from './calendar-page.ts';
+import { parseCompetitionPage, type CompetitionPage } from './competition-page.ts';
 import type { FftaBrowser } from './ffta-browser.ts';
 
 /** The old app read one year ahead too. */
@@ -45,4 +46,9 @@ export async function readCalendar(
   }
   if (pages === MAX_PAGES) problems.push(`Arrêt après ${MAX_PAGES} pages : la liste FFTA ne finit pas.`);
   return { competitions: mergeParaTir([...byId.values()]), pages, problems };
+}
+
+/** The detail page of one competition: its address (and so its département), contacts and committees. */
+export async function readCompetition(browser: FftaBrowser, fftaId: string): Promise<CompetitionPage> {
+  return parseCompetitionPage(fftaId, await browser.html(`https://www.ffta.fr/epreuve/${fftaId}`));
 }

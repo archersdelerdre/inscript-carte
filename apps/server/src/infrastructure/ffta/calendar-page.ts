@@ -3,6 +3,7 @@ import { parse, type HTMLElement } from 'node-html-parser';
 
 import type { CalendarDate } from '../../domain/calendar-date.ts';
 import type { CompetitionStatus } from '../../domain/competition.ts';
+import { fftaDiscipline, fftaStatus, parseFftaDates, splitFftaTitle, textOf as text } from './ffta-values.ts';
 
 /** One competition as the FFTA calendar list shows it (`https://www.ffta.fr/competitions`). */
 export type ListedCompetition = {
@@ -24,83 +25,6 @@ export type ListedCompetition = {
 /** What the page holds: the competitions read, and what could not be read (FFTA text, never personal data). */
 export type CalendarPage = { competitions: ListedCompetition[]; problems: string[] };
 
-const MONTHS: Record<string, number> = {
-  janvier: 1,
-  février: 2,
-  mars: 3,
-  avril: 4,
-  mai: 5,
-  juin: 6,
-  juillet: 7,
-  août: 8,
-  septembre: 9,
-  octobre: 10,
-  novembre: 11,
-  décembre: 12,
-};
-
-/** The FFTA discipline labels (its own menu), lower-cased. Para-tir has its own entries: merged as a flag. */
-const DISCIPLINES: Record<string, { discipline: Discipline; paraTir: boolean }> = {
-  'tir à 18m': { discipline: 'salle', paraTir: false },
-  "para-tir à l'arc à 18m": { discipline: 'salle', paraTir: true },
-  "tir à l'arc extérieur": { discipline: 'exterieur', paraTir: false },
-  "para-tir à l'arc en extérieur": { discipline: 'exterieur', paraTir: true },
-  'tir en campagne': { discipline: 'campagne', paraTir: false },
-  'tir 3d': { discipline: '3d', paraTir: false },
-  'tir nature': { discipline: 'nature', paraTir: false },
-  'tir beursault': { discipline: 'beursault', paraTir: false },
-  loisirs: { discipline: 'loisirs', paraTir: false },
-  'loisirs débutant': { discipline: 'loisirs', paraTir: false },
-  'loisirs confirmé': { discipline: 'loisirs', paraTir: false },
-  'loisirs débutant et confirmé': { discipline: 'loisirs', paraTir: false },
-  'rencontres clubs loisirs': { discipline: 'loisirs', paraTir: false },
-  jeunes: { discipline: 'loisirs', paraTir: false },
-  'tournoi poussin': { discipline: 'loisirs', paraTir: false },
-  'run archery': { discipline: 'autres', paraTir: false },
-  divers: { discipline: 'autres', paraTir: false },
-};
-
-/** The class of the card head says the status ("--valid", "--report", "--cancel"). */
-const STATUS_BY_CLASS: Record<string, CompetitionStatus> = {
-  'competition_item__head--valid': 'scheduled',
-  'competition_item__head--report': 'postponed',
-  'competition_item__head--cancel': 'cancelled',
-};
-
-const LIST_DATES =
-  /^(?:le (\d{1,2}) (\p{L}+) (\d{4})|du (\d{1,2})(?: (\p{L}+))?(?: (\d{4}))? au (\d{1,2}) (\p{L}+) (\d{4}))$/u;
-
-function isoDate(year: number, month: number, day: number): CalendarDate {
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-/**
- * "Le 14 novembre 2026", "Du 09 au 11 octobre 2026", "Du 31 octobre au 01 novembre 2026" or "Du 30 octobre 2026 au
- * 02 mars 2027". Without its own year, a start month after the end month is in the year before (December → January).
- */
-export function parseListDates(text: string): { startDate: CalendarDate; endDate: CalendarDate } | null {
-  const match = LIST_DATES.exec(text.trim().replace(/\s+/g, ' ').toLowerCase());
-  if (!match) return null;
-  const [, oneDay, oneMonth, oneYear, fromDay, fromMonth, fromYear, toDay, toMonth, toYear] = match;
-  if (oneDay && oneMonth && oneYear) {
-    const month = MONTHS[oneMonth];
-    if (!month) return null;
-    const date = isoDate(Number(oneYear), month, Number(oneDay));
-    return { startDate: date, endDate: date };
-  }
-  const endMonth = MONTHS[toMonth!];
-  const startMonth = fromMonth ? MONTHS[fromMonth] : endMonth;
-  if (!endMonth || !startMonth) return null;
-  const endYear = Number(toYear);
-  const startYear = fromYear ? Number(fromYear) : endYear - Number(startMonth > endMonth);
-  return {
-    startDate: isoDate(startYear, startMonth, Number(fromDay)),
-    endDate: isoDate(endYear, endMonth, Number(toDay)),
-  };
-}
-
-const text = (element: HTMLElement | null) => element?.textContent.replace(/\s+/g, ' ').trim() ?? '';
-
 /** `null` (with a problem) when a card cannot be read: one odd card never stops the whole page. */
 function readCard(card: HTMLElement, problems: string[]): ListedCompetition | null {
   const link = card.querySelector('.competition_item__title a');
@@ -110,18 +34,18 @@ function readCard(card: HTMLElement, problems: string[]): ListedCompetition | nu
     return null;
   }
   const fullTitle = text(link);
-  const at = fullTitle.lastIndexOf(' à ');
-  const dates = parseListDates(text(card.querySelector('.competition_item__dates')));
+  const titled = splitFftaTitle(fullTitle);
+  const dates = parseFftaDates(text(card.querySelector('.competition_item__dates')));
   const disciplineLabel = text(card.querySelector('.field--name-field-discipline'));
-  const discipline = DISCIPLINES[disciplineLabel.toLowerCase()];
+  const discipline = fftaDiscipline(disciplineLabel);
   const head = card.querySelector('.competition_item__head');
-  const status = head?.classList.value.map((name) => STATUS_BY_CLASS[name]).find(Boolean);
+  const status = fftaStatus(head?.classList.value ?? []);
 
-  if (at < 0) problems.push(`${fftaId} : titre sans « à VILLE » : ${fullTitle}`);
+  if (!titled) problems.push(`${fftaId} : titre sans « à VILLE » : ${fullTitle}`);
   if (!dates) problems.push(`${fftaId} : dates illisibles : ${text(card.querySelector('.competition_item__dates'))}`);
   if (!discipline) problems.push(`${fftaId} : discipline inconnue : ${disciplineLabel}`);
   if (!status) problems.push(`${fftaId} : statut inconnu : ${head?.classList.value.join(' ') ?? '(aucun)'}`);
-  if (at < 0 || !dates || !discipline || !status) return null;
+  if (!titled || !dates || !discipline || !status) return null;
 
   // "LA FLECHE ROCHEFORTAISE <small>(ROCHEFORT DU GARD)</small>": the club, then the club's town.
   const organizer = card
@@ -132,13 +56,12 @@ function readCard(card: HTMLElement, problems: string[]): ListedCompetition | nu
 
   return {
     fftaId,
-    title: fullTitle.slice(0, at).trim(),
-    town: fullTitle.slice(at + 3).trim(),
+    ...titled,
     ...dates,
     status,
     discipline: discipline.discipline,
     hasParaTir: discipline.paraTir,
-    organizerClub: text(organizer ?? null) || null,
+    organizerClub: text(organizer) || null,
     organizerEmail: email || null,
     mandateUrl: card.querySelector('.competition_item__mandat_btn')?.getAttribute('href') ?? null,
   };
