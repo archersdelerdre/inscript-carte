@@ -17,6 +17,27 @@ through **one club**. What the old app does and the product decisions are in [`C
 All UI text is in **French**. Code, comments and docs are in English, except `README.md`, which is in French for the
 club members (why and for whom the project exists, no technical content).
 
+## UI text (French)
+
+Every sentence must read as natural, correct French, the way a person would write it. Reviewed as a whole on
+2026-10-08; keep that level for any new or changed text.
+
+- Write full, plain sentences. No stacked nouns ("fiches des concours nouveaux ou modifiés" → "fiches des concours à
+  mettre à jour"), no telegram style ("Date limite du club dépassée"), no English words.
+- Agreements: "concours" and "départ" are masculine, "inscription" is feminine; a badge or status agrees with the
+  thing it describes. When a text names a member, use the pronoun of their sex (`sex` is in the DTOs): "Elle ne pourra
+  plus se connecter", "administratrice".
+- One wording per idea across the app: "Inscription par le club jusqu'au …", "En attente de paiement", "Mon suivi",
+  "fiche" for an FFTA competition page, "mise à jour" (never "scrape") for the calendar refresh.
+- Buttons say what they do ("Oui, le retirer", "Non, ne rien changer"), never "OK"; a cancel button that cancels is
+  "Annuler", not "Fermer".
+- Errors say what is wrong and what to do next, in one or two sentences, without blaming the member. Any server
+  message that reaches the screen (scraper run errors, `report.aborted`) follows the same rules.
+- French typography: space before `:` `?` `!`, « » with spaces inside, "…" as one character. Apostrophes are still
+  mixed (`'` and `’`); do not add new inconsistency inside one dialog.
+- Counts with plurals are built in code (`${n} ${n > 1 ? 'départs' : 'départ'}`); never leave "(s)" except in a short
+  label such as "Départ(s) souhaité(s)".
+
 ## Stack
 
 - Monorepo: **Turborepo** + **Bun 1.4** workspaces. **TypeScript only** (TS 7, strict, `erasableSyntaxOnly`).
