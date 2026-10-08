@@ -7,7 +7,7 @@ import {
   type StartScraperRunResponse,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { CheckIcon, CircleAlertIcon, LoaderCircleIcon, RefreshCwIcon } from 'lucide-react';
+import { CheckIcon, CircleAlertIcon, LoaderCircleIcon, RefreshCwIcon, TriangleAlertIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useCompetitions } from '@/competitions/use-competitions';
@@ -34,6 +34,8 @@ import { useScraperStatus } from './use-scraper-status';
 /** Measured on 2026-10-08: a list page or a detail page takes about a second (with the polite pause). */
 const SECONDS_PER_PAGE = 1.05;
 const SECONDS_PER_DETAIL = 1.1;
+/** About 5 s each (download, page images, LLM), three at a time. */
+const SECONDS_PER_MANDATE = 2;
 /** Until a full run has finished here, the FFTA list had about this many pages. */
 const USUAL_LIST_PAGES = 75;
 
@@ -99,7 +101,7 @@ export function ScraperPage({ onSessionExpired }: Props) {
         <h1 className='text-xl font-semibold tracking-tight'>Calendrier FFTA</h1>
         <p className='text-muted-foreground'>
           Chaque nuit à 3 h, l’application relit le calendrier du site de la FFTA : nouveaux concours, dates,
-          annulations, mandats. Vous pouvez aussi lancer une mise à jour vous-même.
+          annulations, mandats.
         </p>
       </header>
 
@@ -328,12 +330,12 @@ function StartButtons({ busy, firstRun, onStart }: StartButtonsProps) {
       <section className='bg-card grid content-between gap-3 rounded-xl border p-4'>
         <div className='grid gap-1'>
           <h2 className='font-semibold'>Tout le calendrier</h2>
-          <p className='text-muted-foreground text-sm'>
-            Relit tout le calendrier de la FFTA.{' '}
-            {firstRun ? 'La première fois, cela prend environ 40 minutes.' : 'Cela prend environ 2 à 3 minutes.'}
+          <p className='text-muted-foreground text-sm'>Relit tout le calendrier de la FFTA.</p>
+          <p className='flex items-center gap-1.5 text-sm font-medium text-amber-800'>
+            <TriangleAlertIcon className='size-4 shrink-0' aria-hidden />À ne faire qu’en cas de vrai besoin.
           </p>
         </div>
-        <Button disabled={busy} onClick={() => setConfirming(true)}>
+        <Button variant='outline' disabled={busy} onClick={() => setConfirming(true)}>
           <RefreshCwIcon />
           {busy ? 'Une mise à jour est en cours' : 'Mettre à jour tout le calendrier'}
         </Button>
@@ -364,7 +366,8 @@ function StartButtons({ busy, firstRun, onStart }: StartButtonsProps) {
           )}
           {competitionError && <p className='text-destructive text-sm'>{competitionError}</p>}
         </div>
-        <Button type='submit' variant='outline' disabled={busy}>
+        <Button type='submit' disabled={busy}>
+          <RefreshCwIcon />
           Mettre à jour ce concours
         </Button>
       </form>
