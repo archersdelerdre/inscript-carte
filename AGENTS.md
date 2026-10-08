@@ -36,6 +36,7 @@ club members (why and for whom the project exists, no technical content).
 | `bun run --cwd apps/server db:import-archers <export.xlsx>` | sync the club member list (FFTA extranet export) |
 | `bun run --cwd apps/server db:add-admin <licence>` | make an active member an admin, or change their password (typed hidden) |
 | `bun run --cwd apps/server db:remove-admin <licence>` | remove an admin (ends their admin sessions) |
+| `CHROME_PATH=… bun run --cwd apps/server scrape:check` | read the whole FFTA calendar and print counts and problems; writes nothing |
 
 Migrations run **when the server starts** (`main.ts`), before it accepts requests. There is no rollback command (removed
 on 2026-10-07: with one migration it only dropped every table); to start over, stop the server and delete the
@@ -228,7 +229,7 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 ## Data and geocoding
 
 - Competitions come from the old app's `events.json` today (`import-legacy-events.ts`, idempotent upsert on
-  `ffta_id`, one transaction). The real FFTA scraper is **not built yet**.
+  `ffta_id`, one transaction). The FFTA scraper is being built **step by step** with the user (next section).
 - Rows without coordinates are geocoded during import (`infrastructure/geocoding/town-geocoder.ts`, Géoplateforme
   address service `data.geopf.fr`). Order: GPS text → commune in the département → free text in the département
   (kept only if the text names the result's commune/former commune or postal code) → commune elsewhere only if its
@@ -237,6 +238,33 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   text`), read first by the geocoder.
 - Result on 2026-10-06: 1707 competitions, **8 without a place** (all placeholders: "A Définir", "Inconnu",
   "Occitanie").
+
+## FFTA scraper (in progress, `infrastructure/ffta/`)
+
+Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** started by the server (`Bun.spawn`) at
+night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
+every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
+Mandates will be read by a cheap LLM (the user's decision). Built so far: reading the list (`scrape:check`).
+
+- **Cloudflare** blocks plain HTTP (403 "Just a moment…", even with browser headers) and a plain headless Chrome.
+  `puppeteer-core` + `puppeteer-extra` stealth (`addExtra(puppeteerCore)`: its own types expect the full `puppeteer`)
+  passes, under Bun (tested 2026-10-08). `chrome-headless-shell` is used: as fast as full Chrome, lighter. Install it
+  with `bunx @puppeteer/browsers install chrome-headless-shell@stable --path <dir>` and set `CHROME_PATH` to the
+  printed binary. A blocked page throws `CloudflareBlockedError`: a run must then change nothing.
+- `FftaBrowser`: one tab, 1 s between pages, images/fonts/media not downloaded, `--disable-dev-shm-usage` (Docker).
+- **The list** (`www.ffta.fr/competitions?start=…&end=…&page=N`, one year ahead): 30 cards per page, about 75 pages
+  for all of France (2 235 entries on 2026-10-08, about 2 min), read until an empty page. Card markup:
+  `article.competition_item`, head class `--valid` / `--report` / `--cancel`, `__dates` ("Le …", "Du … au …", once
+  with both years), title "NAME à TOWN" (cut at the last " à "), `field--name-field-discipline` (FFTA labels mapped
+  in `calendar-page.ts`; an unknown one is a problem, never a guess), organizer `<span>CLUB <small>(TOWN)</small>`,
+  plain `mailto:`, `__mandat_btn`. Parsed with `node-html-parser` (`calendar-page.ts`, tested on made-up markup).
+- The list has **no département**: it will come from the detail page (`/epreuve/<id>`: full address with postal
+  code, phone, mail, regional and departmental committees), read only for new competitions (the user's choice over
+  reading the list per département). `dep[]` filter values are not département codes (2A/2B shift them).
+- **Para-tir** comes as its own entries (same title, day, town): merged as a flag on the main one (`mergeParaTir`);
+  378 merged and 23 alone on 2026-10-08. Open question: 35 groups of normal entries share title, day and town (some
+  the same event twice with and without a type, some Loisirs next to Salle, some different organizers): all kept
+  for now.
 
 ## Client UI decisions (asked by the user, keep them)
 
