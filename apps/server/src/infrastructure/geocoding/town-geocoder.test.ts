@@ -1,6 +1,6 @@
-import { afterEach, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, mock, test } from 'bun:test';
 
-import { geocodeTown } from './town-geocoder.ts';
+import { cleanPlaceName, geocodeCommune, geocodeTown } from './town-geocoder.ts';
 
 type FakeFeature = {
   name: string;
@@ -86,4 +86,75 @@ test('uses GPS coordinates typed as the town without calling the service', async
     longitude: 7.383550512345017,
   });
   expect(globalThis.fetch).not.toHaveBeenCalled();
+});
+
+describe('geocodeCommune: the postal line « 85440 GROSBREUIL »', () => {
+  test('takes the commune of that name and postal code, abbreviations and arrondissements included', async () => {
+    fakeService({
+      municipality: [
+        { name: 'Lyon 8e Arrondissement', context: '69, Rhône', postcode: '69008', coordinates: [4.87, 45.73] },
+      ],
+    });
+    expect(await geocodeCommune('69008', ['LYON 08'])).toMatchObject({ latitude: 45.73 });
+
+    fakeService({
+      municipality: [
+        { name: 'Saint-André', context: '974, La Réunion', postcode: '97440', coordinates: [55.64, -20.96] },
+      ],
+    });
+    expect(await geocodeCommune('97440', ['ST ANDRE'])).toMatchObject({ latitude: -20.96 });
+  });
+
+  test('never takes a neighbour the service offers for a name it does not have', async () => {
+    // For « ay 51160 » the service answers only Fontaine-sur-Ay, with a good score: Ay is now Aÿ-Champagne.
+    fakeService({
+      municipality: [
+        { name: 'Fontaine-sur-Ay', context: '51, Marne', postcode: '51160', coordinates: [4.07, 49.08], score: 0.66 },
+      ],
+      any: [
+        {
+          name: "Route d'Avenay",
+          context: '51, Marne',
+          postcode: '51160',
+          city: 'Aÿ-Champagne',
+          oldcity: 'Ay',
+          coordinates: [4.01, 49.05],
+        },
+      ],
+    });
+    expect(await geocodeCommune('51160', ['AY'])).toMatchObject({ latitude: 49.05, longitude: 4.01 });
+
+    fakeService({
+      municipality: [
+        { name: 'Fontaine-sur-Ay', context: '51, Marne', postcode: '51160', coordinates: [4.07, 49.08], score: 0.66 },
+      ],
+    });
+    expect(await geocodeCommune('51160', ['AY'])).toBeNull();
+  });
+
+  test('tries the competition’s town when the postal line names a district', async () => {
+    fakeService({
+      municipality: [{ name: 'Orléans', context: '45, Loiret', postcode: '45100', coordinates: [1.91, 47.9] }],
+    });
+    expect(await geocodeCommune('45100', ['LA SOURCE', 'ORLÉANS'])).toMatchObject({ latitude: 47.9 });
+    expect(await geocodeCommune('45100', ['LA SOURCE'])).toBeNull();
+  });
+
+  test('takes a merged commune whose name holds every word, but only with that postal code', async () => {
+    const merged = {
+      name: 'Beaujeu-Saint-Vallier-Pierrejux-et-Quitteur',
+      context: '70, Haute-Saône',
+      coordinates: [5.67, 47.51] as [number, number],
+    };
+    fakeService({ municipality: [{ ...merged, postcode: '70100' }] });
+    expect(await geocodeCommune('70100', ['BEAUJEU ET QUITTEUR'])).toMatchObject({ latitude: 47.51 });
+    fakeService({ municipality: [{ ...merged, postcode: '70130' }] });
+    expect(await geocodeCommune('70100', ['BEAUJEU ET QUITTEUR'])).toBeNull();
+  });
+});
+
+test('cleans the country or postal code some organizers add to the town', () => {
+  expect(cleanPlaceName('NÎMES - FRANCE')).toBe('NÎMES');
+  expect(cleanPlaceName('HAUCOURT ST CHARLES 54860')).toBe('HAUCOURT ST CHARLES');
+  expect(cleanPlaceName('SAINT HERBLAIN')).toBe('SAINT HERBLAIN');
 });

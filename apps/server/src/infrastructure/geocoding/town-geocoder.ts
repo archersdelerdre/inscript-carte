@@ -58,19 +58,62 @@ export async function geocodeTown(town: string, departmentCode: string): Promise
   return { latitude, longitude, matchedPlace: match.properties.label };
 }
 
+/** « NÎMES - FRANCE », « HAUCOURT ST CHARLES 54860 »: the country or postal code some organizers add to the town. */
+export function cleanPlaceName(text: string): string {
+  return text
+    .replace(/\s*-\s*france\s*$/i, '')
+    .replace(/\s+\d{5}\s*$/, '')
+    .trim();
+}
+
 /**
- * The commune of a postal line (« 85440 GROSBREUIL »): the service's commune with that name and that postal code.
- * Both must match, so a typo in either gives nothing (the caller falls back to the town) rather than another place.
+ * The commune's name says the same thing: equal for a one-word name (« ay » is not Fontaine-sur-Ay), else every word
+ * starting one of the commune's words (« lyon 8 » in Lyon 8e Arrondissement, « beaujeu et quitteur » in
+ * Beaujeu-Saint-Vallier-Pierrejux-et-Quitteur).
  */
-export async function geocodeCommune(postalCode: string, city: string): Promise<GeocodedTown | null> {
-  const query = city.trim();
-  if (query.length < 3 || !/^[\p{L}\d]/u.test(query)) return null;
-  const match = (await search(query, 'municipality', postalCode)).find(
-    (feature) => feature.properties.postcode === postalCode && feature.properties.score >= MIN_SCORE,
-  );
-  if (!match) return null;
-  const [longitude, latitude] = match.geometry.coordinates;
-  return { latitude, longitude, matchedPlace: match.properties.label };
+function namesCommune(commune: string, name: string): boolean {
+  const communeName = normalize(commune);
+  const nameWords = name.split(' ');
+  if (nameWords.length === 1) return communeName === name;
+  const communeWords = communeName.split(' ');
+  return nameWords.every((word) => communeWords.some((communeWord) => communeWord.startsWith(word)));
+}
+
+/**
+ * The commune of a postal line (« 85440 GROSBREUIL »). Each name is tried with that postal code, the postal line's
+ * commune first, then the competition's town (« LA SOURCE », 45100: the town says « ORLÉANS »):
+ * 1. a commune that name names (« ST ANDRE » is read « saint andre », « LYON 08 » « lyon 8 », merged communes);
+ * 2. an address whose commune or former commune has that name (« AY » is now Aÿ-Champagne, « PERLES » Les
+ *    Septvallons). A name shorter than the service accepts is sent with the postal code (« ay 51160 »).
+ * The service's fuzzy matches are never taken: for « ay 51160 » it gives only Fontaine-sur-Ay, a neighbour, with a
+ * better score than right answers get. Nothing that fits gives `null` (the caller falls back to the town in its
+ * département). Seen on the first runs, 2026-10-09: 53 of 1 814 found nothing with the commune and code alone.
+ */
+export async function geocodeCommune(postalCode: string, names: readonly string[]): Promise<GeocodedTown | null> {
+  const tried = new Set<string>();
+  for (const text of names) {
+    const name = normalize(cleanPlaceName(text)).replace(/\b0+(\d)/g, '$1');
+    if (!name || tried.has(name)) continue;
+    tried.add(name);
+    const query = name.length < 3 ? `${name} ${postalCode}` : name;
+    const ofPostcode = (features: Feature[]) =>
+      features.filter((feature) => feature.properties.postcode === postalCode);
+
+    const communes = ofPostcode(await search(query, 'municipality', postalCode));
+    const commune = communes.find((feature) => namesCommune(feature.properties.name, name));
+    if (commune) return found(commune);
+
+    const formerCommune = ofPostcode(await search(query, undefined, postalCode)).find((feature) =>
+      [feature.properties.city, feature.properties.oldcity].some((place) => place && normalize(place) === name),
+    );
+    if (formerCommune) return found(formerCommune);
+  }
+  return null;
+}
+
+function found(feature: Feature): GeocodedTown {
+  const [longitude, latitude] = feature.geometry.coordinates;
+  return { latitude, longitude, matchedPlace: feature.properties.label };
 }
 
 /**

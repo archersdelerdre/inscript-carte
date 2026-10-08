@@ -385,8 +385,12 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   hidden from the public list,
   never deleted; cleared when listed again; only after a complete list). The list's values win over the detail
   page's (they are what the fingerprint covers); `has_foam_targets` and `created_at` are never touched. Position:
-  always the address service (the app calls no Google API): `geocodeCommune`, the commune with that name **and**
-  that postal code (`postcode` filter), else `geocodeTown` on the commune (else the title's town) in the département.
+  always the address service (the app calls no Google API). `geocodeCommune` with that postal code (`postcode`
+  filter), trying the postal line's commune then the title's town: a commune the name really names (ST → SAINT,
+  « LYON 08 » → Lyon 8e Arrondissement, merged communes holding every word), else an address whose commune or former
+  commune has that name (« AY » → Aÿ-Champagne). The service's fuzzy matches are never taken (for « ay 51160 » it
+  offers only Fontaine-sur-Ay, a neighbour). Else `geocodeTown` in the département. On 2026-10-09 this left 4 places
+  out of 53 hard cases unfound (Blériot, Monaco, Haucourt-Saint-Charles, « A Definir »).
   Requests are spaced 60 ms apart and retried after a 429 or 5xx (the service allows 50 per second and answers 429
   beyond, 504 when busy). `bun run db:relocate [--dry-run]` locates every upcoming competition again the same way
   (run once in production on 2026-10-09 for the points stored from the FFTA's GPS). Abroad and unreadable
