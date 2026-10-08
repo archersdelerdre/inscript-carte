@@ -21,6 +21,8 @@ export const API_ROUTES = {
   adminMembers: '/api/admin/members',
   adminMember: '/api/admin/members/:licenceNumber',
   adminMemberAdminRights: '/api/admin/members/:licenceNumber/admin',
+  adminScraper: '/api/admin/scraper',
+  adminScraperRuns: '/api/admin/scraper/runs',
 } as const;
 
 export function apiPath(route: string, params: Record<string, string | number>): string {
@@ -50,7 +52,11 @@ export type ApiError = {
     /** An admin cannot deactivate themselves or remove their own admin rights. */
     | 'cannot_change_self'
     | 'member_inactive'
-    | 'already_admin';
+    | 'already_admin'
+    /** An FFTA scraper run is already going (`ScraperBusyResponse` also gives it). */
+    | 'scraper_busy'
+    /** The server has no browser to read the FFTA site with (`CHROME_PATH` not set). */
+    | 'scraper_unavailable';
 };
 
 /** Admin passwords have at least this many characters. */
@@ -332,3 +338,64 @@ export type MemberExportErrorResponse = {
   /** The column title or the wrong value (never a name or a birth date). */
   detail: string | null;
 };
+
+/** What an FFTA scraper run is doing now. */
+export type ScraperProgress =
+  | { step: 'list'; page: number; found: number }
+  | { step: 'details'; done: number; total: number }
+  | { step: 'saving' };
+
+/** The counts of a finished run. Never names, emails or phone numbers: FFTA text in `problems` only. */
+export type ScraperReport = {
+  dryRun: boolean;
+  /** Why nothing was written; `null` when the run went through. */
+  aborted: string | null;
+  pages: number;
+  listed: number;
+  added: number;
+  changed: number;
+  unchanged: number;
+  back: number;
+  missing: number;
+  detailsRead: number;
+  /** Beyond the run's limit: read by a later run. */
+  detailsLeft: number;
+  /** Read, but not stored: abroad (no département), or a detail page that could not be read. */
+  skippedAbroad: number;
+  skippedUnreadable: number;
+  positions: { fromFfta: number; geocoded: number; notFound: number; notTried: number };
+  problems: string[];
+  durationMs: number;
+};
+
+export type ScraperRunKind = 'full' | 'competition';
+export type ScraperRunStatus = 'running' | 'succeeded' | 'failed' | 'interrupted';
+
+export type ScraperRunDto = {
+  id: number;
+  kind: ScraperRunKind;
+  /** Only for `competition` runs. */
+  fftaId: string | null;
+  dryRun: boolean;
+  /** `null` for the night run and the command line. */
+  startedByName: string | null;
+  status: ScraperRunStatus;
+  progress: ScraperProgress | null;
+  report: ScraperReport | null;
+  error: string | null;
+  /** ISO date and time (UTC). */
+  startedAt: string;
+  finishedAt: string | null;
+};
+
+export type ScraperStatusResponse = {
+  /** `false` when the server has no browser: runs cannot start. */
+  available: boolean;
+  current: ScraperRunDto | null;
+  /** The last finished runs, latest first. */
+  recent: ScraperRunDto[];
+};
+
+export type StartScraperRunRequest = { kind: 'full' } | { kind: 'competition'; fftaId: string };
+export type StartScraperRunResponse = { run: ScraperRunDto };
+export type ScraperBusyResponse = { error: 'scraper_busy'; run: ScraperRunDto };

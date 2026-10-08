@@ -1,8 +1,8 @@
-import type { GeoPosition } from '@inscript-carte/shared';
+import type { GeoPosition, ScraperProgress, ScraperReport } from '@inscript-carte/shared';
 
 import type { CalendarDate } from '../domain/calendar-date.ts';
 import type { Clock } from './ports/clock.ts';
-import type { FftaCalendar, ListedCompetition } from './ports/ffta-calendar.ts';
+import type { CompetitionDetail, FftaCalendar, ListedCompetition } from './ports/ffta-calendar.ts';
 import type {
   PlaceLocator,
   ScrapedCompetition,
@@ -76,40 +76,34 @@ export function planSync(
   return plan;
 }
 
-export type SyncProgress =
-  | { step: 'list'; page: number; found: number }
-  | { step: 'details'; done: number; total: number }
-  | { step: 'saving' };
-
-export type SyncReport = {
-  dryRun: boolean;
-  /** Why nothing was written; `null` when the run went through. */
-  aborted: string | null;
-  pages: number;
-  listed: number;
-  added: number;
-  changed: number;
-  unchanged: number;
-  back: number;
-  missing: number;
-  detailsRead: number;
-  /** Beyond `maxDetails`: read by a later run (their fingerprint is not saved). */
-  detailsLeft: number;
-  /** Read, but not stored: abroad (no département), or a detail page that could not be read. */
-  skippedAbroad: number;
-  skippedUnreadable: number;
-  positions: { fromFfta: number; geocoded: number; notFound: number; notTried: number };
-  problems: string[];
-  durationMs: number;
-};
-
 export type SyncOptions = {
   /** Reads everything, writes nothing, calls no geocoder: shows what a real run would change. */
   dryRun: boolean;
   /** At most this many detail pages in one run (about 1 s each); the rest waits for the next run. */
   maxDetails?: number;
-  onProgress?: (progress: SyncProgress) => void;
+  onProgress?: (progress: ScraperProgress) => void;
 };
+
+function emptyReport(dryRun: boolean): ScraperReport {
+  return {
+    dryRun,
+    aborted: null,
+    pages: 0,
+    listed: 0,
+    added: 0,
+    changed: 0,
+    unchanged: 0,
+    back: 0,
+    missing: 0,
+    detailsRead: 0,
+    detailsLeft: 0,
+    skippedAbroad: 0,
+    skippedUnreadable: 0,
+    positions: { fromFfta: 0, geocoded: 0, notFound: 0, notTried: 0 },
+    problems: [],
+    durationMs: 0,
+  };
+}
 
 /** One run of the FFTA scraper: read the whole list, the detail pages that are needed, then store the result. */
 export class SyncFftaCalendar {
@@ -125,27 +119,10 @@ export class SyncFftaCalendar {
     this.#clock = clock;
   }
 
-  async run({ dryRun, maxDetails = Infinity, onProgress = () => {} }: SyncOptions): Promise<SyncReport> {
+  async run({ dryRun, maxDetails = Infinity, onProgress = () => {} }: SyncOptions): Promise<ScraperReport> {
     const started = this.#clock.now();
     const today = this.#clock.today();
-    const report: SyncReport = {
-      dryRun,
-      aborted: null,
-      pages: 0,
-      listed: 0,
-      added: 0,
-      changed: 0,
-      unchanged: 0,
-      back: 0,
-      missing: 0,
-      detailsRead: 0,
-      detailsLeft: 0,
-      skippedAbroad: 0,
-      skippedUnreadable: 0,
-      positions: { fromFfta: 0, geocoded: 0, notFound: 0, notTried: 0 },
-      problems: [],
-      durationMs: 0,
-    };
+    const report = emptyReport(dryRun);
     const finish = () => ({ ...report, durationMs: this.#clock.now().getTime() - started.getTime() });
 
     let list;
@@ -202,18 +179,7 @@ export class SyncFftaCalendar {
         report.skippedAbroad++;
         continue;
       }
-      let position = detail.position;
-      if (position) report.positions.fromFfta++;
-      else if (dryRun) report.positions.notTried++;
-      else {
-        // The commune of the postal line names the place better than the title's town.
-        const place = detail.city ?? listed.town;
-        const key = `${place}|${detail.departmentCode}`;
-        if (!located.has(key)) located.set(key, await this.#locator.locate(place, detail.departmentCode));
-        position = located.get(key) ?? null;
-        if (position) report.positions.geocoded++;
-        else report.positions.notFound++;
-      }
+      const position = await this.#position(detail, detail.departmentCode, listed.town, dryRun, report, located);
       scraped.push({
         listed,
         fingerprint: listingFingerprint(listed),
@@ -232,5 +198,74 @@ export class SyncFftaCalendar {
       await this.#store.markMissing(plan.missing, today);
     }
     return finish();
+  }
+
+  /**
+   * Reads one competition's detail page and stores it (an admin saw it wrong or missing). It stores no fingerprint:
+   * the next full run reads it again with its list card, which knows the Para-tir flag.
+   */
+  async runOne(fftaId: string, { dryRun, onProgress = () => {} }: SyncOptions): Promise<ScraperReport> {
+    const started = this.#clock.now();
+    const report = emptyReport(dryRun);
+    const finish = () => ({ ...report, durationMs: this.#clock.now().getTime() - started.getTime() });
+
+    onProgress({ step: 'details', done: 0, total: 1 });
+    let page;
+    try {
+      page = await this.#calendar.readCompetition(fftaId);
+    } catch (error) {
+      report.aborted = `La fiche FFTA n'a pas pu être lue : ${error instanceof Error ? error.message : String(error)}`;
+      return finish();
+    }
+    onProgress({ step: 'details', done: 1, total: 1 });
+    report.detailsRead = 1;
+    report.problems.push(...page.problems);
+    const { detail } = page;
+    if (!detail) {
+      report.skippedUnreadable = 1;
+      report.aborted = `La fiche FFTA ${fftaId} n'est pas lisible (concours supprimé ?) : rien n'est changé.`;
+      return finish();
+    }
+    if (!detail.departmentCode) {
+      report.skippedAbroad = 1;
+      report.aborted = `Le concours ${fftaId} n'a pas de département français : il n'est pas enregistré.`;
+      return finish();
+    }
+    const known = (await this.#store.listings()).some((row) => row.fftaId === fftaId);
+    if (known) report.changed = 1;
+    else report.added = 1;
+    const position = await this.#position(detail, detail.departmentCode, detail.town, dryRun, report, new Map());
+    if (!dryRun) {
+      onProgress({ step: 'saving' });
+      await this.#store.saveDetail(detail, detail.departmentCode, position, this.#clock.now());
+    }
+    return finish();
+  }
+
+  /** The FFTA's own map point, else the address service (never in a dry run), counted in the report. */
+  async #position(
+    detail: CompetitionDetail,
+    departmentCode: string,
+    listedTown: string,
+    dryRun: boolean,
+    report: ScraperReport,
+    located: Map<string, GeoPosition | null>,
+  ): Promise<GeoPosition | null> {
+    if (detail.position) {
+      report.positions.fromFfta++;
+      return detail.position;
+    }
+    if (dryRun) {
+      report.positions.notTried++;
+      return null;
+    }
+    // The commune of the postal line names the place better than the title's town.
+    const place = detail.city ?? listedTown;
+    const key = `${place}|${departmentCode}`;
+    if (!located.has(key)) located.set(key, await this.#locator.locate(place, departmentCode));
+    const position = located.get(key) ?? null;
+    if (position) report.positions.geocoded++;
+    else report.positions.notFound++;
+    return position;
   }
 }

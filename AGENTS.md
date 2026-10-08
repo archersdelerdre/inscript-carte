@@ -100,6 +100,8 @@ API (types and error codes in `packages/shared/src/api.ts`; the client turns cod
 | `PATCH /api/admin/members/:licenceNumber` | `{ isActive }` by hand, never on oneself (the next import sets it from the file again) |
 | `POST/DELETE /api/admin/members/:licenceNumber/admin` | give admin rights (returns the generated password once) / remove them (never one's own) |
 | `GET/POST /api/admin/members/import` | last import + active count / upload the FFTA export (multipart `file`) |
+| `GET /api/admin/scraper` | FFTA scraper: `available` (a browser is set up), the current run, the last 10 finished |
+| `POST /api/admin/scraper/runs` | `{ kind: 'full' }` or `{ kind: 'competition', fftaId }`: `202` with the run (its process goes on alone), `409 scraper_busy` with the run already going, `503 scraper_unavailable` without `CHROME_PATH` |
 
 Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without a valid admin session, and
 `403 password_change_required` while the admin still has a generated password.
@@ -244,8 +246,20 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** started by the server (`Bun.spawn`) at
 night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
 every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
-Mandates will be read by a cheap LLM (the user's decision). Built so far: the list, the detail pages, and storing
-them (`scrape`). Not yet: spawning from the server, the lock, SSE, the admin UI, mandates.
+Mandates will be read by a cheap LLM (the user's decision). Built so far: the list, the detail pages, storing them,
+and runs started by the server or by hand. Not yet: SSE and the admin page, Chrome in the Docker image, mandates.
+
+- **Runs** (`application/scraper-runs.ts`, table `scraper_runs`, migration `0006`): the server takes the lock, then
+  starts `scrape.ts --run <id>` (`ProcessScraperLauncher`, `nice -n 10`, stdout ignored); the process reads its row
+  for what to do, writes its progress (every 2 s at most) and a heartbeat (every 10 s), then `succeeded` / `failed`
+  with its report. The **lock** is a partial unique index (one `running` row): two admins, or an admin and the
+  night run, cannot start two. A `running` row silent for 2 min is a dead process: the next start marks it
+  `interrupted`. If the process exits without finishing its row (`kill -9`, out of memory), the server marks it
+  `failed` with the exit code. By hand (`bun run scrape …`), the command takes the same lock itself (`startHere`),
+  so admins see it too. Night run: 03:00 Paris (`nightly-scraper.ts`, checked every minute), only with `CHROME_PATH`.
+- Chrome runs with `pipe: true`: with the default WebSocket, a `kill -9` of the scraper left five Chrome processes
+  behind; through a pipe, Chrome quits when its parent dies (checked 2026-10-08). SIGTERM is handled by Puppeteer:
+  it closes Chrome, the run then fails cleanly with its reason.
 
 - **Cloudflare** blocks plain HTTP (403 "Just a moment…", even with browser headers) and a plain headless Chrome.
   `puppeteer-core` + `puppeteer-extra` stealth (`addExtra(puppeteerCore)`: its own types expect the full `puppeteer`)

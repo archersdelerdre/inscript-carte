@@ -37,6 +37,9 @@ export class FftaBrowser {
     const browser: Browser = await puppeteer.launch({
       executablePath,
       headless: true,
+      // Talk to Chrome through a pipe: when the scraper process dies (even `kill -9`), the pipe closes and Chrome
+      // quits by itself instead of staying in memory (seen with the default WebSocket, 2026-10-08).
+      pipe: true,
       // Docker gives /dev/shm only 64 MB, too little for Chrome.
       args: ['--disable-dev-shm-usage'],
     });

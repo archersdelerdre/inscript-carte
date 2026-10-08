@@ -8,6 +8,7 @@ import { ClubMembers } from './application/club-members.ts';
 import { ClubRegistrations } from './application/club-registrations.ts';
 import { ListUpcomingCompetitions } from './application/list-upcoming-competitions.ts';
 import type { Clock } from './application/ports/clock.ts';
+import type { ScraperRuns } from './application/scraper-runs.ts';
 import { BunPasswordHasher } from './infrastructure/bun-password-hasher.ts';
 import { SqliteAdminRepository } from './infrastructure/database/sqlite-admin-repository.ts';
 import { SqliteArcherRepository } from './infrastructure/database/sqlite-archer-repository.ts';
@@ -29,8 +30,11 @@ const MAX_FAILED_SIGN_INS = { licence: 30, address: 200 };
 /** Admins are few and type a password they chose: a lower limit is still enough for typos. */
 const MAX_FAILED_ADMIN_SIGN_INS = { licence: 10, address: 50 };
 
-/** Wires the application; the composition root for `main.ts` and the HTTP tests. */
-export function createApp(database: Knex, clock: Clock) {
+/**
+ * Wires the application; the composition root for `main.ts` and the HTTP tests. `scraperRuns` comes from outside:
+ * `main.ts` gives it the real process launcher, the tests a fake one.
+ */
+export function createApp(database: Knex, clock: Clock, scraperRuns: ScraperRuns) {
   const archers = new SqliteArcherRepository(database);
   const competitions = new SqliteCompetitionRepository(database);
   const registrations = new SqliteRegistrationRepository(database);
@@ -56,6 +60,7 @@ export function createApp(database: Knex, clock: Clock) {
     adminAccounts: new AdminAccounts(archers, admins, passwordHasher),
     adminRegistrations: new AdminRegistrations(competitions, registrations, archers, clock),
     clubMembers: new ClubMembers(new SqliteMemberListRepository(database), admins, clock),
+    scraperRuns,
     readMemberExport,
     organizerSpreadsheet,
   });

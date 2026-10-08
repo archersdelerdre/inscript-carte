@@ -13,6 +13,8 @@ export const STATUS_BY_REASON = {
   cannot_change_self: 409,
   member_inactive: 409,
   already_admin: 409,
+  scraper_busy: 409,
+  scraper_unavailable: 503,
 } as const satisfies Partial<Record<ApiError['error'], number>>;
 
 export function error(code: ApiError['error'], status: number): Response {

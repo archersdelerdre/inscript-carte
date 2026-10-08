@@ -14,14 +14,19 @@ import type {
   MemberImportResponse,
   MemberImportStatusResponse,
   RegistrationCreatedResponse,
+  ScraperBusyResponse,
+  ScraperStatusResponse,
   SessionResponse,
+  StartScraperRunResponse,
 } from '@inscript-carte/shared';
 import type { Knex } from 'knex';
 import { readSheet } from 'read-excel-file/node';
 import writeXlsxFile from 'write-excel-file/node';
 
 import { createApp } from './app.ts';
+import { ScraperRuns } from './application/scraper-runs.ts';
 import { createDatabase } from './infrastructure/database/connection.ts';
+import { SqliteScraperRunStore } from './infrastructure/database/sqlite-scraper-run-store.ts';
 
 // Made-up members and competitions. Today is 6 Oct 2026; club deadlines are 15 days before the start.
 const ADULT = { licenceNumber: '0123456A', birthDate: '1980-05-12' };
@@ -34,6 +39,8 @@ const SOON = '90003'; // starts 2026-10-20, deadline 2026-10-05: already closed
 let database: Knex;
 let server: ReturnType<typeof Bun.serve>;
 const clock = { day: '2026-10-06', today: () => clock.day, now: () => new Date(`${clock.day}T10:00:00Z`) };
+/** The scraper runs the server asked to start: no process is launched in tests. */
+let launched: number[];
 
 function competitionRow(ffta_id: string, discipline: string, start_date: string) {
   return {
@@ -66,7 +73,17 @@ beforeEach(async () => {
     archerRow(YOUTH, 'MARTIN LOU'),
     archerRow(DEPARTED, 'ANCIEN MEMBRE', false),
   ]);
-  server = Bun.serve({ port: 0, routes: createApp(database, clock), fetch: () => new Response(null, { status: 404 }) });
+  launched = [];
+  const scraperRuns = new ScraperRuns(
+    new SqliteScraperRunStore(database),
+    { launch: (id) => launched.push(id) },
+    clock,
+  );
+  server = Bun.serve({
+    port: 0,
+    routes: createApp(database, clock, scraperRuns),
+    fetch: () => new Response(null, { status: 404 }),
+  });
 });
 
 afterEach(async () => {
@@ -1062,5 +1079,51 @@ describe('member actions', () => {
     });
     expect((await patch(YOUTH.licenceNumber, { isActive: 'no' })).status).toBe(400);
     expect((await patch('9999999Z', { isActive: false })).status).toBe(404);
+  });
+});
+
+describe('FFTA scraper runs', () => {
+  let cookie: string;
+  beforeEach(async () => {
+    await makeAdmin(ADULT);
+    cookie = await adminSignIn();
+  });
+  const start = (body: unknown) => call('/api/admin/scraper/runs', { method: 'POST', cookie, body });
+  const status = async () => (await (await call('/api/admin/scraper', { cookie })).json()) as ScraperStatusResponse;
+
+  test('starts a full run, launches its process, and shows it as the current run', async () => {
+    const response = await start({ kind: 'full' });
+    expect(response.status).toBe(202);
+    const { run } = (await response.json()) as StartScraperRunResponse;
+    expect(run).toMatchObject({ kind: 'full', fftaId: null, status: 'running', startedByName: 'DUPONT JEANNE' });
+    expect(launched).toEqual([run.id]);
+    expect(await status()).toMatchObject({ available: true, current: { id: run.id }, recent: [] });
+  });
+
+  test('never starts a second run while one is going, and says which one', async () => {
+    const first = ((await (await start({ kind: 'full' })).json()) as StartScraperRunResponse).run;
+    const second = await start({ kind: 'competition', fftaId: '27469' });
+    expect(second.status).toBe(409);
+    expect((await second.json()) as ScraperBusyResponse).toMatchObject({
+      error: 'scraper_busy',
+      run: { id: first.id },
+    });
+    expect(launched).toEqual([first.id]);
+  });
+
+  test('a run that stopped giving news no longer blocks: it is marked interrupted', async () => {
+    const first = ((await (await start({ kind: 'full' })).json()) as StartScraperRunResponse).run;
+    // Its process went silent an hour ago (the test clock says 10:00).
+    await database('scraper_runs').update({ heartbeat_at: '2026-10-06T09:00:00.000Z' });
+    const response = await start({ kind: 'competition', fftaId: '27469' });
+    expect(response.status).toBe(202);
+    expect((await status()).recent).toMatchObject([{ id: first.id, status: 'interrupted' }]);
+  });
+
+  test('refuses unknown kinds and competition ids that are not FFTA numbers', async () => {
+    for (const body of [{ kind: 'everything' }, { kind: 'competition' }, { kind: 'competition', fftaId: '../x' }]) {
+      expect((await start(body)).status).toBe(400);
+    }
+    expect(launched).toEqual([]);
   });
 });

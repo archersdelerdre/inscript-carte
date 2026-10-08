@@ -4,6 +4,7 @@ import type {
   AdminRegistrationDto,
   CompetitionDto,
   MyRegistrationDto,
+  ScraperRunDto,
   SignedInArcher,
 } from '@inscript-carte/shared';
 
@@ -11,6 +12,7 @@ import type { AdminCompetition } from '../../application/admin-registrations.ts'
 import type { ClubMember } from '../../application/club-members.ts';
 import type { MyRegistration } from '../../application/club-registrations.ts';
 import type { UpcomingCompetition } from '../../application/list-upcoming-competitions.ts';
+import type { ScraperRun } from '../../application/ports/scraper-run-store.ts';
 import { birthYear, type Archer } from '../../domain/archer.ts';
 import { clubRegistrationDeadline } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
@@ -127,5 +129,22 @@ export function toAdminMemberDto({ archer, category, isAdmin }: ClubMember): Adm
     category,
     isActive: archer.isActive,
     isAdmin,
+  };
+}
+
+/** Without the starter's licence number: the name is enough to know who asked. */
+export function toScraperRunDto(run: ScraperRun): ScraperRunDto {
+  return {
+    id: run.id,
+    kind: run.kind,
+    fftaId: run.fftaId,
+    dryRun: run.dryRun,
+    startedByName: run.startedByName,
+    status: run.status,
+    progress: run.progress,
+    report: run.report,
+    error: run.error,
+    startedAt: run.startedAt.toISOString(),
+    finishedAt: run.finishedAt?.toISOString() ?? null,
   };
 }

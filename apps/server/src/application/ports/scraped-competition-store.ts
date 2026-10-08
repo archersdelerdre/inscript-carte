@@ -26,7 +26,16 @@ export interface ScrapedCompetitionStore {
   listings(): Promise<StoredListing[]>;
   /** Adds or replaces them, listed now: clears `missing_since`. Never touches `has_foam_targets`. */
   save(competitions: readonly ScrapedCompetition[], listedAt: Date): Promise<void>;
-  /** Seen unchanged in the list: only `last_listed_at`, and `missing_since` cleared. */
+  /**
+   * One competition from its detail page alone (an admin's re-scrape): no fingerprint, so the next full run reads it
+   * again with its list card. Keeps a stored Para-tir flag (only the list knows it) and `has_foam_targets`.
+   */
+  saveDetail(
+    detail: CompetitionDetail,
+    departmentCode: string,
+    position: GeoPosition | null,
+    readAt: Date,
+  ): Promise<void>;
   markListed(fftaIds: readonly string[], listedAt: Date): Promise<void>;
   markMissing(fftaIds: readonly string[], since: CalendarDate): Promise<void>;
 }

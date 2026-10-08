@@ -8,6 +8,9 @@ import {
   type MemberExportErrorResponse,
   type MemberImportResponse,
   type MemberImportStatusResponse,
+  type ScraperBusyResponse,
+  type ScraperStatusResponse,
+  type StartScraperRunResponse,
 } from '@inscript-carte/shared';
 import type { BunRequest } from 'bun';
 
@@ -15,12 +18,13 @@ import type { AdminAccounts } from '../../application/admin-accounts.ts';
 import type { AdminAuthentication } from '../../application/admin-authentication.ts';
 import type { AdminRegistrations, UpdateResult } from '../../application/admin-registrations.ts';
 import type { ClubMembers } from '../../application/club-members.ts';
+import type { ScraperRuns } from '../../application/scraper-runs.ts';
 import type { Archer, Responsible } from '../../domain/archer.ts';
 import type { Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 import { MemberExportError } from '../../infrastructure/members/ffta-member-export.ts';
 import { error, isHttps, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
-import { toAdminCompetitionDto, toAdminMemberDto, toAdminRegistrationDto } from './presenters.ts';
+import { toAdminCompetitionDto, toAdminMemberDto, toAdminRegistrationDto, toScraperRunDto } from './presenters.ts';
 
 const ADMIN_COOKIE = 'admin_session';
 /** The admin cookie is only sent to the admin API. */
@@ -35,6 +39,7 @@ export type AdminHttpDependencies = {
   adminAccounts: AdminAccounts;
   adminRegistrations: AdminRegistrations;
   clubMembers: ClubMembers;
+  scraperRuns: ScraperRuns;
   readMemberExport: (bytes: Buffer) => Promise<Archer[]>;
   organizerSpreadsheet: (
     competition: Competition,
@@ -49,6 +54,7 @@ export function createAdminRoutes({
   adminAccounts,
   adminRegistrations,
   clubMembers,
+  scraperRuns,
   readMemberExport,
   organizerSpreadsheet,
 }: AdminHttpDependencies) {
@@ -270,6 +276,38 @@ export function createAdminRoutes({
         await clubMembers.import(archers, admin.licenceNumber);
         const status = await clubMembers.status();
         return Response.json({ ...status, lastImport: status.lastImport! } satisfies MemberImportResponse);
+      }),
+    },
+
+    [API_ROUTES.adminScraper]: {
+      GET: asAdmin(async () => {
+        const { current, recent } = await scraperRuns.status();
+        return Response.json(
+          {
+            available: scraperRuns.available,
+            current: current && toScraperRunDto(current),
+            recent: recent.map(toScraperRunDto),
+          } satisfies ScraperStatusResponse,
+          { headers: { 'cache-control': 'no-store' } },
+        );
+      }),
+    },
+
+    [API_ROUTES.adminScraperRuns]: {
+      /** `{ kind: 'full' }` or `{ kind: 'competition', fftaId }`. Answers at once: the run goes on in its process. */
+      POST: asAdmin(async (request: BunRequest, admin) => {
+        const body = await readJson(request);
+        const result = await scraperRuns.start({ kind: body?.kind, fftaId: body?.fftaId }, admin);
+        if (result.ok) {
+          return Response.json({ run: toScraperRunDto(result.run) } satisfies StartScraperRunResponse, { status: 202 });
+        }
+        if (result.reason === 'scraper_busy') {
+          return Response.json(
+            { error: 'scraper_busy', run: toScraperRunDto(result.run) } satisfies ScraperBusyResponse,
+            { status: STATUS_BY_REASON.scraper_busy },
+          );
+        }
+        return error(result.reason, STATUS_BY_REASON[result.reason]);
       }),
     },
   };

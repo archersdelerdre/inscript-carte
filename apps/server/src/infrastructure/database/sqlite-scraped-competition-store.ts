@@ -1,5 +1,7 @@
+import type { GeoPosition } from '@inscript-carte/shared';
 import type { Knex } from 'knex';
 
+import type { CompetitionDetail, ListedCompetition } from '../../application/ports/ffta-calendar.ts';
 import type {
   ScrapedCompetition,
   ScrapedCompetitionStore,
@@ -40,42 +42,15 @@ export class SqliteScrapedCompetitionStore implements ScrapedCompetitionStore {
   }
 
   async save(competitions: readonly ScrapedCompetition[], listedAt: Date): Promise<void> {
-    const now = listedAt.toISOString();
     await inBatches(competitions, (batch) =>
       this.#database.transaction((transaction) =>
         transaction('competitions')
           .insert(
             batch.map(({ listed, fingerprint, detail, departmentCode, position }) => ({
-              ffta_id: listed.fftaId,
-              title: listed.title,
-              discipline: listed.discipline,
-              status: listed.status,
-              start_date: listed.startDate,
-              end_date: listed.endDate,
-              organizer_club: listed.organizerClub ?? detail.organizerClub,
-              organizer_email: listed.organizerEmail ?? detail.email,
-              organizer_phone: detail.phone,
-              organizer_website: detail.website,
-              town: listed.town,
-              department_code: departmentCode,
-              latitude: position?.latitude ?? null,
-              longitude: position?.longitude ?? null,
-              has_para_tir: listed.hasParaTir,
-              mandate_url: listed.mandateUrl ?? detail.mandateUrl,
-              championship: detail.championship,
-              has_duels: detail.hasDuels,
-              regional_committee: detail.regionalCommittee,
-              departmental_committee: detail.departmentalCommittee,
-              venue: detail.venue,
-              street_lines: detail.streetLines.join('\n') || null,
-              postal_code: detail.postalCode,
-              city: detail.city,
-              country: detail.country,
+              ...competitionRow(listed, detail, departmentCode, position, listedAt),
               list_fingerprint: fingerprint,
-              detail_read_at: now,
-              last_listed_at: now,
+              last_listed_at: listedAt.toISOString(),
               missing_since: null,
-              updated_at: now,
             })),
           )
           // `has_foam_targets` and `created_at` are not in the insert, so a merge keeps them.
@@ -83,6 +58,21 @@ export class SqliteScrapedCompetitionStore implements ScrapedCompetitionStore {
           .merge(),
       ),
     );
+  }
+
+  async saveDetail(
+    detail: CompetitionDetail,
+    departmentCode: string,
+    position: GeoPosition | null,
+    readAt: Date,
+  ): Promise<void> {
+    const listed = { ...detail, organizerEmail: detail.email };
+    const row = { ...competitionRow(listed, detail, departmentCode, position, readAt), list_fingerprint: null };
+    await this.#database('competitions')
+      .insert(row)
+      .onConflict('ffta_id')
+      // The Para-tir flag of a stored row came from the list (merged Para-tir entries): the detail page cannot tell.
+      .merge(Object.keys(row).filter((column) => column !== 'has_para_tir'));
   }
 
   async markListed(fftaIds: readonly string[], listedAt: Date): Promise<void> {
@@ -98,4 +88,44 @@ export class SqliteScrapedCompetitionStore implements ScrapedCompetitionStore {
       this.#database('competitions').whereIn('ffta_id', batch).update({ missing_since: since }),
     );
   }
+}
+
+/** The columns both writes fill: the list's values first (what the fingerprint covers), the rest from the detail page. */
+function competitionRow(
+  listed: ListedCompetition,
+  detail: CompetitionDetail,
+  departmentCode: string,
+  position: GeoPosition | null,
+  readAt: Date,
+) {
+  const now = readAt.toISOString();
+  return {
+    ffta_id: listed.fftaId,
+    title: listed.title,
+    discipline: listed.discipline,
+    status: listed.status,
+    start_date: listed.startDate,
+    end_date: listed.endDate,
+    organizer_club: listed.organizerClub ?? detail.organizerClub,
+    organizer_email: listed.organizerEmail ?? detail.email,
+    organizer_phone: detail.phone,
+    organizer_website: detail.website,
+    town: listed.town,
+    department_code: departmentCode,
+    latitude: position?.latitude ?? null,
+    longitude: position?.longitude ?? null,
+    has_para_tir: listed.hasParaTir,
+    mandate_url: listed.mandateUrl ?? detail.mandateUrl,
+    championship: detail.championship,
+    has_duels: detail.hasDuels,
+    regional_committee: detail.regionalCommittee,
+    departmental_committee: detail.departmentalCommittee,
+    venue: detail.venue,
+    street_lines: detail.streetLines.join('\n') || null,
+    postal_code: detail.postalCode,
+    city: detail.city,
+    country: detail.country,
+    detail_read_at: now,
+    updated_at: now,
+  };
 }

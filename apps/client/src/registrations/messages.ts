@@ -27,6 +27,9 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   cannot_change_self: 'Vous ne pouvez pas faire cette action sur votre propre compte.',
   member_inactive: 'Ce licencié ne fait plus partie du club : réactivez-le d’abord.',
   already_admin: 'Ce licencié est déjà administrateur.',
+  scraper_busy: 'Une mise à jour du calendrier FFTA est déjà en cours. Attendez qu’elle se termine.',
+  scraper_unavailable:
+    'La mise à jour du calendrier FFTA n’est pas possible sur ce serveur (navigateur non installé). Prévenez la personne qui gère le serveur.',
 };
 
 /** "À régler au club avant le 9 oct., par chèque, …" */
