@@ -302,6 +302,12 @@ describe('registration', () => {
     expect((await offered())?.map(({ label }) => label)).toEqual(['Matin', 'Après-midi']);
     expect(await registerOn([3])).toBe(400);
     expect(await registerOn([1, 2])).toBe(201);
+    const mine = ((await (await call('/api/me/registrations', { cookie })).json()) as ListMyRegistrationsResponse)
+      .registrations;
+    expect(mine.map(({ departure, departureLabel }) => [departure, departureLabel])).toEqual([
+      [1, 'Matin'],
+      [2, 'Après-midi'],
+    ]);
   });
 
   test('refuses a départ already taken by the same member, but another départ is fine', async () => {
@@ -685,6 +691,7 @@ describe('admin registrations', () => {
       sex: 'female',
       category: 'U18',
       departure: 1,
+      departureLabel: null,
       bowType: 'classique',
       trispot: false,
       carpool: false,

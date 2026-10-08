@@ -1,9 +1,16 @@
-import { BOW_TYPE_LABELS, categoryLabel, CLUB_NAME, DISTANCE_LABELS, type AgeCategory } from '@inscript-carte/shared';
+import {
+  BOW_TYPE_LABELS,
+  categoryLabel,
+  CLUB_NAME,
+  departureTitle,
+  DISTANCE_LABELS,
+  type AgeCategory,
+} from '@inscript-carte/shared';
 import writeXlsxFile, { type Cell, type Row } from 'write-excel-file/node';
 
 import type { Responsible } from '../../domain/archer.ts';
 import { toFrenchDate } from '../../domain/calendar-date.ts';
-import type { Competition } from '../../domain/competition.ts';
+import { departureLabel, type Competition } from '../../domain/competition.ts';
 import { registrationPrice } from '../../domain/pricing.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 
@@ -70,7 +77,7 @@ export async function organizerSpreadsheet(
     'Catég.',
     "Type d'arc",
     ...(withDistance ? ['Distances'] : []),
-    ...departures.map((departure) => `Départ ${departure}`),
+    ...departures.map((departure) => departureTitle(departure, departureLabel(competition, departure))),
     'Trispot',
     'Montant',
   ];
@@ -112,7 +119,8 @@ export async function organizerSpreadsheet(
       { width: 18 },
       { width: 14 },
       ...(withDistance ? [{ width: 16 }] : []),
-      ...departures.map(() => ({ width: 10 })),
+      // Wider with the mandate's names ("Départ 2 · Après-midi" on two lines).
+      ...departures.map(() => ({ width: competition.departures ? 14 : 10 })),
       { width: 9 },
       { width: 12 },
     ],

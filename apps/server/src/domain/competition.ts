@@ -38,6 +38,11 @@ export function departureCount(competition: Competition): number {
   return competition.departures?.length ?? DEFAULT_DEPARTURE_COUNT;
 }
 
+/** "Après-midi" for départ 2 when the mandate lists it; `null` otherwise (mandate not read, or a number beyond it). */
+export function departureLabel(competition: Competition, departure: number): string | null {
+  return competition.departures?.[departure - 1]?.label ?? null;
+}
+
 export function clubRegistrationDeadline(competition: Competition): CalendarDate {
   return addDays(competition.startDate, -CLUB_REGISTRATION_DAYS_BEFORE_START);
 }

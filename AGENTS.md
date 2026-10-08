@@ -221,7 +221,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - **Excel file layout** (`organizer-spreadsheet.ts`), copied from the registration grids of FFTA mandates (user's
   examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports) with their
   "Email" and "Tél" (empty when not stored), then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |
-  (Distances) | Départ N… | Trispot | Montant`), an "X" in each départ column (only the départs in the file), and a
+  (Distances) | Départ N… | Trispot | Montant`; a départ column says "Départ 2 · Après-midi" when the mandate names
+  it), an "X" in each départ column (only the départs in the file), and a
   "Total" line. **Montant** comes from the mandate's prices (`domain/pricing.ts`): "jeunes" are every Uxx category
   (U11 to U21, the user's rule), the others adults; the price for the archer's number of départs in the file, else
   the biggest offers that fit added up, else the "all" prices. Put on the archer's first line (0 on their other
@@ -423,6 +424,8 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
 - Labels: "Salle 18m" (no space). FFTA competition titles are shown as they come.
 - Competitions without a place show in the list with "(lieu non précisé)". Open question: the user said the
   future scraper should store them but **not display** them; confirm before changing.
+- A départ is shown as "Départ 2 · Après-midi" (`departureTitle`) when the mandate names it, in "Mon suivi", the
+  admin page and the Excel file: the number stays, it is what club and organizer use.
 
 ## Accessibility (club has older and disabled members)
 

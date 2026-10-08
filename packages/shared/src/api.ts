@@ -171,6 +171,8 @@ export type MyRegistrationDto = {
   startDate: string;
   endDate: string;
   departure: number;
+  /** The mandate's name for that départ ("Après-midi"); `null` when the mandate was not read. */
+  departureLabel: string | null;
   bowType: BowType;
   trispot: boolean;
   category: AgeCategory;
@@ -244,6 +246,8 @@ export type AdminRegistrationDto = {
   sex: Sex;
   category: AgeCategory;
   departure: number;
+  /** The mandate's name for that départ ("Après-midi"); `null` when the mandate was not read. */
+  departureLabel: string | null;
   bowType: BowType;
   trispot: boolean;
   carpool: boolean;

@@ -4,6 +4,7 @@ import {
   BOW_TYPE_LABELS,
   canChangeStatus,
   categoryLabel,
+  departureTitle,
   DISTANCE_LABELS,
   isPaymentDue,
   NOTHING_TO_PAY_LABEL,
@@ -547,7 +548,7 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
     <div className={cn('grid gap-x-4 gap-y-1.5', cancelled && 'opacity-70')}>
       <div className='flex flex-wrap items-center gap-x-4 gap-y-2 md:grid md:grid-cols-[minmax(9rem,1fr)_15rem_18rem_2.5rem]'>
         <p className='min-w-0'>
-          <span className='font-semibold'>Départ {registration.departure}</span>
+          <span className='font-semibold'>{departureTitle(registration.departure, registration.departureLabel)}</span>
           <span className='text-muted-foreground'> · {details.join(' · ')}</span>
         </p>
 

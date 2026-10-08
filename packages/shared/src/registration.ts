@@ -72,3 +72,8 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
  * two to four); a départ that turns out not to exist is cancelled by the club.
  */
 export const DEFAULT_DEPARTURE_COUNT = 4;
+
+/** "Départ 2 · Après-midi" with the mandate's name, "Départ 2" without: the number is what club and organizer use. */
+export function departureTitle(departure: number, label: string | null): string {
+  return label ? `Départ ${departure} · ${label}` : `Départ ${departure}`;
+}

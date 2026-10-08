@@ -14,7 +14,7 @@ import type { MyRegistration } from '../../application/club-registrations.ts';
 import type { UpcomingCompetition } from '../../application/list-upcoming-competitions.ts';
 import type { ScraperRun } from '../../application/ports/scraper-run-store.ts';
 import { birthYear, type Archer } from '../../domain/archer.ts';
-import { clubRegistrationDeadline } from '../../domain/competition.ts';
+import { clubRegistrationDeadline, departureLabel, type Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 
 export function toCompetitionDto({ competition, clubArcherCount }: UpcomingCompetition): CompetitionDto {
@@ -56,6 +56,7 @@ export function toMyRegistrationDto({ registration, competition, canWithdraw }: 
     startDate: competition.startDate,
     endDate: competition.endDate,
     departure: registration.departure,
+    departureLabel: departureLabel(competition, registration.departure),
     bowType: registration.bowType,
     carpool: registration.carpool,
     trispot: registration.trispot,
@@ -94,12 +95,10 @@ export function toAdminCompetitionDto({
   };
 }
 
-export function toAdminRegistrationDto({
-  registration,
-  fullName,
-  sex,
-  updatedByName,
-}: RegistrationDetails): AdminRegistrationDto {
+export function toAdminRegistrationDto(
+  { registration, fullName, sex, updatedByName }: RegistrationDetails,
+  competition: Competition,
+): AdminRegistrationDto {
   return {
     id: registration.id,
     licenceNumber: registration.archerLicenceNumber,
@@ -107,6 +106,7 @@ export function toAdminRegistrationDto({
     sex,
     category: registration.category,
     departure: registration.departure,
+    departureLabel: departureLabel(competition, registration.departure),
     bowType: registration.bowType,
     trispot: registration.trispot,
     carpool: registration.carpool,

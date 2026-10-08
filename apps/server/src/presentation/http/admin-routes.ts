@@ -176,7 +176,9 @@ export function createAdminRoutes({
         if (!result) return error('not_found', 404);
         return Response.json({
           competition: toAdminCompetitionDto(result.competition),
-          registrations: result.registrations.map(toAdminRegistrationDto),
+          registrations: result.registrations.map((registration) =>
+            toAdminRegistrationDto(registration, result.competition.competition),
+          ),
         } satisfies AdminCompetitionRegistrationsResponse);
       }),
     },

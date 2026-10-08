@@ -2,6 +2,7 @@ import {
   apiPath,
   API_ROUTES,
   BOW_TYPE_LABELS,
+  departureTitle,
   isPaymentDue,
   type ListMyRegistrationsResponse,
   type MyRegistrationDto,
@@ -126,7 +127,9 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                 {rows.map((registration) => (
                   <li key={registration.id} className='grid gap-1'>
                     <div className='flex flex-wrap items-center gap-2'>
-                      <span className='font-medium'>Départ {registration.departure}</span>
+                      <span className='font-medium'>
+                        {departureTitle(registration.departure, registration.departureLabel)}
+                      </span>
                       <StatusBadge status={registration.status} />
                       <span className='text-muted-foreground text-sm'>{BOW_TYPE_LABELS[registration.bowType]}</span>
                       {registration.trispot && (
@@ -168,7 +171,8 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Retirer ce départ ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Départ {toWithdraw?.departure} du concours « {toWithdraw?.competitionTitle} ». Le club en sera informé.
+              {toWithdraw && departureTitle(toWithdraw.departure, toWithdraw.departureLabel)} du concours «{' '}
+              {toWithdraw?.competitionTitle} ». Le club en sera informé.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
