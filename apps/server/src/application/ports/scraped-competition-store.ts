@@ -40,7 +40,14 @@ export interface ScrapedCompetitionStore {
   markMissing(fftaIds: readonly string[], since: CalendarDate): Promise<void>;
 }
 
-/** Finds a place's position when the FFTA gives none (the address service). */
+/** Where a competition takes place, as its detail page writes it: « 85440 GROSBREUIL ». */
+export type PlaceAddress = { postalCode: string | null; city: string | null; town: string };
+
+/**
+ * Finds a competition's position with the address service: the postal code and commune first, else the commune
+ * (or the title's town) in its département. The FFTA's own map point is not used: organizers type it by hand and
+ * some are far off (Grosbreuil, Vendée, sat next to Mogadishu, 2026-10-08).
+ */
 export interface PlaceLocator {
-  locate(place: string, departmentCode: string): Promise<GeoPosition | null>;
+  locate(place: PlaceAddress, departmentCode: string): Promise<GeoPosition | null>;
 }

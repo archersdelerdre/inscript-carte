@@ -66,10 +66,8 @@ function printReport(report: ScraperReport) {
     `Details: ${report.detailsRead} read, ${report.detailsLeft} left for the next run, ` +
       `skipped ${report.skippedAbroad} abroad and ${report.skippedUnreadable} unreadable`,
   );
-  const { fromFfta, geocoded, notFound, notTried } = report.positions;
-  console.log(
-    `Positions: ${fromFfta} from the FFTA, ${geocoded} geocoded, ${notFound} not found, ${notTried} not tried`,
-  );
+  const { geocoded, notFound, notTried } = report.positions;
+  console.log(`Positions: ${geocoded} geocoded, ${notFound} not found, ${notTried} not tried`);
   if (report.mandates) {
     const { read, unchanged, invalid, failed, left, costUsd } = report.mandates;
     console.log(

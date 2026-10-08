@@ -1,4 +1,4 @@
-import type { Discipline, GeoPosition } from '@inscript-carte/shared';
+import type { Discipline } from '@inscript-carte/shared';
 
 import type { CalendarDate } from '../../domain/calendar-date.ts';
 import type { CompetitionStatus } from '../../domain/competition.ts';
@@ -42,8 +42,6 @@ export type CompetitionDetail = {
   postalCode: string | null;
   city: string | null;
   country: string | null;
-  /** When the organizer placed the competition on the FFTA map. */
-  position: GeoPosition | null;
   /** The venue's postal code first (where the archers go), else its committees; `null` abroad. */
   departmentCode: string | null;
   phone: string | null;

@@ -1,6 +1,6 @@
 import { parse, type HTMLElement } from 'node-html-parser';
 
-import type { CompetitionDetail, CompetitionPage } from '../../application/ports/ffta-calendar.ts';
+import type { CompetitionPage } from '../../application/ports/ffta-calendar.ts';
 import {
   departmentFromCommittee,
   departmentFromPostalCode,
@@ -9,7 +9,6 @@ import {
 import { fftaDiscipline, fftaStatus, parseFftaDates, splitFftaTitle, textOf as text } from './ffta-values.ts';
 
 const POSTAL_LINE = /^(\d{5})\s+(.+)$/;
-const GOOGLE_DESTINATION = /destination=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/;
 
 /** "Discipline : <strong>Tir à 18m</strong>" → `{ Discipline: 'Tir à 18m' }`. */
 function labelledValues(paragraphs: readonly HTMLElement[]): Map<string, string> {
@@ -45,16 +44,6 @@ function readPlace(paragraphs: readonly HTMLElement[]) {
     city: postal?.[2] ?? null,
     country,
   };
-}
-
-function readPosition(detail: HTMLElement): CompetitionDetail['position'] {
-  const match = GOOGLE_DESTINATION.exec(detail.querySelector('a[href*="google.com/maps"]')?.getAttribute('href') ?? '');
-  if (!match) return null;
-  const latitude = Number(match[1]);
-  const longitude = Number(match[2]);
-  // "0,0" is what an empty map field gives: in the Atlantic, not a place.
-  const valid = Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 && (latitude !== 0 || longitude !== 0);
-  return valid ? { latitude, longitude } : null;
 }
 
 /** The "Tel / Mail / Site" buttons: their visible text is the value. */
@@ -110,7 +99,6 @@ export function parseCompetitionPage(fftaId: string, html: string): CompetitionP
       departmentalCommittee,
       organizerClub: values.get('Organisateur') || null,
       ...place,
-      position: readPosition(detail),
       departmentCode,
       phone: link(detail, 'Tel'),
       email: link(detail, 'Mail'),

@@ -40,7 +40,6 @@ function detail(competition: ListedCompetition, overrides: Partial<CompetitionDe
     postalCode: '44800',
     city: 'SAINT HERBLAIN',
     country: 'FRANCE',
-    position: { latitude: 47.21, longitude: -1.65 },
     departmentCode: '44',
     phone: null,
     email: 'club@example.org',
@@ -110,7 +109,7 @@ describe('SyncFftaCalendar', () => {
   let located: string[];
   const locator: PlaceLocator = {
     locate: async (place, departmentCode) => {
-      located.push(`${place}|${departmentCode}`);
+      located.push(`${place.postalCode} ${place.city ?? place.town}|${departmentCode}`);
       return { latitude: 47, longitude: -1 };
     },
   };
@@ -127,16 +126,17 @@ describe('SyncFftaCalendar', () => {
   });
   afterEach(() => database.destroy());
 
-  test('stores a new competition with its detail page, the FFTA position, and no geocoding', async () => {
+  test('stores a new competition with its detail page, located from its postal code and commune', async () => {
     const one = listed('1');
     const report = await sync([one], { 1: detail(one) }).run({ dryRun: false });
-    expect(report).toMatchObject({ aborted: null, added: 1, detailsRead: 1, positions: { fromFfta: 1, geocoded: 0 } });
+    expect(report).toMatchObject({ aborted: null, added: 1, detailsRead: 1, positions: { geocoded: 1 } });
     expect(await rows()).toMatchObject([
       {
         ffta_id: '1',
         title: 'CONCOURS 1',
         department_code: '44',
-        latitude: 47.21,
+        latitude: 47,
+        longitude: -1,
         venue: 'GYMNASE DES TESTS',
         street_lines: '12 RUE DE L EXEMPLE',
         postal_code: '44800',
@@ -144,19 +144,18 @@ describe('SyncFftaCalendar', () => {
         missing_since: null,
       },
     ]);
-    expect(located).toEqual([]);
+    expect(located).toEqual(['44800 SAINT HERBLAIN|44']);
   });
 
-  test('geocodes the commune of the postal line when the FFTA gives no position', async () => {
+  test('falls back to the title’s town when the page has no postal line', async () => {
     const one = listed('1', { town: 'GYMNASE MUNICIPAL' });
-    await sync([one], { 1: detail(one, { position: null }) }).run({ dryRun: false });
-    expect(located).toEqual(['SAINT HERBLAIN|44']);
-    expect(await rows()).toMatchObject([{ latitude: 47, longitude: -1 }]);
+    await sync([one], { 1: detail(one, { postalCode: null, city: null }) }).run({ dryRun: false });
+    expect(located).toEqual(['null GYMNASE MUNICIPAL|44']);
   });
 
   test('a dry run reads everything but writes nothing and geocodes nothing', async () => {
     const one = listed('1');
-    const report = await sync([one], { 1: detail(one, { position: null }) }).run({ dryRun: true });
+    const report = await sync([one], { 1: detail(one) }).run({ dryRun: true });
     expect(report).toMatchObject({ dryRun: true, added: 1, detailsRead: 1, positions: { notTried: 1 } });
     expect(await rows()).toEqual([]);
     expect(located).toEqual([]);

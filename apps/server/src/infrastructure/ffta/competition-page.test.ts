@@ -68,7 +68,6 @@ describe('parseCompetitionPage', () => {
       postalCode: '44800',
       city: 'SAINT HERBLAIN',
       country: 'FRANCE',
-      position: { latitude: 47.2121, longitude: -1.65 },
       departmentCode: '44',
       phone: '0200000000',
       email: 'club@example.org',
@@ -88,7 +87,6 @@ describe('parseCompetitionPage', () => {
       venue: null,
       streetLines: [],
       postalCode: null,
-      position: null,
       departmentCode: '44',
       phone: null,
       email: null,
@@ -102,12 +100,6 @@ describe('parseCompetitionPage', () => {
       page({ status: 'cancel', departmentalCommittee: '', place: '<p>WROCLAW - POLOGNE</p>' }),
     );
     expect(detail).toMatchObject({ departmentCode: null, status: 'cancelled', streetLines: ['WROCLAW - POLOGNE'] });
-  });
-
-  test('ignores the empty "0,0" map point', () => {
-    const place =
-      '<p>44800 SAINT HERBLAIN</p><a href="https://www.google.com/maps/dir/?api=1&amp;destination=0,0">x</a>';
-    expect(parseCompetitionPage('90001', page({ place })).detail?.position).toBeNull();
   });
 
   test('reports a page that is not a competition', () => {

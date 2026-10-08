@@ -365,8 +365,9 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   département codes anyway, 2A/2B shift them). The page (`article.competition_detail`) has the same title, dates,
   status badge (`status--valid/report/cancel`) and discipline, so "re-scrape one competition" needs only it, plus
   "Label : <strong>value</strong>" lines (Championnat, Duels, Comité régional, Comité départemental, Organisateur,
-  Lieu), then the place: bold venue, street lines, "44800 TOWN", country. The **"Itinéraire Google" link holds GPS**
-  (`destination=lat,lng`; 24 of 41 sampled, "0,0" ignored): no geocoding needed for those. Tel / Mail / Site buttons.
+  Lieu), then the place: bold venue, street lines, "44800 TOWN", country. Tel / Mail / Site buttons. The
+  "Itinéraire Google" link also holds a GPS point (`destination=lat,lng`), typed by the organizer: **not read** (some
+  are hundreds of km off, Grosbreuil, Vendée, sat next to Mogadishu; swapping latitude and longitude did not fix it).
 - **Département** (`ffta-department.ts`): the venue's **postal code first** (where archers go; a Yvelines club
   shoots in Eure-et-Loir), else the departmental committee name (accents and signs ignored, longest département
   name wins: "HAUTE LOIRE" beats "LOIRE"), else the regional committee **overseas only** ("PAYS DE LA LOIRE" would
@@ -384,7 +385,11 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   hidden from the public list,
   never deleted; cleared when listed again; only after a complete list). The list's values win over the detail
   page's (they are what the fingerprint covers); `has_foam_targets` and `created_at` are never touched. Position:
-  the FFTA's GPS, else the geocoder on the postal line's commune (else the title's town). Abroad and unreadable
+  always the address service (the app calls no Google API): `geocodeCommune`, the commune with that name **and**
+  that postal code (`postcode` filter), else `geocodeTown` on the commune (else the title's town) in the département.
+  Requests are spaced 60 ms apart and retried after a 429 or 5xx (the service allows 50 per second and answers 429
+  beyond, 504 when busy). `bun run db:relocate [--dry-run]` locates every upcoming competition again the same way
+  (run once in production on 2026-10-09 for the points stored from the FFTA's GPS). Abroad and unreadable
   detail pages are skipped and read again next run; so are the ones beyond `--max-details`.
 - **Safety**: nothing is written if the list cannot be read (Cloudflare), or holds less than half of the upcoming
   competitions already known (once 100+ are known). Cloudflare stopping the detail pages keeps what was read.

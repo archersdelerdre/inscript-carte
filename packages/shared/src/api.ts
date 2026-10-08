@@ -396,7 +396,8 @@ export type ScraperReport = {
   /** Read, but not stored: abroad (no département), or a detail page that could not be read. */
   skippedAbroad: number;
   skippedUnreadable: number;
-  positions: { fromFfta: number; geocoded: number; notFound: number; notTried: number };
+  /** Every position comes from the address service (postal code and commune); a dry run tries none. */
+  positions: { geocoded: number; notFound: number; notTried: number };
   /** `null` when the run read no mandate: a dry run, or no OpenRouter key on this server. */
   mandates: MandateCounts | null;
   problems: string[];

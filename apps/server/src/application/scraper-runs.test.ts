@@ -33,7 +33,7 @@ const report = (aborted: string | null): ScraperReport => ({
   detailsLeft: 0,
   skippedAbroad: 0,
   skippedUnreadable: 0,
-  positions: { fromFfta: 4, geocoded: 0, notFound: 0, notTried: 0 },
+  positions: { geocoded: 4, notFound: 0, notTried: 0 },
   mandates: null,
   problems: [],
   durationMs: 80_000,

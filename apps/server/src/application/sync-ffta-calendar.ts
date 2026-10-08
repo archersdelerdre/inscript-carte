@@ -102,7 +102,7 @@ function emptyReport(dryRun: boolean): ScraperReport {
     detailsLeft: 0,
     skippedAbroad: 0,
     skippedUnreadable: 0,
-    positions: { fromFfta: 0, geocoded: 0, notFound: 0, notTried: 0 },
+    positions: { geocoded: 0, notFound: 0, notTried: 0 },
     mandates: null,
     problems: [],
     durationMs: 0,
@@ -282,7 +282,7 @@ export class SyncFftaCalendar {
     });
   }
 
-  /** The FFTA's own map point, else the address service (never in a dry run), counted in the report. */
+  /** The address service on the postal line (never in a dry run), counted in the report. */
   async #position(
     detail: CompetitionDetail,
     departmentCode: string,
@@ -291,17 +291,12 @@ export class SyncFftaCalendar {
     report: ScraperReport,
     located: Map<string, GeoPosition | null>,
   ): Promise<GeoPosition | null> {
-    if (detail.position) {
-      report.positions.fromFfta++;
-      return detail.position;
-    }
     if (dryRun) {
       report.positions.notTried++;
       return null;
     }
-    // The commune of the postal line names the place better than the title's town.
-    const place = detail.city ?? listedTown;
-    const key = `${place}|${departmentCode}`;
+    const place = { postalCode: detail.postalCode, city: detail.city, town: listedTown };
+    const key = `${place.postalCode}|${place.city ?? place.town}|${departmentCode}`;
     if (!located.has(key)) located.set(key, await this.#locator.locate(place, departmentCode));
     const position = located.get(key) ?? null;
     if (position) report.positions.geocoded++;

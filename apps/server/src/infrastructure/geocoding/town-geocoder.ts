@@ -59,6 +59,21 @@ export async function geocodeTown(town: string, departmentCode: string): Promise
 }
 
 /**
+ * The commune of a postal line (« 85440 GROSBREUIL »): the service's commune with that name and that postal code.
+ * Both must match, so a typo in either gives nothing (the caller falls back to the town) rather than another place.
+ */
+export async function geocodeCommune(postalCode: string, city: string): Promise<GeocodedTown | null> {
+  const query = city.trim();
+  if (query.length < 3 || !/^[\p{L}\d]/u.test(query)) return null;
+  const match = (await search(query, 'municipality', postalCode)).find(
+    (feature) => feature.properties.postcode === postalCode && feature.properties.score >= MIN_SCORE,
+  );
+  if (!match) return null;
+  const [longitude, latitude] = match.geometry.coordinates;
+  return { latitude, longitude, matchedPlace: match.properties.label };
+}
+
+/**
  * A free-text match is kept only if the text names the result's commune (or former commune),
  * or is its postal code: "Rue d'Occitanie" in Sommières is not a match for "Occitanie".
  */
@@ -74,15 +89,39 @@ function namesItsPlace(query: string, feature: Feature): boolean {
   );
 }
 
-async function search(query: string, type?: 'municipality'): Promise<Feature[]> {
+/**
+ * The service allows 50 requests per second per address and answers 429 beyond (seen with 4 lookups at a time,
+ * 2026-10-09): requests start at least this far apart, from every caller of this module.
+ */
+const SPACING_MS = 60;
+/** Waits before trying again after a 429 or a 5xx (the service also times out with 504 when busy). */
+const RETRY_DELAYS_MS = [1000, 3000, 8000];
+let nextSlot = 0;
+
+async function waitForSlot(): Promise<void> {
+  const now = Date.now();
+  const slot = Math.max(now, nextSlot);
+  nextSlot = slot + SPACING_MS;
+  if (slot > now) await Bun.sleep(slot - now);
+}
+
+async function search(query: string, type?: 'municipality', postcode?: string): Promise<Feature[]> {
   const url = new URL(SEARCH_URL);
   url.searchParams.set('q', query);
   url.searchParams.set('limit', '20');
   if (type) url.searchParams.set('type', type);
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Geocoding "${query}" failed: HTTP ${response.status}`);
-  const body = (await response.json()) as { features: Feature[] };
-  return body.features;
+  if (postcode) url.searchParams.set('postcode', postcode);
+  for (let attempt = 0; ; attempt++) {
+    await waitForSlot();
+    const response = await fetch(url);
+    if (response.ok) return ((await response.json()) as { features: Feature[] }).features;
+    const retryable = response.status === 429 || response.status >= 500;
+    const delay = RETRY_DELAYS_MS[attempt];
+    if (!retryable || delay === undefined) {
+      throw new Error(`Geocoding "${query}" failed: HTTP ${response.status}`);
+    }
+    await Bun.sleep(delay);
+  }
 }
 
 /** A town outside the département is trusted only when no other French commune has the same name. */
