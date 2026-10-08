@@ -8,6 +8,32 @@ const PAGE_TIMEOUT_MS = 30_000;
 /** Cloudflare shows this title while it checks the browser, and keeps it when it refuses. */
 const CLOUDFLARE_TITLE = 'Just a moment';
 
+/**
+ * The only places Chrome may reach: the FFTA site and all its subdomains (`www.`, `extranet.`…), and Cloudflare's
+ * harder check (Turnstile), which the FFTA's Cloudflare can show. On 2026-10-08 the pages only called www and
+ * extranet.ffta.fr. Everything else is refused: Chrome runs without its sandbox in Docker, this keeps it on one site.
+ */
+const ALLOWED_DOMAINS = ['ffta.fr'];
+const ALLOWED_HOSTS = ['challenges.cloudflare.com'];
+/** Content made inside the page itself: nothing is downloaded. */
+const LOCAL_SCHEMES = ['data:', 'blob:', 'about:'];
+
+/** `https` only, and the exact host or one of its subdomains: "evilffta.fr" or "ffta.fr.evil.com" are refused. */
+export function isAllowedUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (LOCAL_SCHEMES.includes(parsed.protocol)) return true;
+  if (parsed.protocol !== 'https:') return false;
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+  return (
+    ALLOWED_HOSTS.includes(host) || ALLOWED_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`))
+  );
+}
+
 /** Cloudflare refused the browser: nothing read after this can be trusted. */
 export class CloudflareBlockedError extends Error {
   readonly url: string;
@@ -33,21 +59,22 @@ export class FftaBrowser {
     this.#page = page;
   }
 
-  static async open(executablePath: string): Promise<FftaBrowser> {
+  static async open(executablePath: string, { noSandbox = false } = {}): Promise<FftaBrowser> {
     const browser: Browser = await puppeteer.launch({
       executablePath,
       headless: true,
       // Talk to Chrome through a pipe: when the scraper process dies (even `kill -9`), the pipe closes and Chrome
       // quits by itself instead of staying in memory (seen with the default WebSocket, 2026-10-08).
       pipe: true,
-      // Docker gives /dev/shm only 64 MB, too little for Chrome.
-      args: ['--disable-dev-shm-usage'],
+      // Docker gives /dev/shm only 64 MB, too little for Chrome. No sandbox only where it cannot start (`config`).
+      args: ['--disable-dev-shm-usage', ...(noSandbox ? ['--no-sandbox'] : [])],
     });
     const page = await browser.newPage();
-    // Only the HTML is needed: images, fonts and videos are not downloaded.
+    // Only the HTML is needed: images, fonts and videos are not downloaded; and nothing outside the FFTA's site.
     await page.setRequestInterception(true);
     page.on('request', (request) => {
-      if (['image', 'font', 'media'].includes(request.resourceType())) void request.abort();
+      const isMedia = ['image', 'font', 'media'].includes(request.resourceType());
+      if (isMedia || !isAllowedUrl(request.url())) void request.abort('blockedbyclient');
       else void request.continue();
     });
     return new FftaBrowser(browser, page);

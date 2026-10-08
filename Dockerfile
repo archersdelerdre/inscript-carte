@@ -43,6 +43,17 @@ COPY apps/server/package.json apps/server/
 COPY packages/shared/package.json packages/shared/
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @inscript-carte/server
 
+# Headless Chrome for the FFTA scraper (www.ffta.fr is behind Cloudflare): the light build, at the version tested
+# with the stealth plugin. `--install-deps` adds the system libraries Chrome needs. Linux builds exist for amd64 only.
+ARG CHROME_VERSION=155.0.8059.39
+RUN apt-get update \
+  && bunx @puppeteer/browsers@2 install chrome-headless-shell@${CHROME_VERSION} --path /opt/chrome --install-deps \
+  && rm -rf /var/lib/apt/lists/* /root/.bun/install/cache
+# A container gives Chrome no user namespaces for its sandbox (`CHROME_NO_SANDBOX`): it only opens www.ffta.fr,
+# as the `bun` user.
+ENV CHROME_PATH=/opt/chrome/chrome-headless-shell/linux-${CHROME_VERSION}/chrome-headless-shell-linux64/chrome-headless-shell \
+    CHROME_NO_SANDBOX=1
+
 # Bun runs the TypeScript sources directly; the shared package is used as source too.
 COPY packages/shared/src packages/shared/src
 COPY apps/server/src apps/server/src

@@ -59,6 +59,19 @@ on 2026-10-07: with one migration it only dropped every table); to start over, s
   `/app/VERSION`, read from `.git/HEAD` and refs (allowed in `.dockerignore`, no history), else from
   `--build-arg GIT_COMMIT=...`, else `unknown`. In development it asks git and adds "+ uncommitted changes".
 - Behind HTTPS, the reverse proxy must send `X-Forwarded-Proto: https` so the session cookie gets `Secure`.
+- The proxy in production is **Caddy**: it flushes `text/event-stream` responses at once (also through `encode`,
+  which skips SSE), so the scraper's live page needs no proxy setting.
+- **Chrome in the image** for the FFTA scraper: `chrome-headless-shell` at `CHROME_VERSION` (the version tested with
+  the stealth plugin), installed with its system libraries by `@puppeteer/browsers --install-deps`; `CHROME_PATH` is
+  set, so the server turns the scraper on. The image grew from about 86 MB to about 314 MB. Linux builds exist for
+  amd64 only (`--platform=linux/amd64`, as `npm run deploy` already does). To update Chrome, change `CHROME_VERSION`
+  and check a run still passes Cloudflare.
+- **No Chrome sandbox in Docker** (`CHROME_NO_SANDBOX=1`, only in the image), the user's choice (2026-10-08): the
+  sandbox needs user namespaces a container does not give (Docker's seccomp profile and Ubuntu 24.04's AppArmor block
+  them), and `chrome-headless-shell` has no SUID helper. It does not change what Cloudflare sees (checked: a full list
+  and detail pages read in the container). Chrome runs as `bun`, and may only reach `ffta.fr` and its subdomains plus
+  `challenges.cloudflare.com` (`isAllowedUrl` in `ffta-browser.ts`, https only, exact host match, tested against
+  look-alikes): everything else is refused.
 
 ## Server: clean architecture
 
@@ -248,8 +261,8 @@ Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** start
 night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
 every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
 Mandates will be read by a cheap LLM (the user's decision). Built so far: the list, the detail pages, storing them,
-and runs started by the server or by hand, followed live on `/admin/calendrier`. Not yet: Chrome in the Docker
-image, mandates.
+and runs started by the server or by hand, followed live on `/admin/calendrier`, in the Docker image too. Not yet:
+mandates.
 
 - **Runs** (`application/scraper-runs.ts`, table `scraper_runs`, migration `0006`): the server takes the lock, then
   starts `scrape.ts --run <id>` (`ProcessScraperLauncher`, `nice -n 10`, stdout ignored); the process reads its row
@@ -270,7 +283,7 @@ image, mandates.
 - **SSE** (`presentation/http/scraper-events.ts`): the run is written by another process, so the server reads its
   row every second, **only while a page is open**, and pushes the status when it changed; a keep-alive comment every
   15 s. Bun closes idle connections after 10 s: the route calls `server.timeout(request, 0)`. `x-accel-buffering: no`
-  so nginx does not hold events back (other proxies: turn response buffering off for that path). The client is a
+  so nginx does not hold events back (Caddy, used in production, flushes SSE by itself). The client is a
   plain `EventSource` (reconnects alone); on an error it asks `GET /api/admin/scraper` to tell an expired session.
 
 - **Cloudflare** blocks plain HTTP (403 "Just a moment…", even with browser headers) and a plain headless Chrome.
@@ -278,7 +291,9 @@ image, mandates.
   passes, under Bun (tested 2026-10-08). `chrome-headless-shell` is used: as fast as full Chrome, lighter. Install it
   with `bunx @puppeteer/browsers install chrome-headless-shell@stable --path <dir>` and set `CHROME_PATH` to the
   printed binary. A blocked page throws `CloudflareBlockedError`: a run must then change nothing.
-- `FftaBrowser`: one tab, 1 s between pages, images/fonts/media not downloaded, `--disable-dev-shm-usage` (Docker).
+- `FftaBrowser`: one tab, 1 s between pages, images/fonts/media not downloaded, only `ffta.fr` (and subdomains) and
+  the Cloudflare check reachable, `--disable-dev-shm-usage` (Docker). If Chrome cannot start, the run is marked
+  failed at once, so the lock is not held for nothing.
 - **The list** (`www.ffta.fr/competitions?start=…&end=…&page=N`, one year ahead): 30 cards per page, about 75 pages
   for all of France (2 235 entries on 2026-10-08, about 2 min), read until an empty page. Card markup:
   `article.competition_item`, head class `--valid` / `--report` / `--cancel`, `__dates` ("Le …", "Du … au …", once

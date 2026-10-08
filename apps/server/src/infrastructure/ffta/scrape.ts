@@ -86,7 +86,15 @@ try {
     run = started.run;
   }
 
-  const browser = await FftaBrowser.open(config.chromePath);
+  let browser;
+  try {
+    browser = await FftaBrowser.open(config.chromePath, { noSandbox: config.chromeNoSandbox });
+  } catch (error) {
+    // The lock is taken: the run must not stay "running" until it looks dead.
+    const message = error instanceof Error ? error.message.split('\n')[0] : String(error);
+    await runStore.finish(run.id, 'failed', { error: `Le navigateur n'a pas pu démarrer : ${message}` }, clock.now());
+    throw error;
+  }
   try {
     const sync = new SyncFftaCalendar(
       new BrowserFftaCalendar(browser),

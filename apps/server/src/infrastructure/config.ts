@@ -5,4 +5,9 @@ export const config = {
   clientDistPath: Bun.env.CLIENT_DIST_PATH ?? null,
   /** The `chrome-headless-shell` binary the FFTA scraper drives. Only the scraper needs it. */
   chromePath: Bun.env.CHROME_PATH ?? null,
+  /**
+   * `1` in the Docker image only: a container gives Chrome no user namespaces, so its sandbox cannot start. Chrome
+   * only opens www.ffta.fr pages there, as the non-root `bun` user. Leave unset elsewhere.
+   */
+  chromeNoSandbox: Bun.env.CHROME_NO_SANDBOX === '1',
 };
