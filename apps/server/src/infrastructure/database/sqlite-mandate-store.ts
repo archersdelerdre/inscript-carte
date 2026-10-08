@@ -27,10 +27,12 @@ export class SqliteMandateStore implements MandateStore {
     today,
     maxAttempts,
     fftaIds,
+    force = false,
   }: {
     today: CalendarDate;
     maxAttempts: number;
     fftaIds?: readonly string[];
+    force?: boolean;
   }): Promise<PendingMandate[]> {
     const query = this.#database('competitions as c')
       .leftJoin('competition_mandates as m', 'm.ffta_id', 'c.ffta_id')
@@ -38,12 +40,15 @@ export class SqliteMandateStore implements MandateStore {
       .where('c.end_date', '>=', today)
       .whereNull('c.missing_since')
       .whereNot('c.status', 'cancelled')
-      .where((needed) =>
-        needed
-          .whereNull('m.ffta_id')
-          .orWhereRaw('m.mandate_url <> c.mandate_url')
-          .orWhere((retry) => retry.whereIn('m.status', ['failed', 'invalid']).where('m.attempts', '<', maxAttempts)),
-      )
+      .modify((pending) => {
+        if (force) return;
+        pending.where((needed) =>
+          needed
+            .whereNull('m.ffta_id')
+            .orWhereRaw('m.mandate_url <> c.mandate_url')
+            .orWhere((retry) => retry.whereIn('m.status', ['failed', 'invalid']).where('m.attempts', '<', maxAttempts)),
+        );
+      })
       .orderBy('c.start_date')
       .select(
         'c.ffta_id',

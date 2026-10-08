@@ -14,6 +14,11 @@ export type ReadMandatesOptions = {
   today: CalendarDate;
   /** Only these competitions (an admin's re-scrape of one). */
   fftaIds?: readonly string[];
+  /**
+   * Read them again even when already read, same file included (an admin found a wrong reading). A failed or
+   * refused new reading never replaces a good one.
+   */
+  force?: boolean;
   /** At most this many in one run; the rest waits for the next. */
   limit?: number;
   onProgress?: (done: number, total: number) => void;
@@ -43,11 +48,12 @@ export class ReadMandates {
   async run({
     today,
     fftaIds,
+    force = false,
     limit = Infinity,
     onProgress = () => {},
     onProblem = () => {},
   }: ReadMandatesOptions): Promise<MandateCounts> {
-    const pending = await this.#store.pending({ today, maxAttempts: MAX_MANDATE_ATTEMPTS, fftaIds });
+    const pending = await this.#store.pending({ today, maxAttempts: MAX_MANDATE_ATTEMPTS, fftaIds, force });
     const reading = pending.slice(0, limit);
     const counts: MandateCounts = {
       read: 0,
@@ -62,7 +68,7 @@ export class ReadMandates {
     const queue = [...reading];
     const worker = async () => {
       for (let next = queue.shift(); next; next = queue.shift()) {
-        const problem = await this.#readOne(next, counts);
+        const problem = await this.#readOne(next, counts, force);
         if (problem) onProblem(next.fftaId, problem);
         onProgress(++done, reading.length);
       }
@@ -73,10 +79,17 @@ export class ReadMandates {
   }
 
   /** The reason it was not read, if it was not. */
-  async #readOne(mandate: PendingMandate, counts: MandateCounts): Promise<string | null> {
+  async #readOne(mandate: PendingMandate, counts: MandateCounts, force: boolean): Promise<string | null> {
     const { fftaId, mandateUrl, previous } = mandate;
-    const attempts = (previous?.mandateUrl === mandateUrl ? previous.attempts : 0) + 1;
+    const attempts = (!force && previous?.mandateUrl === mandateUrl ? previous.attempts : 0) + 1;
     const base = { fftaId, mandateUrl, attempts, rawAnswer: null, model: null, costUsd: null, data: null };
+    // A forced re-read that goes wrong keeps the good reading there was.
+    const keepsGood = force && previous?.status === 'parsed';
+    const failure = async (problem: string, reading: () => Promise<void>) => {
+      if (keepsGood) return `${problem} La lecture précédente du mandat est gardée.`;
+      await reading();
+      return problem;
+    };
 
     let document;
     try {
@@ -85,17 +98,18 @@ export class ReadMandates {
       counts.failed++;
       // The download, or turning the PDF into pages: both happen before the LLM.
       const problems = [`Le mandat n’a pas pu être ouvert : ${messageOf(error)}.`];
-      await this.#store.save({
-        ...base,
-        sha256: null,
-        status: 'failed',
-        problems,
-        pageCount: null,
-        readAt: this.#clock.now(),
-      });
-      return problems[0]!;
+      return failure(problems[0]!, () =>
+        this.#store.save({
+          ...base,
+          sha256: null,
+          status: 'failed',
+          problems,
+          pageCount: null,
+          readAt: this.#clock.now(),
+        }),
+      );
     }
-    if (previous?.status === 'parsed' && previous.sha256 === document.sha256) {
+    if (!force && previous?.status === 'parsed' && previous.sha256 === document.sha256) {
       counts.unchanged++;
       await this.#store.keepReading(fftaId, mandateUrl, this.#clock.now());
       return null;
@@ -108,8 +122,9 @@ export class ReadMandates {
     } catch (error) {
       counts.failed++;
       const problems = [`La lecture du mandat n’a pas abouti : ${messageOf(error)}.`];
-      await this.#store.save({ ...saved, status: 'failed', problems, readAt: this.#clock.now() });
-      return problems[0]!;
+      return failure(problems[0]!, () =>
+        this.#store.save({ ...saved, status: 'failed', problems, readAt: this.#clock.now() }),
+      );
     }
     counts.costUsd += answer.costUsd ?? 0;
 
@@ -122,7 +137,8 @@ export class ReadMandates {
     }
     counts.invalid++;
     const rawAnswer = JSON.stringify(answer.answer);
-    await this.#store.save({ ...reading, status: 'invalid', rawAnswer, problems: check.problems });
-    return `La réponse du LLM a été refusée par les contrôles (${check.problems[0]}).`;
+    return failure(`La réponse du LLM a été refusée par les contrôles (${check.problems[0]}).`, () =>
+      this.#store.save({ ...reading, status: 'invalid', rawAnswer, problems: check.problems }),
+    );
   }
 }

@@ -294,8 +294,9 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
 - **Mandates** (`application/read-mandates.ts`, table `competition_mandates`, migration `0007`, one row per
   competition): after the save, every upcoming, listed, not cancelled competition whose mandate link has no reading,
   a reading of another link, or a failed one (fewer than 3 tries per link) is read, soonest first, 3 at a time
-  (they don't touch www.ffta.fr). `--max-mandates N` caps a run; "Mettre à jour un concours" reads its mandate too;
-  a dry run reads none.
+  (they don't touch www.ffta.fr). `--max-mandates N` caps a run; a dry run reads none. "Mettre à jour un concours"
+  reads its mandate **again** (`force`), even already read or the same file: an admin who sees a wrong reading gets a
+  new one. A forced reading that fails or is refused keeps the previous good one (the run says so).
   - `PdfMandateFetcher`: plain HTTP (extranet.ffta.fr is not behind Cloudflare), `https://*.ffta.fr` only (also
     after redirects), 10 MB max, must start with `%PDF-`. poppler (`poppler-utils` in the image, `brew install
     poppler` on a Mac): first 6 pages as JPEG at 110 DPI (about 80–200 KB each) + `pdftotext -layout`.

@@ -258,14 +258,15 @@ export class SyncFftaCalendar {
     if (!dryRun) {
       onProgress({ step: 'saving' });
       await this.#store.saveDetail(detail, detail.departmentCode, position, this.#clock.now());
-      await this.#readMandates(report, { today: this.#clock.today(), fftaIds: [fftaId] }, onProgress);
+      // An admin asked for this one: its mandate is read again, even when it was read before.
+      await this.#readMandates(report, { today: this.#clock.today(), fftaIds: [fftaId], force: true }, onProgress);
     }
     return finish();
   }
 
   async #readMandates(
     report: ScraperReport,
-    options: { today: CalendarDate; fftaIds?: string[]; limit?: number },
+    options: { today: CalendarDate; fftaIds?: string[]; force?: boolean; limit?: number },
     onProgress: (progress: ScraperProgress) => void,
   ): Promise<void> {
     if (!this.#mandates) {

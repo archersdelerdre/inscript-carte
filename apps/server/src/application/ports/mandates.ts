@@ -56,12 +56,14 @@ export type MandateReading = {
 export interface MandateStore {
   /**
    * Upcoming, listed, not cancelled competitions with a mandate link that has no reading yet, a reading of another
-   * link, or a failed one tried fewer than `maxAttempts` times. Soonest first. `fftaIds` narrows to those.
+   * link, or a failed one tried fewer than `maxAttempts` times. Soonest first. `fftaIds` narrows to those. `force`
+   * takes every one with a mandate, already read or not (an admin asks to read a competition again).
    */
   pending(options: {
     today: CalendarDate;
     maxAttempts: number;
     fftaIds?: readonly string[];
+    force?: boolean;
   }): Promise<PendingMandate[]>;
   /** Also sets the competition's foam targets flag from a `parsed` reading ("yes" only). */
   save(reading: MandateReading): Promise<void>;

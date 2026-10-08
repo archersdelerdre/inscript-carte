@@ -41,7 +41,7 @@ const extractor: MandateExtractor = {
     return { answer: answers[document.sha256], model: 'z-ai/glm-5.3-flash', costUsd: 0.0013 };
   },
 };
-const read = (options: { fftaIds?: string[]; limit?: number } = {}) =>
+const read = (options: { fftaIds?: string[]; limit?: number; force?: boolean } = {}) =>
   new ReadMandates(fetcher, extractor, store, clock).run({ today: TODAY, ...options });
 
 /** Every column given, so a multi-row insert never turns a missing one into NULL. */
@@ -164,4 +164,37 @@ test('reads at most `limit` mandates, soonest first, and one competition when as
   expect(await read({ limit: 1 })).toMatchObject({ read: 1, left: 1 });
   expect(llmCalls).toEqual(['hash-s']);
   expect(await read({ fftaIds: ['later'] })).toMatchObject({ read: 1, left: 0 });
+});
+
+test('an admin can have a mandate read again, same file included; a failed re-read keeps the good reading', async () => {
+  await database('competitions').insert(competition('1'));
+  files = { [urlOf('1')]: 'hash-1' };
+  answers = { 'hash-1': goodAnswer() };
+  await read();
+
+  // Read again on request, though nothing changed: the new answer replaces the old one.
+  answers = { 'hash-1': goodAnswer('yes') };
+  expect(await read({ fftaIds: ['1'], force: true })).toMatchObject({ read: 1, unchanged: 0 });
+  expect(llmCalls).toEqual(['hash-1', 'hash-1']);
+  expect(JSON.parse((await mandateRow('1')).data).foamTargets).toBe('yes');
+
+  // Refused, then not downloadable: the good reading stays, and the run says so.
+  const problems: string[] = [];
+  const again = (options: { force: boolean }) =>
+    new ReadMandates(fetcher, extractor, store, clock).run({
+      today: TODAY,
+      fftaIds: ['1'],
+      ...options,
+      onProblem: (_, problem) => problems.push(problem),
+    });
+  answers = { 'hash-1': { ...goodAnswer(), prices: [{ audience: 'adult', departures: 1, amountEuros: 900 }] } };
+  expect(await again({ force: true })).toMatchObject({ invalid: 1 });
+  files = { [urlOf('1')]: new Error('the FFTA server answers 500') };
+  expect(await again({ force: true })).toMatchObject({ failed: 1 });
+  expect(await mandateRow('1')).toMatchObject({ status: 'parsed' });
+  expect(JSON.parse((await mandateRow('1')).data).foamTargets).toBe('yes');
+  expect(problems.every((problem) => problem.endsWith('La lecture précédente du mandat est gardée.'))).toBe(true);
+
+  // Without the request, a good reading is left alone.
+  expect(await again({ force: false })).toMatchObject({ read: 0, failed: 0 });
 });
