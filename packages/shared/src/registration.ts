@@ -47,6 +47,17 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   paid: 'Payé',
 };
 
+/**
+ * A départ the club no longer counts on ("Plus de place", "Annulée") has nothing to pay while it is not paid: the
+ * panel shows "Rien à payer" instead of "En attente de paiement". Derived, not stored: a départ put back to another
+ * status is due again. A départ already paid stays "Payé" (the club may have to pay it back).
+ */
+export function isPaymentDue(status: RegistrationStatus, paymentStatus: PaymentStatus): boolean {
+  return paymentStatus === 'to_pay' && status !== 'full' && status !== 'cancelled';
+}
+
+export const NOTHING_TO_PAY_LABEL = 'Rien à payer';
+
 /** How the archer will pay the club; chosen when registering. */
 export const PAYMENT_METHODS = ['cash', 'cheque', 'transfer'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];

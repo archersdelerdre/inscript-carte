@@ -1,5 +1,6 @@
 import {
   canChangeStatus,
+  isPaymentDue,
   PAYMENT_STATUSES,
   REGISTRATION_STATUSES,
   type PaymentStatus,
@@ -147,10 +148,11 @@ export class AdminRegistrations {
     );
     if (registrations.length === 0) return { ok: false, reason: 'not_found' };
     const today = this.#clock.today();
-    await this.#registrations.save(
-      registrations.map((registration) => changeOf(registration, update, today)),
-      admin.licenceNumber,
-    );
+    const changes = registrations.flatMap((registration) => {
+      const rowUpdate = forReferenceRow(registration, update);
+      return rowUpdate ? [changeOf(registration, rowUpdate, today)] : [];
+    });
+    if (changes.length > 0) await this.#registrations.save(changes, admin.licenceNumber);
     return { ok: true };
   }
 }
@@ -167,9 +169,20 @@ function summarize(
   let toPayCount = 0;
   for (const { status, paymentStatus, count } of counts) {
     statusCounts[status] += count;
-    if (status !== 'cancelled' && paymentStatus === 'to_pay') toPayCount += count;
+    if (isPaymentDue(status, paymentStatus)) toPayCount += count;
   }
   return { competition, isFinished: isFinished(competition, today), statusCounts, toPayCount };
+}
+
+/**
+ * "Tout marquer payé" leaves the "Plus de place" départs with nothing to pay as they are: nothing is due on them.
+ * `null` when the row is left untouched, so it does not show this admin as the last one who changed it.
+ */
+function forReferenceRow(registration: Registration, update: RegistrationUpdate): RegistrationUpdate | null {
+  const status = update.status ?? registration.status;
+  if (update.paymentStatus !== 'paid' || isPaymentDue(status, registration.paymentStatus)) return update;
+  if (update.status === undefined) return null;
+  return { ...update, paymentStatus: registration.paymentStatus };
 }
 
 /** `null` when the form is not valid or changes nothing. */

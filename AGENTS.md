@@ -164,7 +164,7 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   attente de paiement" otherwise), a pencil **icon button** for the note. The note and "Modifié par" go under the
   line only when present; cancelled lines are dimmed (the user asked for more contrast and a smaller note button,
   2026-10-07). A card **starts closed only when nothing is left to do** (user's rule, 2026-10-08): every active départ
-  is paid and "Validée" or "Plus de place" (a card where everything is cancelled is closed too). The "Tout est payé
+  is "Plus de place", or "Validée" and paid (a card where everything is cancelled is closed too). The "Tout est payé
   · N départs" badge only says the payment. The header toggles the card; it does not close by itself after a change.
   A **search field** above the cards (name, licence
   or reference, `lib/search.ts`, accents ignored) opens every card found; it does not change the Excel file.
@@ -172,6 +172,11 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   l'organisateur" button sits at the right of the filter row, its count on its left, and **follows these filters**:
   the user usually sends only the paid départs. "Plus de place" and "Annulée" never go in the file. The payment label
   of `to_pay` is "En attente de paiement" (user's wording, 2026-10-07; not the old status of that name).
+- **"Rien à payer"** (asked by a member, 2026-10-08): a "Plus de place" or cancelled départ not paid has nothing to
+  pay (`isPaymentDue` in `shared/src/registration.ts`). Derived, never stored: `payment_status` stays `to_pay`, so
+  putting the départ back to another status makes it due again. The row shows a half-ticked, greyed, disabled
+  checkbox; the "à payer" counts, the "En attente de paiement" filter and "Mon suivi" leave it out, and "Tout marquer
+  payé" skips it (no `updated_by` on it either). A départ already paid stays "Payé" (the club may owe a refund).
 - "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
   "⋯" menu per row (Désactiver / Réactiver, Nommer admin / Retirer les droits d'admin, each with a confirmation; the
   admin's own row shows "Vous"). The actions column is pinned to the right so phones see it. The upload is in the

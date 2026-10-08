@@ -5,6 +5,8 @@ import {
   canChangeStatus,
   categoryLabel,
   DISTANCE_LABELS,
+  isPaymentDue,
+  NOTHING_TO_PAY_LABEL,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   REGISTRATION_STATUS_LABELS,
@@ -174,10 +176,11 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   const shown = registrations.filter(
     (registration) =>
       (statusFilter === ALL || registration.status === statusFilter) &&
-      // "En attente de paiement" leaves cancelled départs out: nobody has to pay for them.
+      // "En attente de paiement" leaves out the départs with nothing to pay (cancelled, "Plus de place").
       (paymentFilter === ALL ||
-        (registration.paymentStatus === paymentFilter &&
-          (paymentFilter === 'paid' || registration.status !== 'cancelled'))),
+        (paymentFilter === 'paid'
+          ? registration.paymentStatus === 'paid'
+          : isPaymentDue(registration.status, registration.paymentStatus))),
   );
   // The search only narrows what is shown: the Excel file follows the status and payment filters alone.
   const groups = groupByReference(shown, registrations).filter((group) =>
@@ -374,7 +377,10 @@ function ReferenceCard({
   onReferencePayment,
 }: ReferenceCardProps) {
   const [first] = group.rows as [AdminRegistrationDto, ...AdminRegistrationDto[]];
-  const allPaid = group.activeRows.length > 0 && group.activeRows.every((row) => row.paymentStatus === 'paid');
+  const paidCount = group.activeRows.filter((row) => row.paymentStatus === 'paid').length;
+  const dueRows = group.activeRows.filter((row) => isPaymentDue(row.status, row.paymentStatus));
+  // "Plus de place" départs not paid have nothing to pay: they do not stop "Tout est payé".
+  const allPaid = paidCount > 0 && dueRows.length === 0;
   // The reference actions are only worth showing when they change more than one départ.
   const showReferenceActions = group.activeRows.length > 1;
   const referenceStatuses = REGISTRATION_STATUSES.filter((status) =>
@@ -388,11 +394,10 @@ function ReferenceCard({
   // cancelled ones aside. Their card starts closed. It does not close by itself after a change, so the admin keeps
   // seeing what they just did.
   const finished = group.activeRows.every(
-    (row) => row.paymentStatus === 'paid' && (row.status === 'confirmed' || row.status === 'full'),
+    (row) => row.status === 'full' || (row.status === 'confirmed' && row.paymentStatus === 'paid'),
   );
   const [open, setOpen] = useState(!finished);
   const expanded = open || forceOpen;
-  const departureCount = group.activeRows.length;
 
   return (
     <section className='bg-card overflow-hidden rounded-lg border shadow-sm'>
@@ -419,7 +424,7 @@ function ReferenceCard({
               <span className='text-base leading-snug font-semibold'>{first.fullName}</span>
               {allPaid && (
                 <Badge className='bg-green-100 text-green-900'>
-                  Tout est payé · {departureCount} {departureCount > 1 ? 'départs' : 'départ'}
+                  Tout est payé · {paidCount} {paidCount > 1 ? 'départs' : 'départ'}
                 </Badge>
               )}
               {group.activeRows.some((row) => row.carpool) && (
@@ -462,9 +467,11 @@ function ReferenceCard({
                 ))}
               </SelectContent>
             </Select>
-            <Button variant='outline' onClick={() => onReferencePayment(allPaid ? 'to_pay' : 'paid')}>
-              {allPaid ? 'Tout remettre en attente de paiement' : 'Tout marquer payé'}
-            </Button>
+            {(paidCount > 0 || dueRows.length > 0) && (
+              <Button variant='outline' onClick={() => onReferencePayment(allPaid ? 'to_pay' : 'paid')}>
+                {allPaid ? 'Tout remettre en attente de paiement' : 'Tout marquer payé'}
+              </Button>
+            )}
           </div>
         )}
       </header>
@@ -501,6 +508,7 @@ type DepartureRowProps = {
 function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRowProps) {
   const cancelled = registration.status === 'cancelled';
   const paid = registration.paymentStatus === 'paid';
+  const nothingToPay = !paid && !isPaymentDue(registration.status, registration.paymentStatus);
   const details = [
     BOW_TYPE_LABELS[registration.bowType],
     registration.trispot && 'Trispot',
@@ -539,12 +547,20 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
         )}
 
         {/* Ticked = paid. A cancelled départ that was paid still says so: the club may have to pay it back. */}
-        {cancelled ? (
+        {cancelled && (
           <span className='text-sm font-medium text-green-800'>
             {paid && PAYMENT_STATUS_LABELS.paid}
             {paid && paymentMethod}
           </span>
-        ) : (
+        )}
+        {/* "Plus de place" and not paid: half-ticked and greyed, nothing to pay (the status gives it back). */}
+        {!cancelled && nothingToPay && (
+          <label className='flex min-h-10 items-center gap-2.5'>
+            <Checkbox checked='indeterminate' disabled aria-label={NOTHING_TO_PAY_LABEL} />
+            <span className='text-muted-foreground text-sm font-medium'>{NOTHING_TO_PAY_LABEL}</span>
+          </label>
+        )}
+        {!cancelled && !nothingToPay && (
           <label className='flex min-h-10 cursor-pointer items-center gap-2.5'>
             <Checkbox
               checked={paid}

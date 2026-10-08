@@ -2,6 +2,7 @@ import {
   apiPath,
   API_ROUTES,
   BOW_TYPE_LABELS,
+  isPaymentDue,
   type ListMyRegistrationsResponse,
   type MyRegistrationDto,
   type SignedInArcher,
@@ -135,7 +136,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                         </Badge>
                       )}
                     </div>
-                    {registration.paymentStatus === 'to_pay' && (
+                    {isPaymentDue(registration.status, registration.paymentStatus) && (
                       <p className='text-sm'>
                         En attente de paiement : à régler avant le {formatDay(registration.clubRegistrationDeadline)}
                         {registration.paymentMethod && `, ${PAYMENT_METHOD_PHRASES[registration.paymentMethod]}`},

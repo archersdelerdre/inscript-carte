@@ -753,6 +753,33 @@ describe('admin registrations', () => {
     ]);
   });
 
+  test('a "Plus de place" départ not paid has nothing to pay', async () => {
+    await registerBoth();
+    const [first] = await adminRegistrations(cookie);
+    await call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body: { status: 'full' } });
+    const toPay = async () => {
+      const response = await call('/api/admin/competitions', { cookie });
+      const { competitions } = (await response.json()) as ListAdminCompetitionsResponse;
+      return competitions.find(({ id }) => id === SALLE)?.toPayCount;
+    };
+    expect(await toPay()).toBe(2);
+
+    // Marking the whole reference paid leaves the refused départ as it is.
+    await call('/api/admin/payment-references/R-0001', { method: 'PATCH', cookie, body: { paymentStatus: 'paid' } });
+    expect(
+      (await adminRegistrations(cookie)).map(({ paymentReference, status, paymentStatus }) => [
+        paymentReference,
+        status,
+        paymentStatus,
+      ]),
+    ).toEqual([
+      ['R-0001', 'full', 'to_pay'],
+      ['R-0001', 'received', 'paid'],
+      ['R-0002', 'received', 'to_pay'],
+    ]);
+    expect(await toPay()).toBe(1);
+  });
+
   test('a whole payment reference can go back to "Reçue"', async () => {
     await registerBoth();
     await call('/api/admin/payment-references/R-0001', { method: 'PATCH', cookie, body: { status: 'confirmed' } });
