@@ -36,7 +36,7 @@ club members (why and for whom the project exists, no technical content).
 | `bun run --cwd apps/server db:import-archers <export.xlsx>` | sync the club member list (FFTA extranet export) |
 | `bun run --cwd apps/server db:add-admin <licence>` | make an active member an admin, or change their password (typed hidden) |
 | `bun run --cwd apps/server db:remove-admin <licence>` | remove an admin (ends their admin sessions) |
-| `CHROME_PATH=… bun run --cwd apps/server scrape:check` | read the whole FFTA calendar and print counts and problems; writes nothing |
+| `CHROME_PATH=… bun run --cwd apps/server scrape [--dry-run] [--max-details N]` | one FFTA scraper run (counts only in the output); `--dry-run` reads everything and writes nothing |
 
 Migrations run **when the server starts** (`main.ts`), before it accepts requests. There is no rollback command (removed
 on 2026-10-07: with one migration it only dropped every table); to start over, stop the server and delete the
@@ -244,8 +244,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** started by the server (`Bun.spawn`) at
 night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
 every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
-Mandates will be read by a cheap LLM (the user's decision). Built so far: reading the list and detail pages
-(`scrape:check`), nothing written yet.
+Mandates will be read by a cheap LLM (the user's decision). Built so far: the list, the detail pages, and storing
+them (`scrape`). Not yet: spawning from the server, the lock, SSE, the admin UI, mandates.
 
 - **Cloudflare** blocks plain HTTP (403 "Just a moment…", even with browser headers) and a plain headless Chrome.
   `puppeteer-core` + `puppeteer-extra` stealth (`addExtra(puppeteerCore)`: its own types expect the full `puppeteer`)
@@ -276,6 +276,20 @@ Mandates will be read by a cheap LLM (the user's decision). Built so far: readin
   378 merged and 23 alone on 2026-10-08. Open question: 35 groups of normal entries share title, day and town (some
   the same event twice with and without a type, some Loisirs next to Salle, some different organizers): all kept
   for now.
+- **Storing** (`application/sync-ffta-calendar.ts`, ports in `application/ports/`, migration `0005` columns:
+  championship, duels, committees, phone, website, venue, street lines, postal code, city, country,
+  `list_fingerprint`, `detail_read_at`, `last_listed_at`, `missing_since`). `planSync` sorts the list read:
+  **new** (detail read, added), **changed** (the list card's fingerprint differs, or a legacy row with none: detail
+  read again), **unchanged** (only `last_listed_at`), **missing** (upcoming, stored, not listed: `missing_since`,
+  never deleted; cleared when listed again; only after a complete list). The list's values win over the detail
+  page's (they are what the fingerprint covers); `has_foam_targets` and `created_at` are never touched. Position:
+  the FFTA's GPS, else the geocoder on the postal line's commune (else the title's town). Abroad and unreadable
+  detail pages are skipped and read again next run; so are the ones beyond `--max-details`.
+- **Safety**: nothing is written if the list cannot be read (Cloudflare), or holds less than half of the upcoming
+  competitions already known (once 100+ are known). Cloudflare stopping the detail pages keeps what was read.
+  Everything is read first, then written in batches of 100, each its own short transaction; the connection has
+  `busy_timeout = 5000` since two processes write. The first run on the legacy data reads every detail page
+  (about 1 900, roughly 35-40 min); later runs only new or changed ones.
 
 ## Client UI decisions (asked by the user, keep them)
 

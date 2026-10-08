@@ -1,48 +1,12 @@
-import type { Discipline } from '@inscript-carte/shared';
 import { parse, type HTMLElement } from 'node-html-parser';
 
-import type { CalendarDate } from '../../domain/calendar-date.ts';
-import type { CompetitionStatus } from '../../domain/competition.ts';
+import type { CompetitionDetail, CompetitionPage } from '../../application/ports/ffta-calendar.ts';
 import {
   departmentFromCommittee,
   departmentFromPostalCode,
   departmentFromRegionalCommittee,
 } from './ffta-department.ts';
 import { fftaDiscipline, fftaStatus, parseFftaDates, splitFftaTitle, textOf as text } from './ffta-values.ts';
-
-/** Everything the detail page of a competition shows (`https://www.ffta.fr/epreuve/<id>`). */
-export type CompetitionDetail = {
-  fftaId: string;
-  title: string;
-  town: string;
-  startDate: CalendarDate;
-  endDate: CalendarDate;
-  status: CompetitionStatus;
-  discipline: Discipline;
-  hasParaTir: boolean;
-  /** "Individuel Tir à 18m 2027": the championship the competition counts for. */
-  championship: string | null;
-  hasDuels: boolean | null;
-  regionalCommittee: string | null;
-  departmentalCommittee: string | null;
-  organizerClub: string | null;
-  /** "GYMNASE ECHANNEAUX": the bold line(s) under "Lieu". */
-  venue: string | null;
-  streetLines: string[];
-  postalCode: string | null;
-  city: string | null;
-  country: string | null;
-  /** From the "Itinéraire Google" link, when the organizer placed the competition on the map. */
-  position: { latitude: number; longitude: number } | null;
-  /** The venue's postal code first (where the archers go), else the departmental committee, else (overseas only) the regional one. */
-  departmentCode: string | null;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
-  mandateUrl: string | null;
-};
-
-export type CompetitionPage = { detail: CompetitionDetail | null; problems: string[] };
 
 const POSTAL_LINE = /^(\d{5})\s+(.+)$/;
 const GOOGLE_DESTINATION = /destination=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/;

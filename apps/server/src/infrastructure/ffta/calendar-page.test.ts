@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
-import { mergeParaTir, parseCalendarPage, type ListedCompetition } from './calendar-page.ts';
+import type { ListedCompetition } from '../../application/ports/ffta-calendar.ts';
+import { mergeParaTir, parseCalendarPage } from './calendar-page.ts';
 
 /** The FFTA card markup (www.ffta.fr/competitions, 2026-10), with made-up clubs. */
 function card({

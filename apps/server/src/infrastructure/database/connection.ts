@@ -18,6 +18,8 @@ export function createDatabase(filename: string): Knex {
       afterCreate(connection: SqliteConnection, done: (error: Error | null) => void) {
         connection.pragma('foreign_keys = ON');
         connection.pragma('journal_mode = WAL');
+        // Two processes write (the server, the FFTA scraper): a writer waits for the other instead of failing.
+        connection.pragma('busy_timeout = 5000');
         done(null);
       },
     },

@@ -12,7 +12,7 @@
     "db:import-archers": "bun src/infrastructure/database/import-archers.ts",
     "db:add-admin": "bun src/infrastructure/database/add-admin.ts",
     "db:remove-admin": "bun src/infrastructure/database/remove-admin.ts",
-    "scrape:check": "bun src/infrastructure/ffta/check-calendar.ts"
+    "scrape": "bun src/infrastructure/ffta/scrape.ts"
   },
   "dependencies": {
     "@inscript-carte/shared": "workspace:*",

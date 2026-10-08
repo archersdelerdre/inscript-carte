@@ -1,28 +1,9 @@
-import type { Discipline } from '@inscript-carte/shared';
 import { parse, type HTMLElement } from 'node-html-parser';
 
-import type { CalendarDate } from '../../domain/calendar-date.ts';
-import type { CompetitionStatus } from '../../domain/competition.ts';
+import type { ListedCompetition } from '../../application/ports/ffta-calendar.ts';
 import { fftaDiscipline, fftaStatus, parseFftaDates, splitFftaTitle, textOf as text } from './ffta-values.ts';
 
-/** One competition as the FFTA calendar list shows it (`https://www.ffta.fr/competitions`). */
-export type ListedCompetition = {
-  fftaId: string;
-  /** The FFTA title without its " à TOWN" end. */
-  title: string;
-  /** What follows the last " à " of the FFTA title. */
-  town: string;
-  startDate: CalendarDate;
-  endDate: CalendarDate;
-  status: CompetitionStatus;
-  discipline: Discipline;
-  hasParaTir: boolean;
-  organizerClub: string | null;
-  organizerEmail: string | null;
-  mandateUrl: string | null;
-};
-
-/** What the page holds: the competitions read, and what could not be read (FFTA text, never personal data). */
+/** One page of `https://www.ffta.fr/competitions`: the cards read, and what could not be read. */
 export type CalendarPage = { competitions: ListedCompetition[]; problems: string[] };
 
 /** `null` (with a problem) when a card cannot be read: one odd card never stops the whole page. */
