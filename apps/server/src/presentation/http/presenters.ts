@@ -87,6 +87,8 @@ export function toAdminCompetitionDto({
     town: competition.town,
     departmentCode: competition.departmentCode,
     mandateUrl: competition.mandateUrl,
+    departures: competition.departures ? [...competition.departures] : null,
+    prices: competition.prices ? [...competition.prices] : null,
     isPostponed: competition.status === 'postponed',
     isCancelled: competition.status === 'cancelled',
     isFinished,

@@ -30,7 +30,9 @@ function details(departure: MandateDeparture, severalDays: boolean): string | nu
 }
 
 /** The départs the archer may pick: the mandate's when it was read, else 1 to `DEFAULT_DEPARTURE_COUNT`. */
-export function departureOptions(competition: CompetitionDto): DepartureOption[] {
+export function departureOptions(
+  competition: Pick<CompetitionDto, 'departures' | 'startDate' | 'endDate'>,
+): DepartureOption[] {
   if (!competition.departures) {
     return Array.from({ length: DEFAULT_DEPARTURE_COUNT }, (_, index) => ({
       number: index + 1,

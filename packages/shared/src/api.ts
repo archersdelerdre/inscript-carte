@@ -1,6 +1,6 @@
 import type { Discipline } from './discipline.ts';
 import type { AgeCategory } from './ffta-category.ts';
-import type { MandateDeparture } from './mandate.ts';
+import type { MandateDeparture, MandatePrice } from './mandate.ts';
 import type { BowType, Distance, PaymentMethod, PaymentStatus, RegistrationStatus, Sex } from './registration.ts';
 
 /** Bun route patterns; the client fills the `:params` with `apiPath`. */
@@ -223,6 +223,9 @@ export type AdminCompetitionDto = {
   town: string;
   departmentCode: string;
   mandateUrl: string | null;
+  /** What the mandate says, from a checked reading of its current link; `null` when not read or not given. */
+  departures: MandateDeparture[] | null;
+  prices: MandatePrice[] | null;
   isPostponed: boolean;
   /** Cancelled by the organizer while the club still has registrations. */
   isCancelled: boolean;

@@ -333,7 +333,9 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   page can be closed; one competition, picked from an autocomplete over the public list (title, town or number,
   `admin/competition-search.tsx`) or by pasted number or link (`fftaIdFrom`); the last 10 runs. Every admin with the
   page open sees the same thing. The competition's admin page has no refresh button any more (removed 2026-10-08, the
-  user's choice): it shows a "Mandat (PDF)" link next to the title.
+  user's choice): it shows a "Mandat (PDF)" link next to the title, and under it a **"Lu dans le mandat"** block
+  (`admin/mandate-summary.tsx`): number of départs with their name, day and times, and the prices by audience
+  (Adultes, Jeunes U11 à U21, Tous) and number of départs. A mandate not read yet shows one line instead.
 - **SSE** (`presentation/http/scraper-events.ts`): the run is written by another process, so the server reads its
   row every second, **only while a page is open**, and pushes the status when it changed; a keep-alive comment every
   15 s. Bun closes idle connections after 10 s: the route calls `server.timeout(request, 0)`. `x-accel-buffering: no`
@@ -446,7 +448,6 @@ Material Design baseline, do not exaggerate:
 
 - Competitions that cannot be located: their **count shown in the admin panel**, and the admin can re-run a Google
   Maps lookup (results should then live in the DB instead of `known-places.ts`).
-- The prices read from the mandates are not shown on the admin page (only used in the Excel file).
 
 ## Traps already hit
 

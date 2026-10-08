@@ -61,6 +61,8 @@ import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 import { StatusBadge, StatusDot } from '@/registrations/status-badge';
 
+import { MandateSummary } from './mandate-summary';
+
 const ALL = 'all';
 const MAX_CLUB_NOTE_LENGTH = 500;
 /** What the organizer may receive, as on the server: not "Plus de place", not "Annulée". */
@@ -229,6 +231,8 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
           </p>
         )}
       </header>
+
+      <MandateSummary competition={competition} />
 
       <div className='grid gap-1'>
         <div className='flex flex-wrap items-center gap-3'>
