@@ -89,8 +89,8 @@ export type CompetitionDto = {
   organizerClub: string | null;
   town: string;
   departmentCode: string;
-  /** `null` when the town could not be located. */
-  position: GeoPosition | null;
+  /** Always set: competitions whose place is unknown are not in the public list. */
+  position: GeoPosition;
   mandateUrl: string | null;
   /**
    * The départs read in the mandate, in order: départ N is the Nth. `null` when the mandate was not read (or lists

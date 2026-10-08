@@ -103,7 +103,8 @@ Inner layers never import outer ones.
   `CalendarDate` (`YYYY-MM-DD` strings), repository ports. The domain may import types from `@inscript-carte/shared`
   (shared kernel). The status rule `canChangeStatus` lives in `shared/src/registration.ts` so the client greys out the
   same options.
-- `application/`: `ListUpcomingCompetitions` (drops finished and cancelled, adds the club archer count),
+- `application/`: `ListUpcomingCompetitions` (keeps `isPublic` ones only: not cancelled, not `missing_since`, with a
+  place; drops finished; adds the club archer count),
   `Authentication`, `ClubRegistrations`, `AdminAuthentication` (sign-in, password change), `AdminAccounts` (admin
   rights: command line and panel),
   `AdminRegistrations`, `ClubMembers` (import, status, list); ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`,
@@ -375,6 +376,7 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   `list_fingerprint`, `detail_read_at`, `last_listed_at`, `missing_since`). `planSync` sorts the list read:
   **new** (detail read, added), **changed** (the list card's fingerprint differs, or a legacy row with none: detail
   read again), **unchanged** (only `last_listed_at`), **missing** (upcoming, stored, not listed: `missing_since`,
+  hidden from the public list,
   never deleted; cleared when listed again; only after a complete list). The list's values win over the detail
   page's (they are what the fingerprint covers); `has_foam_targets` and `created_at` are never touched. Position:
   the FFTA's GPS, else the geocoder on the postal line's commune (else the title's town). Abroad and unreadable
@@ -421,9 +423,11 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   variants of a town), red count bubbles for clusters, zoom buttons bottom right, "© OpenStreetMap" credit bottom left
   in 10 px without the Leaflet prefix (the OSM credit is required).
 - Discipline colors (`competitions/disciplines.ts`) are data, kept from the old site. App accent: red.
-- Labels: "Salle 18m" (no space). FFTA competition titles are shown as they come.
-- Competitions without a place show in the list with "(lieu non précisé)". Open question: the user said the
-  future scraper should store them but **not display** them; confirm before changing.
+- Labels: "Salle 18m" (no space). FFTA competition titles are shown as they come (the FFTA writes many in capitals:
+  "SALLE 26AUREC"; our code does not change their case).
+- Competitions without a place (placeholders such as "A Définir") and competitions gone from the FFTA list are kept
+  in the database but **not shown** to the public (the user's choice, 2026-10-09); `CompetitionDto.position` is
+  never `null`. Members already registered still see them in "Mon suivi", and admins on their page.
 - A départ is shown as "Départ 2 · Après-midi" (`departureTitle`) when the mandate names it, in "Mon suivi", the
   admin page and the Excel file: the number stays, it is what club and organizer use.
 
@@ -440,9 +444,8 @@ Material Design baseline, do not exaggerate:
 
 ## Not done yet
 
-- Competitions that cannot be located: planned to be stored but not displayed, their **count shown in the admin
-  panel**, and the admin can re-run a Google Maps lookup (results should then live in the DB instead of
-  `known-places.ts`).
+- Competitions that cannot be located: their **count shown in the admin panel**, and the admin can re-run a Google
+  Maps lookup (results should then live in the DB instead of `known-places.ts`).
 - The prices read from the mandates are not shown on the admin page (only used in the Excel file).
 
 ## Traps already hit

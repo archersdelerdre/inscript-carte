@@ -88,15 +88,11 @@ function Place({ competition, onShowOnMap }: { competition: CompetitionDto; onSh
     <div className='flex min-w-0 items-center gap-2'>
       <MapPinIcon className='text-muted-foreground size-[1.125rem] shrink-0' />
       <span className='truncate'>{competition.town}</span>
-      {competition.position ? (
-        // Negative margins keep the 40 px tap target without making the line taller.
-        <Button variant='link' className='-my-2 shrink-0 px-2' onClick={onShowOnMap}>
-          <LocateFixedIcon />
-          Voir sur la carte
-        </Button>
-      ) : (
-        <span className='text-muted-foreground shrink-0 text-sm italic'>(lieu non précisé)</span>
-      )}
+      {/* Negative margins keep the 40 px tap target without making the line taller. */}
+      <Button variant='link' className='-my-2 shrink-0 px-2' onClick={onShowOnMap}>
+        <LocateFixedIcon />
+        Voir sur la carte
+      </Button>
     </div>
   );
 }

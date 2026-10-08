@@ -19,6 +19,7 @@ type CompetitionRow = {
   latitude: number | null;
   longitude: number | null;
   mandate_url: string | null;
+  missing_since: string | null;
   /** `competition_mandates.data` of a `parsed` reading. */
   mandate_data: string | null;
 };
@@ -38,6 +39,7 @@ const COLUMNS = [
   'c.latitude',
   'c.longitude',
   'c.mandate_url',
+  'c.missing_since',
   'm.data as mandate_data',
 ];
 
@@ -88,5 +90,6 @@ function toCompetition(row: CompetitionRow): Competition {
     mandateUrl: row.mandate_url,
     departures: mandate?.departures.length ? mandate.departures : null,
     prices: mandate?.prices.length ? mandate.prices : null,
+    missingSince: row.missing_since,
   };
 }

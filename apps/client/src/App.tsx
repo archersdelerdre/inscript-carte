@@ -54,10 +54,7 @@ export function App() {
       : competitions;
   }, [competitions, department]);
   const framedPositions = useMemo(
-    () =>
-      department === ALL_FRANCE
-        ? []
-        : inDepartment.flatMap((competition) => (competition.position ? [competition.position] : [])),
+    () => (department === ALL_FRANCE ? [] : inDepartment.map((competition) => competition.position)),
     [department, inDepartment],
   ) satisfies GeoPosition[];
   // Kept stable between renders: the map re-places its markers (and an open popup) when this array changes.

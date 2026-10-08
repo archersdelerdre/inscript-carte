@@ -9,6 +9,7 @@ function competition(
   startDate: string,
   endDate: string,
   status: CompetitionStatus = 'scheduled',
+  overrides: Partial<Competition> = {},
 ): Competition {
   return {
     id,
@@ -22,14 +23,16 @@ function competition(
     organizerClub: null,
     town: 'Nantes',
     departmentCode: '44',
-    position: null,
+    position: { latitude: 47.21, longitude: -1.55 },
     mandateUrl: null,
     departures: null,
     prices: null,
+    missingSince: null,
+    ...overrides,
   };
 }
 
-test('keeps competitions not finished nor cancelled, sorted by start date, with their club registration count', async () => {
+test('keeps listed competitions with a place, not finished nor cancelled, sorted, with their club count', async () => {
   const all = [
     competition('later', '2026-11-14', '2026-11-15'),
     competition('finished', '2026-10-03', '2026-10-05'),
@@ -37,6 +40,9 @@ test('keeps competitions not finished nor cancelled, sorted by start date, with 
     competition('cancelled', '2026-10-08', '2026-10-08', 'cancelled'),
     competition('postponed', '2026-10-12', '2026-10-12', 'postponed'),
     competition('soon', '2026-10-10', '2026-10-10'),
+    // Gone from the FFTA list, or a placeholder without a place: kept in the database, not shown.
+    competition('gone', '2026-10-20', '2026-10-20', 'scheduled', { missingSince: '2026-10-05' }),
+    competition('nowhere', '2026-10-21', '2026-10-21', 'scheduled', { position: null }),
   ];
   const useCase = new ListUpcomingCompetitions(
     { findAll: async () => all, findById: async () => null },

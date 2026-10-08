@@ -18,6 +18,7 @@ const competition: Competition = {
   mandateUrl: null,
   departures: null,
   prices: null,
+  missingSince: null,
 };
 
 describe('clubRegistrationDeadline', () => {

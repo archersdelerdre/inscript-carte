@@ -46,7 +46,6 @@ export function CompetitionMap({ competitions, framedPositions, focusRequest }: 
   const towns = useMemo(() => {
     const byTown = new Map<string, Town>();
     for (const competition of competitions) {
-      if (!competition.position) continue;
       // One dot per place: the FFTA spells some towns several ways ("La Haie Fouassiere", "La Haye Fouassière").
       const key = `${competition.position.latitude},${competition.position.longitude}`;
       const town = byTown.get(key);

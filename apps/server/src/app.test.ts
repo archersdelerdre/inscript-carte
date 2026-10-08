@@ -52,6 +52,9 @@ function competitionRow(ffta_id: string, discipline: string, start_date: string)
     organizer_club: 'Club',
     town: 'Nantes',
     department_code: '44',
+    // The public list leaves out competitions without a place.
+    latitude: 47.21,
+    longitude: -1.55,
   };
 }
 
