@@ -225,7 +225,7 @@ describe('SyncFftaCalendar', () => {
       dryRun: false,
     });
     const short = await sync(known.slice(0, 10), {}).run({ dryRun: false });
-    expect(short.aborted).toContain('pas fiable');
+    expect(short.aborted).toContain('semble incomplète');
     expect(await database('competitions').whereNotNull('missing_since').pluck('ffta_id')).toEqual([]);
   });
 });
