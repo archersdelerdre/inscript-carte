@@ -307,7 +307,7 @@ describe('registration', () => {
     expect(await registerOn([1, 2])).toBe(201);
     const mine = ((await (await call('/api/me/registrations', { cookie })).json()) as ListMyRegistrationsResponse)
       .registrations;
-    expect(mine.map(({ departure, departureLabel }) => [departure, departureLabel])).toEqual([
+    expect(mine.map((row) => [row.departure, row.mandateDeparture?.label])).toEqual([
       [1, 'Matin'],
       [2, 'Après-midi'],
     ]);

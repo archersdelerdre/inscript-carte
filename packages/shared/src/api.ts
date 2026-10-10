@@ -172,8 +172,8 @@ export type MyRegistrationDto = {
   endDate: string;
   town: string;
   departure: number;
-  /** The mandate's name for that départ ("Après-midi"); `null` when the mandate was not read. */
-  departureLabel: string | null;
+  /** The mandate's départ (name, day, times); `null` when the mandate was not read. */
+  mandateDeparture: MandateDeparture | null;
   bowType: BowType;
   trispot: boolean;
   category: AgeCategory;

@@ -12,7 +12,7 @@ export type DepartureOption = {
 const weekday = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', timeZone: 'UTC' });
 
 /** "08:00" → "8 h", "13:30" → "13 h 30". */
-function frenchTime(time: string): string {
+export function frenchTime(time: string): string {
   const [hours, minutes] = time.split(':');
   return `${Number(hours)} h${minutes === '00' ? '' : ` ${minutes}`}`;
 }

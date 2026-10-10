@@ -29,7 +29,7 @@ import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, formatDay } from '@/lib/dates';
 
 import { AddToCalendarButton } from './add-to-calendar-button';
-import { competitionEvent } from './calendar';
+import { competitionEvents } from './calendar';
 import { ERROR_MESSAGES, PAYMENT_METHOD_PHRASES } from './messages';
 import { StatusBadge } from './status-badge';
 
@@ -130,7 +130,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                   <li key={registration.id} className='grid gap-1'>
                     <div className='flex flex-wrap items-center gap-2'>
                       <span className='font-medium'>
-                        {departureTitle(registration.departure, registration.departureLabel)}
+                        {departureTitle(registration.departure, registration.mandateDeparture?.label ?? null)}
                       </span>
                       <StatusBadge status={registration.status} />
                       <span className='text-muted-foreground text-sm'>{BOW_TYPE_LABELS[registration.bowType]}</span>
@@ -157,15 +157,16 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                   </li>
                 ))}
               </ul>
-              <div>
+              {/* For the whole competition, set apart from the départs' own buttons. */}
+              <div className='mt-2 border-t pt-3'>
                 <AddToCalendarButton
                   uid={`${first.competitionId}-${first.paymentReference}@inscript-carte`}
-                  event={competitionEvent({
+                  events={competitionEvents({
                     title: first.competitionTitle,
                     town: first.town,
                     startDate: first.startDate,
                     endDate: first.endDate,
-                    departures: rows.map((row) => departureTitle(row.departure, row.departureLabel)),
+                    departures: rows.map((row) => ({ number: row.departure, mandate: row.mandateDeparture })),
                   })}
                 />
               </div>
@@ -185,8 +186,8 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Retirer ce départ ?</AlertDialogTitle>
             <AlertDialogDescription>
-              {toWithdraw && departureTitle(toWithdraw.departure, toWithdraw.departureLabel)} du concours «{' '}
-              {toWithdraw?.competitionTitle} ». Le club en sera informé.
+              {toWithdraw && departureTitle(toWithdraw.departure, toWithdraw.mandateDeparture?.label ?? null)} du
+              concours « {toWithdraw?.competitionTitle} ». Le club en sera informé.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

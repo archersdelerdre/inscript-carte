@@ -57,7 +57,7 @@ export function toMyRegistrationDto({ registration, competition, canWithdraw }: 
     endDate: competition.endDate,
     town: competition.town,
     departure: registration.departure,
-    departureLabel: departureLabel(competition, registration.departure),
+    mandateDeparture: competition.departures?.[registration.departure - 1] ?? null,
     bowType: registration.bowType,
     carpool: registration.carpool,
     trispot: registration.trispot,

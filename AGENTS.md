@@ -174,9 +174,12 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   "Trispot" badge on each départ shot on trispot (asked by a member, 2026-10-08).
 - **« Ajouter à mon agenda »** (asked by Loïc, 2026-10-10), on the « Inscription enregistrée » screen and per
   competition in "Mon suivi": a menu with Google Agenda (pre-filled link) and « Autre agenda » (an `.ics` file built
-  in the browser, `registrations/calendar.ts`). The site cannot write into a calendar by itself. Whole-day event (the
-  mandates give no end time) on the chosen départs' days when the mandate gives them, else the competition's days;
-  the description lists the départs with greffe and shooting times.
+  in the browser, `registrations/calendar.ts`). The site cannot write into a calendar by itself. When the mandate
+  gives each chosen départ's day and a time: one event per départ, from the greffe (else the shooting start) to an
+  estimated end (3 h after shooting starts, else 4 h after the greffe; the mandates give none, the description says
+  « fin vers 12 h (estimée) »); the `.ics` holds them all, Google gets one menu line per départ. Times are local
+  ("floating"). Otherwise one whole-day event over the competition's days. "Mon suivi" gets the mandate's départ
+  in `MyRegistrationDto.mandateDeparture`. In "Mon suivi" the button sits under a line, apart from the départs.
 
 ## Admin panel (`/admin`, `apps/client/src/admin/`)
 
