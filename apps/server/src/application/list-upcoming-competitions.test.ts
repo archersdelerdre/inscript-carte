@@ -25,6 +25,7 @@ function competition(
     departmentCode: '44',
     position: { latitude: 47.21, longitude: -1.55 },
     mandateUrl: null,
+    mandateAddedOn: null,
     departures: null,
     prices: null,
     missingSince: null,

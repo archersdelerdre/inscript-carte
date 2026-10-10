@@ -7,8 +7,12 @@ import {
 
 import { addDays, type CalendarDate } from './calendar-date.ts';
 
-/** The club stops taking registration requests this many days before the competition starts. */
-const CLUB_REGISTRATION_DAYS_BEFORE_START = 15;
+/** The club deadline is never later than this many days before the start (no mandate yet, or one that comes late). */
+const LAST_DAYS_BEFORE_START = 7;
+/** With a mandate out early, the club stops this many days before the start... */
+const USUAL_DAYS_BEFORE_START = 14;
+/** ...but archers always get this many days after a mandate that comes late. */
+const DAYS_AFTER_MANDATE = 2;
 
 export type CompetitionStatus = 'scheduled' | 'postponed' | 'cancelled';
 
@@ -27,6 +31,8 @@ export type Competition = {
   readonly departmentCode: string;
   readonly position: { readonly latitude: number; readonly longitude: number } | null;
   readonly mandateUrl: string | null;
+  /** The day a scraper run first saw `mandateUrl`; `null` without one, or for a link stored before it was tracked. */
+  readonly mandateAddedOn: CalendarDate | null;
   /** The départs the mandate lists, in order (départ N is the Nth); `null` when no checked reading has any. */
   readonly departures: readonly MandateDeparture[] | null;
   /** The registration prices the mandate lists; `null` when no checked reading has any. */
@@ -56,8 +62,19 @@ export function isPublic(competition: Competition): competition is PublicCompeti
   return competition.status !== 'cancelled' && competition.missingSince === null && competition.position !== null;
 }
 
+/**
+ * Last day (included) to register through the club, the user's rules (2026-10-10): 7 days before the start without a
+ * mandate; with one, 14 days before, or 2 days after a mandate that came late, never past 7 days before. A link whose
+ * day is unknown (stored before it was tracked) counts as an early one.
+ */
 export function clubRegistrationDeadline(competition: Competition): CalendarDate {
-  return addDays(competition.startDate, -CLUB_REGISTRATION_DAYS_BEFORE_START);
+  const lastDay = addDays(competition.startDate, -LAST_DAYS_BEFORE_START);
+  if (!competition.mandateUrl) return lastDay;
+  const usual = addDays(competition.startDate, -USUAL_DAYS_BEFORE_START);
+  if (!competition.mandateAddedOn) return usual;
+  const afterMandate = addDays(competition.mandateAddedOn, DAYS_AFTER_MANDATE);
+  const later = afterMandate > usual ? afterMandate : usual;
+  return later < lastDay ? later : lastDay;
 }
 
 export function isFinished(competition: Competition, today: CalendarDate): boolean {

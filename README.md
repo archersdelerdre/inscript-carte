@@ -21,7 +21,8 @@ Ce projet rassemble tout au même endroit.
 
 - voir les prochains concours sur une carte et dans une liste, par département et par discipline (salle 18m,
   extérieur, campagne, 3D, nature, beursault, loisirs…), y compris ceux qui ont une version para-tir ;
-- demander au club de les inscrire à un concours, jusqu'à la date limite du club (15 jours avant le concours) ;
+- demander au club de les inscrire à un concours, jusqu'à la date limite du club (en général 14 jours avant le
+  concours, ou 2 jours après la parution d'un mandat tardif) ;
 - choisir leurs départs, leur arc et leur mode de paiement, sans retaper leur nom ni leur catégorie ;
 - voir quels autres membres du club y vont, pour faire du covoiturage ou simplement y aller ensemble ;
 - suivre leurs demandes et retirer un départ auquel ils ne peuvent plus aller.

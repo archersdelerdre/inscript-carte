@@ -28,13 +28,13 @@ import { ScraperRuns } from './application/scraper-runs.ts';
 import { createDatabase } from './infrastructure/database/connection.ts';
 import { SqliteScraperRunStore } from './infrastructure/database/sqlite-scraper-run-store.ts';
 
-// Made-up members and competitions. Today is 6 Oct 2026; club deadlines are 15 days before the start.
+// Made-up members and competitions. Today is 6 Oct 2026; without a mandate, club deadlines are 7 days before the start.
 const ADULT = { licenceNumber: '0123456A', birthDate: '1980-05-12' };
 const YOUTH = { licenceNumber: '7654321B', birthDate: '2012-03-03' };
 const DEPARTED = { licenceNumber: '1111111C', birthDate: '1975-01-01' };
-const SALLE = '90001'; // starts 2027-01-09, deadline 2026-12-25
+const SALLE = '90001'; // starts 2027-01-09, no mandate: deadline 2027-01-02
 const EXTERIEUR = '90002'; // starts 2027-05-01
-const SOON = '90003'; // starts 2026-10-20, deadline 2026-10-05: already closed
+const SOON = '90003'; // starts 2026-10-12, no mandate: deadline 2026-10-05, already closed
 
 let database: Knex;
 let server: ReturnType<typeof Bun.serve>;
@@ -69,7 +69,7 @@ beforeEach(async () => {
   await database('competitions').insert([
     competitionRow(SALLE, 'salle', '2027-01-09'),
     competitionRow(EXTERIEUR, 'exterieur', '2027-05-01'),
-    competitionRow(SOON, 'salle', '2026-10-20'),
+    competitionRow(SOON, 'salle', '2026-10-12'),
   ]);
   await database('archers').insert([
     archerRow(ADULT, 'DUPONT JEANNE'),
@@ -199,7 +199,7 @@ describe('registration', () => {
       departures: [1, 2],
       category: 'S2',
       paymentReference: 'R-0001',
-      paymentDeadline: '2026-12-25',
+      paymentDeadline: '2027-01-02',
     });
 
     const second = await call(`/api/competitions/${SALLE}/registrations`, {
@@ -338,11 +338,11 @@ describe('registration', () => {
     const closed = await call(`/api/competitions/${SOON}/registrations`, { method: 'POST', cookie, body: form() });
     expect(await closed.json()).toEqual({ error: 'registration_closed' });
 
-    clock.day = '2026-12-25';
+    clock.day = '2027-01-02';
     expect(
       (await call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie, body: form() })).status,
     ).toBe(201);
-    clock.day = '2026-12-26';
+    clock.day = '2027-01-03';
     expect(
       (
         await call(`/api/competitions/${SALLE}/registrations`, {
@@ -484,7 +484,7 @@ describe('withdrawal', () => {
     await database('registrations').where({ id: second!.id }).update({ status: 'sent_to_organizer' });
     expect((await call(`/api/me/registrations/${second!.id}`, { method: 'DELETE', cookie })).status).toBe(409);
 
-    clock.day = '2026-12-26';
+    clock.day = '2027-01-03';
     const late = await call(`/api/me/registrations/${first!.id}`, { method: 'DELETE', cookie });
     expect(await late.json()).toEqual({ error: 'cannot_withdraw' });
   });

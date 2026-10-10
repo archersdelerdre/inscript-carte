@@ -8,6 +8,7 @@ import * as fftaDetails from './0005-ffta-details.ts';
 import * as scraperRuns from './0006-scraper-runs.ts';
 import * as competitionMandates from './0007-competition-mandates.ts';
 import * as refundPaymentStates from './0008-refund-payment-states.ts';
+import * as mandateAddedOn from './0009-mandate-added-on.ts';
 
 /** Listed explicitly so migrations survive `bun build`. Append new ones at the end; never rename. */
 const migrations: Record<string, Knex.Migration> = {
@@ -19,6 +20,7 @@ const migrations: Record<string, Knex.Migration> = {
   '0006-scraper-runs': scraperRuns,
   '0007-competition-mandates': competitionMandates,
   '0008-refund-payment-states': refundPaymentStates,
+  '0009-mandate-added-on': mandateAddedOn,
 };
 
 export const migrationSource: Knex.MigrationSource<string> = {

@@ -211,7 +211,7 @@ export class SyncFftaCalendar {
     if (!dryRun) {
       onProgress({ step: 'saving' });
       const listedAt = this.#clock.now();
-      await this.#store.save(scraped, listedAt);
+      await this.#store.save(scraped, listedAt, today);
       await this.#store.markListed(plan.unchanged, listedAt);
       await this.#store.markMissing(plan.missing, today);
       // After the save: the competitions just stored (and older ones still waiting) have their mandate link.
@@ -257,9 +257,10 @@ export class SyncFftaCalendar {
     const position = await this.#position(detail, detail.departmentCode, detail.town, dryRun, report, new Map());
     if (!dryRun) {
       onProgress({ step: 'saving' });
-      await this.#store.saveDetail(detail, detail.departmentCode, position, this.#clock.now());
+      const today = this.#clock.today();
+      await this.#store.saveDetail(detail, detail.departmentCode, position, this.#clock.now(), today);
       // An admin asked for this one: its mandate is read again, even when it was read before.
-      await this.#readMandates(report, { today: this.#clock.today(), fftaIds: [fftaId], force: true }, onProgress);
+      await this.#readMandates(report, { today, fftaIds: [fftaId], force: true }, onProgress);
     }
     return finish();
   }

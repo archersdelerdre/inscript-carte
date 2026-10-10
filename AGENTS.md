@@ -98,7 +98,7 @@ on 2026-10-07: with one migration it only dropped every table); to start over, s
 
 Inner layers never import outer ones.
 
-- `domain/`: `Competition` (+ the 15-day club deadline rule), `Archer`, `Registration` (+ `isClubRegistrationOpen`,
+- `domain/`: `Competition` (+ the club deadline rule), `Archer`, `Registration` (+ `isClubRegistrationOpen`,
   `canWithdraw`), `member-list.ts` (`planMemberListSync`: what an FFTA export adds and updates),
   `CalendarDate` (`YYYY-MM-DD` strings), repository ports. The domain may import types from `@inscript-carte/shared`
   (shared kernel). The status rule `canChangeStatus` lives in `shared/src/registration.ts` so the client greys out the
@@ -166,6 +166,13 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   request on the same competition (another départ) reuses it, even if its first départs were withdrawn. References
   made before 2026-10-07 were per request and were not merged (archers may already have paid with them). Taken
   départs are refused.
+- **Club deadline** (`clubRegistrationDeadline`, the user's rules, 2026-10-10), the last day included: without a
+  mandate, 7 days before the start; with one, the later of 14 days before the start and 2 days after the day the
+  mandate appeared, never past 7 days before (a mandate that comes later opens nothing). That day is
+  `competitions.mandate_added_on` (migration `0009`): the scraper's upsert sets it when a link appears, keeps it while
+  a link stays (even another file), clears it when the link goes; links stored before 2026-10-10 have none and count
+  as early (14 days). The night run may see a mandate a day late: archers get a day more, never less. A card's date
+  can move earlier when an early mandate comes out (7 → 14 days).
 - Open until the club deadline **included**. Withdraw only while `received` and before the deadline: the row stays in
   the database, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`, but it disappears from "Mon
   suivi" (`GET /api/me/registrations` only returns rows that are not cancelled).

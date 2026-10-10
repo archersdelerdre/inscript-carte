@@ -24,8 +24,11 @@ export type ScrapedCompetition = {
 /** Every write is short and in small batches, so the app can write while a run stores its results. */
 export interface ScrapedCompetitionStore {
   listings(): Promise<StoredListing[]>;
-  /** Adds or replaces them, listed now: clears `missing_since`. Never touches `has_foam_targets`. */
-  save(competitions: readonly ScrapedCompetition[], listedAt: Date): Promise<void>;
+  /**
+   * Adds or replaces them, listed now: clears `missing_since`. Never touches `has_foam_targets`. `today` becomes the
+   * day the mandate link appeared, for a row that had none.
+   */
+  save(competitions: readonly ScrapedCompetition[], listedAt: Date, today: CalendarDate): Promise<void>;
   /**
    * One competition from its detail page alone (an admin's re-scrape): no fingerprint, so the next full run reads it
    * again with its list card. Keeps a stored Para-tir flag (only the list knows it) and `has_foam_targets`.
@@ -35,6 +38,7 @@ export interface ScrapedCompetitionStore {
     departmentCode: string,
     position: GeoPosition | null,
     readAt: Date,
+    today: CalendarDate,
   ): Promise<void>;
   markListed(fftaIds: readonly string[], listedAt: Date): Promise<void>;
   markMissing(fftaIds: readonly string[], since: CalendarDate): Promise<void>;

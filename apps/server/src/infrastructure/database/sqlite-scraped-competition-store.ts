@@ -41,22 +41,21 @@ export class SqliteScrapedCompetitionStore implements ScrapedCompetitionStore {
     }));
   }
 
-  async save(competitions: readonly ScrapedCompetition[], listedAt: Date): Promise<void> {
+  async save(competitions: readonly ScrapedCompetition[], listedAt: Date, today: CalendarDate): Promise<void> {
     await inBatches(competitions, (batch) =>
-      this.#database.transaction((transaction) =>
-        transaction('competitions')
-          .insert(
-            batch.map(({ listed, fingerprint, detail, departmentCode, position }) => ({
-              ...competitionRow(listed, detail, departmentCode, position, listedAt),
-              list_fingerprint: fingerprint,
-              last_listed_at: listedAt.toISOString(),
-              missing_since: null,
-            })),
-          )
-          // `has_foam_targets` and `created_at` are not in the insert, so a merge keeps them.
+      this.#database.transaction((transaction) => {
+        const rows = batch.map(({ listed, fingerprint, detail, departmentCode, position }) => ({
+          ...competitionRow(listed, detail, departmentCode, position, listedAt, today),
+          list_fingerprint: fingerprint,
+          last_listed_at: listedAt.toISOString(),
+          missing_since: null,
+        }));
+        // `has_foam_targets` and `created_at` are not in the insert, so a merge keeps them.
+        return transaction('competitions')
+          .insert(rows)
           .onConflict('ffta_id')
-          .merge(),
-      ),
+          .merge(this.#merged(Object.keys(rows[0]!)));
+      }),
     );
   }
 
@@ -65,14 +64,34 @@ export class SqliteScrapedCompetitionStore implements ScrapedCompetitionStore {
     departmentCode: string,
     position: GeoPosition | null,
     readAt: Date,
+    today: CalendarDate,
   ): Promise<void> {
     const listed = { ...detail, organizerEmail: detail.email };
-    const row = { ...competitionRow(listed, detail, departmentCode, position, readAt), list_fingerprint: null };
+    const row = { ...competitionRow(listed, detail, departmentCode, position, readAt, today), list_fingerprint: null };
     await this.#database('competitions')
       .insert(row)
       .onConflict('ffta_id')
       // The Para-tir flag of a stored row came from the list (merged Para-tir entries): the detail page cannot tell.
-      .merge(Object.keys(row).filter((column) => column !== 'has_para_tir'));
+      .merge(this.#merged(Object.keys(row).filter((column) => column !== 'has_para_tir')));
+  }
+
+  /**
+   * The update part of an upsert: the new values, except `mandate_added_on`. That day stays while the row keeps a
+   * link (even another file), is set when a link appears, and is cleared when it goes.
+   */
+  #merged(columns: readonly string[]): Record<string, Knex.Raw> {
+    return Object.fromEntries(
+      columns.map((column) => [
+        column,
+        column === 'mandate_added_on'
+          ? this.#database.raw(
+              `CASE WHEN excluded.mandate_url IS NULL THEN NULL
+                    WHEN competitions.mandate_url IS NULL THEN excluded.mandate_added_on
+                    ELSE competitions.mandate_added_on END`,
+            )
+          : this.#database.raw('??', [`excluded.${column}`]),
+      ]),
+    );
   }
 
   async markListed(fftaIds: readonly string[], listedAt: Date): Promise<void> {
@@ -97,8 +116,10 @@ function competitionRow(
   departmentCode: string,
   position: GeoPosition | null,
   readAt: Date,
+  today: CalendarDate,
 ) {
   const now = readAt.toISOString();
+  const mandateUrl = listed.mandateUrl ?? detail.mandateUrl;
   return {
     ffta_id: listed.fftaId,
     title: listed.title,
@@ -115,7 +136,9 @@ function competitionRow(
     latitude: position?.latitude ?? null,
     longitude: position?.longitude ?? null,
     has_para_tir: listed.hasParaTir,
-    mandate_url: listed.mandateUrl ?? detail.mandateUrl,
+    mandate_url: mandateUrl,
+    // Only used for a new row, or a stored one that had no link: see `#merged`.
+    mandate_added_on: mandateUrl ? today : null,
     championship: detail.championship,
     has_duels: detail.hasDuels,
     regional_committee: detail.regionalCommittee,
