@@ -229,8 +229,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   (`to_refund`), Remboursé (`refunded`). A status change without a payment choice moves it along
   (`paymentForStatus` in `shared/src/registration.ts`): a départ that becomes "Plus de place" or "Annulée" goes to
   « Rien à payer » when unpaid, « À rembourser » when paid; put back to an active status, the reverse. « Remboursé »
-  stays as it is. "Tout marquer payé" / "Tout remettre en attente" only touch `to_pay` and `paid` rows (no
-  `updated_by` on the others). "Mon suivi" says « Le club va vous rembourser ce départ » / « remboursé ».
+  stays as it is. A reference-wide payment change only replaces its source state (`REFERENCE_PAYMENT_FROM`): "Tout
+  marquer payé" ← En attente, "Tout remettre en attente" ← Payé, « Tout marquer comme remboursé » (shown with 2+
+  départs to refund) ← À rembourser; cancelled départs keep their status but their payment changes too (no
+  `updated_by` on untouched rows). "Mon suivi" says « Le club va vous rembourser ce départ » / « remboursé ».
 - **Excel file layout** (`organizer-spreadsheet.ts`), copied from the registration grids of FFTA mandates (user's
   examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports) with their
   "Email" and "Tél" (empty when not stored), then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |

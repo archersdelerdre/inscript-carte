@@ -161,10 +161,7 @@ export class AdminRegistrations {
   ): Promise<UpdateResult> {
     const update = parseUpdate(form, false);
     if (!update) return { ok: false, reason: 'invalid_request' };
-    // Cancelled départs stay as they are, so every other one can take the new status.
-    const registrations = (await this.#registrations.forPaymentReference(paymentReference)).filter(
-      (registration) => registration.status !== 'cancelled',
-    );
+    const registrations = await this.#registrations.forPaymentReference(paymentReference);
     if (registrations.length === 0) return { ok: false, reason: 'not_found' };
     const today = this.#clock.today();
     const changes = registrations.flatMap((registration) => {
@@ -175,6 +172,15 @@ export class AdminRegistrations {
     return { ok: true };
   }
 }
+
+/** For a whole reference, a payment state only replaces these ones: « Tout marquer remboursé » leaves « Payé » as is. */
+const REFERENCE_PAYMENT_FROM: Record<PaymentStatus, readonly PaymentStatus[]> = {
+  to_pay: ['paid'],
+  paid: ['to_pay'],
+  nothing_due: ['to_pay'],
+  to_refund: ['refunded'],
+  refunded: ['to_refund'],
+};
 
 function summarize(
   competition: Competition,
@@ -196,16 +202,17 @@ function summarize(
 }
 
 /**
- * "Tout marquer payé" / "Tout remettre en attente" only move départs between those two states: the others (nothing
- * to pay, to refund, refunded) are left as they are. `null` when the row is left untouched, so it does not show this
- * admin as the last one who changed it.
+ * One row's part of a reference change. Cancelled départs keep their status (the archer registers again instead),
+ * but their payment can still change: one paid then cancelled is refunded too. `null` when the row is left
+ * untouched, so it does not show this admin as the last one who changed it.
  */
 function forReferenceRow(registration: Registration, update: RegistrationUpdate): RegistrationUpdate | null {
-  const switches = update.paymentStatus === 'paid' || update.paymentStatus === 'to_pay';
-  if (!switches || registration.paymentStatus === 'paid' || registration.paymentStatus === 'to_pay') return update;
-  if (update.status === undefined) return null;
-  const { paymentStatus: _ignored, ...statusOnly } = update;
-  return statusOnly;
+  const rowUpdate: RegistrationUpdate = {};
+  if (update.status && registration.status !== 'cancelled') rowUpdate.status = update.status;
+  if (update.paymentStatus && REFERENCE_PAYMENT_FROM[update.paymentStatus].includes(registration.paymentStatus)) {
+    rowUpdate.paymentStatus = update.paymentStatus;
+  }
+  return Object.keys(rowUpdate).length > 0 ? rowUpdate : null;
 }
 
 /** `null` when the form is not valid or changes nothing. */

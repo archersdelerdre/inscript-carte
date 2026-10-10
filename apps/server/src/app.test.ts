@@ -854,6 +854,37 @@ describe('admin registrations', () => {
     expect(await payments()).toEqual(['to_pay', 'refunded', 'to_pay']);
   });
 
+  test('« Tout marquer remboursé » refunds the départs to refund, cancelled ones included, and nothing else', async () => {
+    await registerBoth();
+    const [first] = await adminRegistrations(cookie);
+    const patch = (id: number, body: object) =>
+      call(`/api/admin/registrations/${id}`, { method: 'PATCH', cookie, body });
+    await call('/api/admin/payment-references/R-0001', { method: 'PATCH', cookie, body: { paymentStatus: 'paid' } });
+    await patch(first!.id, { status: 'cancelled' });
+    expect((await adminRegistrations(cookie)).map(({ paymentStatus }) => paymentStatus)).toEqual([
+      'to_refund',
+      'paid',
+      'to_pay',
+    ]);
+
+    await call('/api/admin/payment-references/R-0001', {
+      method: 'PATCH',
+      cookie,
+      body: { paymentStatus: 'refunded' },
+    });
+    expect(
+      (await adminRegistrations(cookie)).map(({ status, paymentStatus, updatedByName }) => [
+        status,
+        paymentStatus,
+        updatedByName !== null,
+      ]),
+    ).toEqual([
+      ['cancelled', 'refunded', true],
+      ['received', 'paid', true],
+      ['received', 'to_pay', false],
+    ]);
+  });
+
   test('a whole payment reference can go back to "Reçue"', async () => {
     await registerBoth();
     await call('/api/admin/payment-references/R-0001', { method: 'PATCH', cookie, body: { status: 'confirmed' } });

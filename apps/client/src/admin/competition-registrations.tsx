@@ -479,27 +479,34 @@ function ReferenceCard({
             </span>
           </span>
         </button>
-        {showReferenceActions && (
+        {(showReferenceActions || toRefund > 1) && (
           <div className='flex flex-wrap gap-2'>
-            <Select value='' onValueChange={(value) => onReferenceStatus(value as RegistrationStatus)}>
-              <SelectTrigger
-                aria-label={`Statut de tous les départs de ${group.paymentReference}`}
-                className='bg-background'
-              >
-                <SelectValue placeholder='Statut de tous les départs' />
-              </SelectTrigger>
-              <SelectContent>
-                {referenceStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    <StatusDot status={status} />
-                    {REGISTRATION_STATUS_LABELS[status]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {(paidCount > 0 || dueRows.length > 0) && (
+            {showReferenceActions && (
+              <Select value='' onValueChange={(value) => onReferenceStatus(value as RegistrationStatus)}>
+                <SelectTrigger
+                  aria-label={`Statut de tous les départs de ${group.paymentReference}`}
+                  className='bg-background'
+                >
+                  <SelectValue placeholder='Statut de tous les départs' />
+                </SelectTrigger>
+                <SelectContent>
+                  {referenceStatuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      <StatusDot status={status} />
+                      {REGISTRATION_STATUS_LABELS[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {showReferenceActions && (paidCount > 0 || dueRows.length > 0) && (
               <Button variant='outline' onClick={() => onReferencePayment(allPaid ? 'to_pay' : 'paid')}>
                 {allPaid ? 'Tout remettre en attente de paiement' : 'Tout marquer comme payé'}
+              </Button>
+            )}
+            {toRefund > 1 && (
+              <Button variant='outline' onClick={() => onReferencePayment('refunded')}>
+                Tout marquer comme remboursé
               </Button>
             )}
           </div>
