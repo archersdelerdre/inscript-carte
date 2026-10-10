@@ -187,7 +187,7 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   show as short badges (plus « Modifié » when edited). Problems (`problemsOf`): no place, gone from the FFTA list,
   mandate not read / failed / refused (a reading of an older link does not count), read without départs or prices.
   Decided: **the same filters as the public page**, the very same `CompetitionFilterBar` / `matchesFilters` /
-  `inArea` (area not remembered, all of France at start), plus a problems filter.
+  `inArea` (area not remembered, Loire-Atlantique at start: user's choice), plus a problems filter.
 - Clicking a row opens a large modal (`competition-edit-dialog.tsx`, `CompetitionEdits`, route
   `/api/admin/competitions/:id/overrides`): problems and actions, then title, dates, discipline, status, para-tir,
   cibles mousses, mandate link, town, département, position (click on a lazy-loaded map), départs and prices, then the

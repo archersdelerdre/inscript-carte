@@ -9,7 +9,7 @@ import {
 import { cn } from 'cn';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { ALL_FRANCE, inArea } from '@/competitions/areas';
+import { inArea } from '@/competitions/areas';
 import {
   CompetitionFilterBar,
   type CompetitionFilters,
@@ -26,6 +26,9 @@ import { ERROR_MESSAGES } from '@/registrations/messages';
 import { CompetitionEditDialog } from './competition-edit-dialog';
 
 type ProblemFilter = 'all' | 'problems' | 'hidden';
+
+/** Where the table starts, like the public map: the club's own département (Loire-Atlantique). */
+const CLUB_DEPARTMENT = '44';
 
 /** Phones are slow with ~1 800 rows: the table grows by this many rows each time its end comes into view. */
 const BATCH_SIZE = 100;
@@ -77,8 +80,8 @@ export function CompetitionsPage({ onOpenRegistrations, onOpenScraper, onSession
   const [competitions, setCompetitions] = useState<CompetitionOverviewDto[] | null>(null);
   const [scraperAvailable, setScraperAvailable] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  /** The same filters as the public page, plus the problems. Not remembered: admins start from all of France. */
-  const [area, setArea] = useState(ALL_FRANCE);
+  /** The same filters as the public page, plus the problems. Not remembered: starts on the club's département. */
+  const [area, setArea] = useState(CLUB_DEPARTMENT);
   const [filters, setFilters] = useState<CompetitionFilters>(NO_FILTERS);
   const [problemFilter, setProblemFilter] = useState<ProblemFilter>('all');
   const [openId, setOpenId] = useState<string | null>(null);
