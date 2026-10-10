@@ -205,8 +205,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   (`SECTIONS` in `admin-app.tsx`); `/admin` alone is replaced by `/admin/inscriptions`. The address is the only source
   of truth: `AdminApp` keeps `pathname` in state and passes the selected competition down. No router library:
   `history.pushState` + `popstate` (back/forward switch competitions too), and the tabs are real `<a>` links
-  (Ctrl/Cmd/middle click opens a new tab). `main.tsx` picks the admin app for any path under `/admin`; the server and
-  Vite answer `index.html` for those paths, so reloading works. An unknown id shows "n'existe plus".
+  (Ctrl/Cmd/middle click opens a new tab). `main.tsx` picks the admin app for any path under `/admin`, each page
+  loaded lazily as its own chunk (members never download the panel, admins never download Leaflet; it also keeps
+  every chunk under Vite's 500 kB warning); the server and Vite answer `index.html` for those paths, so reloading
+  works. An unknown id shows "n'existe plus".
 - **Sign-in in two steps**: the normal member sign-in, then a **personal password** (the user chose this: a birth
   date can be guessed, and the panel shows every member's contact). Admins are rows of `admins` (FK to `archers`,
   argon2id hash, `must_change_password`). Max 10 wrong passwords per licence and 50 per address
