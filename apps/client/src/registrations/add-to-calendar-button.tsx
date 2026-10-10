@@ -18,7 +18,7 @@ type Props = {
 
 /**
  * The site cannot write into a calendar: it opens one already filled in, the archer saves it. A Google link holds
- * one event, so there is one line per départ; the `.ics` file holds them all.
+ * one event, so there is one line per day; the `.ics` file holds them all.
  */
 export function AddToCalendarButton({ events, uid }: Props) {
   return (

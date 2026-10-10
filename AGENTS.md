@@ -175,9 +175,10 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - **« Ajouter à mon agenda »** (asked by Loïc, 2026-10-10), on the « Inscription enregistrée » screen and per
   competition in "Mon suivi": a menu with Google Agenda (pre-filled link) and « Autre agenda » (an `.ics` file built
   in the browser, `registrations/calendar.ts`). The site cannot write into a calendar by itself. When the mandate
-  gives each chosen départ's day and a time: one event per départ, from the greffe (else the shooting start) to an
-  estimated end (3 h after shooting starts, else 4 h after the greffe; the mandates give none, the description says
-  « fin vers 12 h (estimée) »); the `.ics` holds them all, Google gets one menu line per départ. Times are local
+  gives each chosen départ's day and a time: one event **per day** (the user's choice, 2026-10-10: the day's départs
+  merged), from the first greffe (else shooting start) to the last estimated end (3 h after shooting starts, else 4 h
+  after the greffe; the mandates give none). The description lists each départ with « fin vers 12 h (estimée) »; the
+  `.ics` holds every day, Google gets one menu line per day (« samedi 14 »). Times are local
   ("floating"). Otherwise one whole-day event over the competition's days. "Mon suivi" gets the mandate's départ
   in `MyRegistrationDto.mandateDeparture`. In "Mon suivi" the button sits under a line, apart from the départs.
 

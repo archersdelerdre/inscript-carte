@@ -7,7 +7,7 @@ import { frenchTime } from './departures';
  * phone is in the competition's time zone (always, except someone in mainland France adding an overseas competition).
  */
 export type CalendarEvent = {
-  /** Shown in the menu when there are several: « Départ 2 · Matin ». */
+  /** Shown in the menu when there are several days: « samedi 14 ». */
   name: string;
   summary: string;
   location: string;
@@ -20,14 +20,17 @@ const HOURS_AFTER_GREFFE = 4;
 
 type ChosenDeparture = { number: number; mandate: MandateDeparture | null };
 
+const dayName = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', timeZone: 'UTC' });
+
 function addHours(time: string, hours: number): string {
   const [h, m] = time.split(':').map(Number);
   return `${String(Math.min(h! + hours, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 /**
- * The archer's départs of one competition: one timed event per départ when the mandate gives its day and a time,
- * else one whole-day event over the competition's days.
+ * The archer's départs of one competition: one timed event per day when the mandate gives each départ's day and a
+ * time (the day's départs merged, from the first start to the last estimated end), else one whole-day event over the
+ * competition's days.
  */
 export function competitionEvents(competition: {
   title: string;
@@ -54,25 +57,36 @@ export function competitionEvents(competition: {
       },
     ];
   }
-  return competition.departures.map(({ number, mandate }) => {
+  const byDay = new Map<string, { lines: string[]; start: string; end: string }>();
+  for (const { number, mandate } of competition.departures.toSorted((a, b) => a.number - b.number)) {
     const { date, label, registrationOpens: greffe, shootingStarts: shooting } = mandate!;
-    const name = departureTitle(number, label);
+    const start = greffe ?? shooting!;
     const end = shooting ? addHours(shooting, HOURS_AFTER_SHOOTING) : addHours(greffe!, HOURS_AFTER_GREFFE);
     const times = [
       greffe && `Greffe ${frenchTime(greffe)}`,
       shooting && `Tirs ${frenchTime(shooting)}`,
       `fin vers ${frenchTime(end)} (estimée)`,
     ].filter(Boolean);
-    return {
-      name,
-      summary: `${summary} (${name})`,
+    const line = `${departureTitle(number, label)} : ${times.join(' · ')}`;
+    const day = byDay.get(date!);
+    if (!day) byDay.set(date!, { lines: [line], start, end });
+    else {
+      day.lines.push(line);
+      if (start < day.start) day.start = start;
+      if (end > day.end) day.end = end;
+    }
+  }
+  return [...byDay]
+    .toSorted(([a], [b]) => a.localeCompare(b))
+    .map(([date, { lines, start, end }]) => ({
+      name: dayName.format(new Date(`${date}T00:00:00Z`)),
+      summary,
       location: competition.town,
-      description: [name, times.join(' · '), club].join('\n'),
-      date: date!,
-      start: greffe ?? shooting!,
+      description: [...lines, club].join('\n'),
+      date,
+      start,
       end,
-    };
-  });
+    }));
 }
 
 /** `2026-11-15` → `20261115`, `+1` day for the excluded end of a whole-day event. */
