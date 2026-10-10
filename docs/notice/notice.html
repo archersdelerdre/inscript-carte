@@ -8,46 +8,162 @@
     <meta charset="utf-8" />
     <title>Notice d'utilisation</title>
     <style>
-      @page { size: A4; margin: 14mm 15mm; }
-      * { box-sizing: border-box; }
-      body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #1c1c1c; font-size: 11.5pt; line-height: 1.45; margin: 0; }
-      h1 { font-size: 20pt; margin: 0 0 2mm; }
-      .sub { color: #555; margin: 0 0 5mm; }
-      h2 { font-size: 14pt; color: #c8102e; margin: 4mm 0 1.5mm; border-bottom: 2px solid #c8102e; padding-bottom: 1mm; }
-      h3 { font-size: 11.5pt; margin: 4mm 0 1mm; }
-      p { margin: 0 0 2mm; }
-      ol, ul { margin: 0 0 2mm; padding-left: 5.5mm; }
-      li { margin-bottom: 1mm; }
-      b.btn { background: #c8102e; color: white; border-radius: 4px; padding: 0 5px; font-weight: 600; white-space: nowrap; }
-      b.lnk { color: #c8102e; white-space: nowrap; }
-      .row { display: flex; gap: 6mm; align-items: flex-start; }
-      .row .text { flex: 1; }
-      .shot { border: 1px solid #ddd; border-radius: 6px; }
-      .tip { background: #fff4e5; border-left: 4px solid #e8a33d; padding: 2mm 3mm; border-radius: 3px; margin: 2mm 0; }
-      .warn { background: #fdecee; border-left: 4px solid #c8102e; padding: 2mm 3mm; border-radius: 3px; margin: 2mm 0; font-weight: 600; }
-      .rib { border: 1px solid #ccc; border-radius: 6px; padding: 2mm 4mm; margin: 2mm 0; }
-      .rib div { display: flex; gap: 3mm; }
-      .rib span:first-child { color: #555; width: 18mm; }
-      .rib span:last-child { font-family: Menlo, 'Courier New', monospace; font-weight: 600; letter-spacing: 0.3px; }
-      table { border-collapse: collapse; width: 100%; margin: 1mm 0 2mm; font-size: 10.5pt; }
-      td { padding: 0.7mm 2mm; border-bottom: 1px solid #eee; vertical-align: top; }
-      td:first-child { font-weight: 600; white-space: nowrap; width: 46mm; }
-      .page { page-break-after: always; }
-      .admin { font-size: 10.5pt; line-height: 1.32; }
-      .admin h3 { font-size: 11pt; margin: 2.5mm 0 0.5mm; }
-      .admin li { margin-bottom: 0.3mm; }
-      .foot { color: #777; font-size: 9.5pt; margin-top: 3mm; }
+      @page {
+        size: A4;
+        margin: 14mm 15mm;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+        color: #1c1c1c;
+        font-size: 11.5pt;
+        line-height: 1.45;
+        margin: 0;
+      }
+      h1 {
+        font-size: 20pt;
+        margin: 0 0 2mm;
+      }
+      .sub {
+        color: #555;
+        margin: 0 0 5mm;
+      }
+      h2 {
+        font-size: 14pt;
+        color: #c8102e;
+        margin: 4mm 0 1.5mm;
+        border-bottom: 2px solid #c8102e;
+        padding-bottom: 1mm;
+      }
+      h3 {
+        font-size: 11.5pt;
+        margin: 4mm 0 1mm;
+      }
+      p {
+        margin: 0 0 2mm;
+      }
+      ol,
+      ul {
+        margin: 0 0 2mm;
+        padding-left: 5.5mm;
+      }
+      li {
+        margin-bottom: 1mm;
+      }
+      b.btn {
+        background: #c8102e;
+        color: white;
+        border-radius: 4px;
+        padding: 0 5px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      b.lnk {
+        color: #c8102e;
+        white-space: nowrap;
+      }
+      .row {
+        display: flex;
+        gap: 6mm;
+        align-items: flex-start;
+      }
+      .row .text {
+        flex: 1;
+      }
+      .shot {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+      }
+      .tip {
+        background: #fff4e5;
+        border-left: 4px solid #e8a33d;
+        padding: 2mm 3mm;
+        border-radius: 3px;
+        margin: 2mm 0;
+      }
+      .warn {
+        background: #fdecee;
+        border-left: 4px solid #c8102e;
+        padding: 2mm 3mm;
+        border-radius: 3px;
+        margin: 2mm 0;
+        font-weight: 600;
+      }
+      .rib {
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        padding: 2mm 4mm;
+        margin: 2mm 0;
+      }
+      .rib div {
+        display: flex;
+        gap: 3mm;
+      }
+      .rib span:first-child {
+        color: #555;
+        width: 18mm;
+      }
+      .rib span:last-child {
+        font-family: Menlo, 'Courier New', monospace;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1mm 0 2mm;
+        font-size: 10.5pt;
+      }
+      td {
+        padding: 0.7mm 2mm;
+        border-bottom: 1px solid #eee;
+        vertical-align: top;
+      }
+      td:first-child {
+        font-weight: 600;
+        white-space: nowrap;
+        width: 46mm;
+      }
+      .page {
+        page-break-after: always;
+      }
+      .admin {
+        font-size: 10.5pt;
+        line-height: 1.32;
+      }
+      .admin h3 {
+        font-size: 11pt;
+        margin: 2.5mm 0 0.5mm;
+      }
+      .admin li {
+        margin-bottom: 0.3mm;
+      }
+      .foot {
+        color: #777;
+        font-size: 9.5pt;
+        margin-top: 3mm;
+      }
     </style>
   </head>
   <body>
     <div class="page">
       <h1>Notice d'utilisation</h1>
-      <p class="sub">Consultation des concours FFTA à venir et inscription par l'intermédiaire des Archers de l'Erdre.</p>
+      <p class="sub">
+        Consultation des concours FFTA à venir et inscription par l'intermédiaire des Archers de l'Erdre.
+      </p>
 
       <h2>1. Recherche d'un concours</h2>
       <ul>
-        <li>La <b>carte</b> et la <b>liste</b> présentent les concours à venir. Sur téléphone, le bouton situé en bas de l'écran permet de passer de l'une à l'autre.</li>
-        <li>Sélectionnez votre <b>département</b> (ou votre région) en haut de la page ; ce choix est conservé. Le bouton <b>Filtres</b> permet d'affiner la recherche par discipline, par dates, etc.</li>
+        <li>
+          La <b>carte</b> et la <b>liste</b> présentent les concours à venir. Sur téléphone, le bouton situé en bas de
+          l'écran permet de passer de l'une à l'autre.
+        </li>
+        <li>
+          Sélectionnez votre <b>département</b> (ou votre région) en haut de la page ; ce choix est conservé. Le bouton
+          <b>Filtres</b> permet d'affiner la recherche par discipline, par dates, etc.
+        </li>
         <li>Le lien <b class="lnk">Voir sur la carte</b> indique l'emplacement du concours.</li>
       </ul>
 
@@ -56,12 +172,24 @@
         <div class="text">
           <ol>
             <li>Sur la fiche du concours, appuyez sur <b class="btn">S'inscrire</b>.</li>
-            <li>Lors de la première connexion, saisissez votre <b>numéro de licence</b> et votre <b>date de naissance</b>. Aucun mot de passe n'est demandé et la connexion est conservée sur l'appareil.</li>
-            <li>Sélectionnez le ou les <b>départs</b>, votre <b>arc</b> et le <b>mode de paiement</b>. Cochez, si nécessaire, le trispot et le covoiturage.</li>
+            <li>
+              Lors de la première connexion, saisissez votre <b>numéro de licence</b> et votre <b>date de naissance</b>.
+              Aucun mot de passe n'est demandé et la connexion est conservée sur l'appareil.
+            </li>
+            <li>
+              Sélectionnez le ou les <b>départs</b>, votre <b>arc</b> et le <b>mode de paiement</b>. Cochez, si
+              nécessaire, le trispot et le covoiturage.
+            </li>
             <li>Validez avec <b class="btn">Envoyer mon inscription</b>.</li>
           </ol>
-          <div class="tip">Les inscriptions se font <b>par l'intermédiaire du club</b>, jusqu'à la date indiquée sur la fiche («&nbsp;Inscription par le club jusqu'au…&nbsp;»), soit environ 15 jours avant le concours.</div>
-          <p>Lorsque les horaires ne sont pas encore connus, les départs 1 à 4 sont proposés. Une inscription sur un départ inexistant pourra être annulée par le club.</p>
+          <div class="tip">
+            Les inscriptions se font <b>par l'intermédiaire du club</b>, jusqu'à la date indiquée sur la fiche
+            («&nbsp;Inscription par le club jusqu'au…&nbsp;»), soit environ 15 jours avant le concours.
+          </div>
+          <p>
+            Lorsque les horaires ne sont pas encore connus, les départs 1 à 4 sont proposés. Une inscription sur un
+            départ inexistant pourra être annulée par le club.
+          </p>
           <img class="shot" src="carte.png" style="width: 74mm; margin-top: 1mm" />
         </div>
         <img class="shot" src="formulaire.png" style="width: 60mm" />
@@ -70,7 +198,11 @@
 
     <div class="page">
       <h2>3. Paiement</h2>
-      <p>Une fois l'inscription envoyée, une <b>référence</b> s'affiche (par exemple R-0012). Le règlement est à effectuer auprès du club avant la date indiquée, en espèces, par chèque à l'ordre des Archers de l'Erdre ou par virement, en précisant cette référence.</p>
+      <p>
+        Une fois l'inscription envoyée, une <b>référence</b> s'affiche (par exemple R-0012). Le règlement est à
+        effectuer auprès du club avant la date indiquée, en espèces, par chèque à l'ordre des Archers de l'Erdre ou par
+        virement, en précisant cette référence.
+      </p>
       <div class="warn">Le club ne transmet l'inscription à l'organisateur qu'après réception du paiement.</div>
       <p><b>Paiement par virement</b> : indiquez la référence (R-…) dans le libellé du virement.</p>
       <div class="rib">
@@ -82,14 +214,35 @@
       <h2>4. Suivi des inscriptions</h2>
       <p>Le bouton <b>Mon suivi</b>, en haut de la page, présente l'ensemble de vos inscriptions et leur état :</p>
       <table>
-        <tr><td>Reçue</td><td>La demande a bien été reçue par le club.</td></tr>
-        <tr><td>Transmise à l'organisateur</td><td>Le club a transmis l'inscription au club organisateur.</td></tr>
-        <tr><td>Validée</td><td>L'organisateur a confirmé la place.</td></tr>
-        <tr><td>Plus de place</td><td>Le départ était complet.</td></tr>
-        <tr><td>Annulée</td><td>Le départ a été annulé.</td></tr>
+        <tr>
+          <td>Reçue</td>
+          <td>La demande a bien été reçue par le club.</td>
+        </tr>
+        <tr>
+          <td>Transmise à l'organisateur</td>
+          <td>Le club a transmis l'inscription au club organisateur.</td>
+        </tr>
+        <tr>
+          <td>Validée</td>
+          <td>L'organisateur a confirmé la place.</td>
+        </tr>
+        <tr>
+          <td>Plus de place</td>
+          <td>Le départ était complet.</td>
+        </tr>
+        <tr>
+          <td>Annulée</td>
+          <td>Le départ a été annulé.</td>
+        </tr>
       </table>
-      <p>Une inscription à l'état « Reçue » peut être retirée avec <b>Retirer ce départ</b> jusqu'à la date limite. Au-delà, adressez-vous au club.</p>
-      <p>Le lien <b class="lnk">Voir les inscrits</b>, sur la fiche d'un concours, affiche les archers du club déjà inscrits.</p>
+      <p>
+        Une inscription à l'état « Reçue » peut être retirée avec <b>Retirer ce départ</b> jusqu'à la date limite.
+        Au-delà, adressez-vous au club.
+      </p>
+      <p>
+        Le lien <b class="lnk">Voir les inscrits</b>, sur la fiche d'un concours, affiche les archers du club déjà
+        inscrits.
+      </p>
 
       <div class="admin">
         <h2>Administration</h2>
@@ -97,14 +250,27 @@
         <h3>Inscriptions</h3>
         <ul>
           <li>Les concours comportant des inscrits figurent à gauche ; les archers à droite, une ligne par départ.</li>
-          <li>Pour chaque départ, mettez à jour le <b>statut</b> (Reçue → Transmise → Validée…) et cochez <b>Payé</b> à réception du règlement. <b>Tout marquer comme payé</b> s'applique à l'ensemble d'une référence.</li>
+          <li>
+            Pour chaque départ, mettez à jour le <b>statut</b> (Reçue → Transmise → Validée…) et cochez <b>Payé</b> à
+            réception du règlement. <b>Tout marquer comme payé</b> s'applique à l'ensemble d'une référence.
+          </li>
           <li>Le bloc <b>Lu dans le mandat</b> rappelle les départs et les tarifs du concours.</li>
-          <li><b>Fichier Excel pour l'organisateur</b> génère la liste à transmettre, montants compris. Sélectionnez «&nbsp;Payés&nbsp;» dans le filtre de paiement pour n'y faire figurer que les départs réglés. <b>Vérifiez les tarifs</b> avant tout envoi : ils sont extraits automatiquement du mandat.</li>
+          <li>
+            <b>Fichier Excel pour l'organisateur</b> génère la liste à transmettre, montants compris. Sélectionnez
+            «&nbsp;Payés&nbsp;» dans le filtre de paiement pour n'y faire figurer que les départs réglés.
+            <b>Vérifiez les tarifs</b> avant tout envoi : ils sont extraits automatiquement du mandat.
+          </li>
         </ul>
         <h3>Licenciés</h3>
         <ul>
-          <li><b>Importer</b> : déposez le fichier des licenciés exporté de l'extranet FFTA afin de mettre la liste à jour.</li>
-          <li>Le bouton « … » en fin de ligne permet de <b>désactiver</b> un licencié ou de le <b>nommer administrateur</b>.</li>
+          <li>
+            <b>Importer</b> : déposez le fichier des licenciés exporté de l'extranet FFTA afin de mettre la liste à
+            jour.
+          </li>
+          <li>
+            Le bouton « … » en fin de ligne permet de <b>désactiver</b> un licencié ou de le
+            <b>nommer administrateur</b>.
+          </li>
         </ul>
         <h3>Calendrier FFTA</h3>
         <ul>
@@ -112,7 +278,9 @@
           <li>En cas de concours erroné ou manquant, utilisez <b>Mettre à jour ce concours</b> (quelques secondes).</li>
           <li>« Mettre à jour tout le calendrier » : uniquement en cas de réelle nécessité.</li>
         </ul>
-        <p class="foot">Pour toute question : secretariat@archersdelerdre.info, ou auprès d'un administrateur du club.</p>
+        <p class="foot">
+          Pour toute question : secretariat@archersdelerdre.info, ou auprès d'un administrateur du club.
+        </p>
       </div>
     </div>
   </body>

@@ -55,6 +55,7 @@ export function toMyRegistrationDto({ registration, competition, canWithdraw }: 
     competitionTitle: competition.title,
     startDate: competition.startDate,
     endDate: competition.endDate,
+    town: competition.town,
     departure: registration.departure,
     departureLabel: departureLabel(competition, registration.departure),
     bowType: registration.bowType,

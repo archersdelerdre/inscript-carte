@@ -172,6 +172,11 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
 - Names of registrants are for signed-in members only; the count is public. "Voir les inscrits" shows a
   "Covoiturage" badge for archers interested; "Mon suivi" and the admin card too. "Mon suivi" also shows a violet
   "Trispot" badge on each départ shot on trispot (asked by a member, 2026-10-08).
+- **« Ajouter à mon agenda »** (asked by Loïc, 2026-10-10), on the « Inscription enregistrée » screen and per
+  competition in "Mon suivi": a menu with Google Agenda (pre-filled link) and « Autre agenda » (an `.ics` file built
+  in the browser, `registrations/calendar.ts`). The site cannot write into a calendar by itself. Whole-day event (the
+  mandates give no end time) on the chosen départs' days when the mandate gives them, else the competition's days;
+  the description lists the départs with greffe and shooting times.
 
 ## Admin panel (`/admin`, `apps/client/src/admin/`)
 

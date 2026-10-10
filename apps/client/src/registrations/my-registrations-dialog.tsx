@@ -28,6 +28,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, formatDay } from '@/lib/dates';
 
+import { AddToCalendarButton } from './add-to-calendar-button';
+import { competitionEvent } from './calendar';
 import { ERROR_MESSAGES, PAYMENT_METHOD_PHRASES } from './messages';
 import { StatusBadge } from './status-badge';
 
@@ -155,6 +157,18 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                   </li>
                 ))}
               </ul>
+              <div>
+                <AddToCalendarButton
+                  uid={`${first.competitionId}-${first.paymentReference}@inscript-carte`}
+                  event={competitionEvent({
+                    title: first.competitionTitle,
+                    town: first.town,
+                    startDate: first.startDate,
+                    endDate: first.endDate,
+                    departures: rows.map((row) => departureTitle(row.departure, row.departureLabel)),
+                  })}
+                />
+              </div>
             </section>
           );
         })}

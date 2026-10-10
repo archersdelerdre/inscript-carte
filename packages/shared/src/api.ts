@@ -170,6 +170,7 @@ export type MyRegistrationDto = {
   competitionTitle: string;
   startDate: string;
   endDate: string;
+  town: string;
   departure: number;
   /** The mandate's name for that départ ("Après-midi"); `null` when the mandate was not read. */
   departureLabel: string | null;

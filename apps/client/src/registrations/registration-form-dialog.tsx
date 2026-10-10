@@ -41,6 +41,8 @@ import { api } from '@/lib/api';
 import { formatDateRange, formatDay } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 
+import { AddToCalendarButton } from './add-to-calendar-button';
+import { competitionEvent } from './calendar';
 import { departureOptions } from './departures';
 import { departuresPhrase, ERROR_MESSAGES, PAYMENT_METHOD_PHRASES } from './messages';
 
@@ -163,6 +165,10 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
               <p>Vous retrouverez cette inscription et sa référence dans « Mon suivi ».</p>
             </div>
             <DialogFooter>
+              <AddToCalendarButton
+                event={createdEvent(competition, created.departures)}
+                uid={`${competition.id}-${created.paymentReference}@inscript-carte`}
+              />
               <Button onClick={onClose}>Fermer</Button>
             </DialogFooter>
           </>
@@ -352,6 +358,24 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
       </DialogContent>
     </Dialog>
   );
+}
+
+/** The days of the chosen départs when the mandate gives them all, else the competition's days. */
+function createdEvent(competition: CompetitionDto, chosen: number[]) {
+  const options = departureOptions(competition);
+  const dates = chosen.map((number) => competition.departures?.[number - 1]?.date);
+  const known = dates.every(Boolean) ? (dates as string[]).toSorted() : null;
+  return competitionEvent({
+    title: competition.title,
+    town: competition.town,
+    startDate: known?.[0] ?? competition.startDate,
+    endDate: known?.at(-1) ?? competition.endDate,
+    departures: chosen.map((number) => {
+      const option = options.find((candidate) => candidate.number === number);
+      const name = option && competition.departures ? ` · ${option.name}` : '';
+      return `Départ ${number}${name}${option?.details ? ` · ${option.details}` : ''}`;
+    }),
+  });
 }
 
 type ChoiceGroupProps = {
