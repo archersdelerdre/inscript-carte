@@ -1,6 +1,7 @@
 import {
   API_ROUTES,
   type AdminCompetitionRegistrationsResponse,
+  type CompetitionOverviewResponse,
   type AdminSessionResponse,
   type GrantAdminResponse,
   type ListAdminCompetitionsResponse,
@@ -16,6 +17,7 @@ import type { BunRequest } from 'bun';
 
 import type { AdminAccounts } from '../../application/admin-accounts.ts';
 import type { AdminAuthentication } from '../../application/admin-authentication.ts';
+import type { AdminCompetitionOverview } from '../../application/admin-competition-overview.ts';
 import type { AdminRegistrations, UpdateResult } from '../../application/admin-registrations.ts';
 import type { ClubMembers } from '../../application/club-members.ts';
 import type { ScraperRuns } from '../../application/scraper-runs.ts';
@@ -24,7 +26,13 @@ import type { Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 import { MemberExportError } from '../../infrastructure/members/ffta-member-export.ts';
 import { error, isHttps, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
-import { toAdminCompetitionDto, toAdminMemberDto, toAdminRegistrationDto, toScraperRunDto } from './presenters.ts';
+import {
+  toAdminCompetitionDto,
+  toAdminMemberDto,
+  toAdminRegistrationDto,
+  toCompetitionOverviewDto,
+  toScraperRunDto,
+} from './presenters.ts';
 import { createScraperEvents } from './scraper-events.ts';
 
 const ADMIN_COOKIE = 'admin_session';
@@ -39,6 +47,7 @@ export type AdminHttpDependencies = {
   adminAuthentication: AdminAuthentication;
   adminAccounts: AdminAccounts;
   adminRegistrations: AdminRegistrations;
+  adminCompetitionOverview: AdminCompetitionOverview;
   clubMembers: ClubMembers;
   scraperRuns: ScraperRuns;
   readMemberExport: (bytes: Buffer) => Promise<Archer[]>;
@@ -54,6 +63,7 @@ export function createAdminRoutes({
   adminAuthentication,
   adminAccounts,
   adminRegistrations,
+  adminCompetitionOverview,
   clubMembers,
   scraperRuns,
   readMemberExport,
@@ -167,6 +177,15 @@ export function createAdminRoutes({
         return Response.json({
           competitions: competitions.map(toAdminCompetitionDto),
         } satisfies ListAdminCompetitionsResponse);
+      }),
+    },
+
+    [API_ROUTES.adminCompetitionOverview]: {
+      GET: asAdmin(async () => {
+        const competitions = await adminCompetitionOverview.list();
+        return Response.json({
+          competitions: competitions.map(toCompetitionOverviewDto),
+        } satisfies CompetitionOverviewResponse);
       }),
     },
 

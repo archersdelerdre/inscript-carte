@@ -3,11 +3,13 @@ import type {
   AdminMemberDto,
   AdminRegistrationDto,
   CompetitionDto,
+  CompetitionOverviewDto,
   MyRegistrationDto,
   ScraperRunDto,
   SignedInArcher,
 } from '@inscript-carte/shared';
 
+import type { CompetitionOverview } from '../../application/admin-competition-overview.ts';
 import type { AdminCompetition } from '../../application/admin-registrations.ts';
 import type { ClubMember } from '../../application/club-members.ts';
 import type { MyRegistration } from '../../application/club-registrations.ts';
@@ -97,6 +99,28 @@ export function toAdminCompetitionDto({
     statusCounts,
     toPayCount,
     toRefundCount,
+  };
+}
+
+export function toCompetitionOverviewDto({
+  competition,
+  clubArcherCount,
+  problems,
+}: CompetitionOverview): CompetitionOverviewDto {
+  return {
+    id: competition.id,
+    title: competition.title,
+    discipline: competition.discipline,
+    hasParaTir: competition.hasParaTir,
+    startDate: competition.startDate,
+    endDate: competition.endDate,
+    town: competition.town,
+    departmentCode: competition.departmentCode,
+    isPostponed: competition.status === 'postponed',
+    isCancelled: competition.status === 'cancelled',
+    mandateUrl: competition.mandateUrl,
+    clubArcherCount,
+    problems,
   };
 }
 

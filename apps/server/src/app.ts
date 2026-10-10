@@ -2,6 +2,7 @@ import type { Knex } from 'knex';
 
 import { AdminAccounts } from './application/admin-accounts.ts';
 import { AdminAuthentication } from './application/admin-authentication.ts';
+import { AdminCompetitionOverview } from './application/admin-competition-overview.ts';
 import { AdminRegistrations } from './application/admin-registrations.ts';
 import { Authentication } from './application/authentication.ts';
 import { ClubMembers } from './application/club-members.ts';
@@ -13,6 +14,7 @@ import { BunPasswordHasher } from './infrastructure/bun-password-hasher.ts';
 import { SqliteAdminRepository } from './infrastructure/database/sqlite-admin-repository.ts';
 import { SqliteArcherRepository } from './infrastructure/database/sqlite-archer-repository.ts';
 import { SqliteCompetitionRepository } from './infrastructure/database/sqlite-competition-repository.ts';
+import { SqliteMandateReadings } from './infrastructure/database/sqlite-mandate-readings.ts';
 import { SqliteMemberListRepository } from './infrastructure/database/sqlite-member-list-repository.ts';
 import { SqliteRegistrationRepository } from './infrastructure/database/sqlite-registration-repository.ts';
 import { SqliteSessionStore } from './infrastructure/database/sqlite-session-store.ts';
@@ -59,6 +61,12 @@ export function createApp(database: Knex, clock: Clock, scraperRuns: ScraperRuns
     ),
     adminAccounts: new AdminAccounts(archers, admins, passwordHasher),
     adminRegistrations: new AdminRegistrations(competitions, registrations, archers, clock),
+    adminCompetitionOverview: new AdminCompetitionOverview(
+      competitions,
+      registrations,
+      new SqliteMandateReadings(database),
+      clock,
+    ),
     clubMembers: new ClubMembers(new SqliteMemberListRepository(database), admins, clock),
     scraperRuns,
     readMemberExport,

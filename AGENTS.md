@@ -163,9 +163,9 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 
 ## Admin panel (`apps/client/src/admin/`)
 
-- Pages `/admin/inscriptions[/<ffta_id>]`, `/admin/licencies`, `/admin/calendrier`. No router library: the address is
-  the only state (`pushState` + `popstate`), tabs are real links. `main.tsx` lazy-loads the member app or the admin app
-  as separate chunks (also keeps chunks under Vite's 500 kB warning).
+- Pages `/admin/inscriptions[/<ffta_id>]`, `/admin/concours`, `/admin/licencies`, `/admin/calendrier`. No router: the
+  address is the only state (`pushState` + `popstate`), tabs are real links. `main.tsx` lazy-loads the member app or
+  the admin app as separate chunks (also keeps chunks under Vite's 500 kB warning).
 - Inscriptions: competitions with registrations (badges « à transmettre », « en attente de paiement », « à
   rembourser »), then one card per payment reference, one line per départ (status menu, payment menu, note).
   Decided: a card starts closed only when nothing is left to do (every active départ full, or validated and paid,
@@ -175,6 +175,11 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   filters (the club usually sends only paid départs); never "Plus de place" or "Annulée". One line per archer and
   bow; Montant from the mandate prices (`pricing.ts`: youth = every Uxx category); empty when no price fits.
 - Below the competition title: "Mandat (PDF)" and « Lu dans le mandat » (départs and prices read).
+- Concours (`competitions-page.tsx`, `AdminCompetitionOverview`): every upcoming competition, hidden ones included.
+  Decided: problems show as short badges, the details only when the row is opened. Problems (`problemsOf`): no place,
+  gone from the FFTA list, mandate not read / failed / refused (a reading of an older link does not count), read
+  without départs or prices. An opened row offers "Mettre à jour ce concours" (one-competition run) and « Voir les
+  inscriptions » when club archers are registered.
 - Licenciés: table with search and active/left filter, a "⋯" menu per row (deactivate, admin rights), import dialog.
 
 ## FFTA scraper (`infrastructure/ffta/`, `application/sync-ffta-calendar.ts`)
@@ -253,8 +258,8 @@ print the page to A4 PDF with backgrounds, check the page count. Update them whe
 
 ## Not done yet
 
-- The count of competitions that cannot be located, shown in the admin panel, with a way to fix them (results in the
-  database instead of `known-places.ts`).
+- Fixing a competition's place by hand from the admin panel (« Concours » only shows « Lieu introuvable »); the result
+  should live in the database instead of `known-places.ts`.
 
 ## Decided not to do
 

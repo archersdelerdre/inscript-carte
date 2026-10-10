@@ -14,6 +14,8 @@ export const API_ROUTES = {
   adminSession: '/api/admin/session',
   adminPassword: '/api/admin/session/password',
   adminCompetitions: '/api/admin/competitions',
+  /** Every upcoming competition, hidden ones included, with what is wrong with each. */
+  adminCompetitionOverview: '/api/admin/competition-overview',
   adminCompetitionRegistrations: '/api/admin/competitions/:competitionId/registrations',
   adminCompetitionExport: '/api/admin/competitions/:competitionId/export',
   adminRegistration: '/api/admin/registrations/:registrationId',
@@ -242,6 +244,44 @@ export type AdminCompetitionDto = {
 export type ListAdminCompetitionsResponse = {
   /** Upcoming first (soonest first), then finished ones (latest first). */
   competitions: AdminCompetitionDto[];
+};
+
+/** Something an admin should know about one competition. `details` are French lines from the mandate reading. */
+export type CompetitionProblem =
+  /** No position: not on the public map nor list. */
+  | { kind: 'no_place' }
+  /** Gone from the FFTA calendar since that day: hidden from the public. */
+  | { kind: 'missing'; since: string }
+  /** A mandate link no reading covers yet (waiting for the next run, or beyond its cap). */
+  | { kind: 'mandate_unread' }
+  /** No answer (download, PDF, LLM); `willRetry` while tries are left on this link. */
+  | { kind: 'mandate_failed'; willRetry: boolean; details: string[] }
+  /** The LLM answered, the checks refused it. */
+  | { kind: 'mandate_refused'; willRetry: boolean; details: string[] }
+  /** Read, but without départs (the form offers 1 to 4) or without prices (no amount in the Excel file). */
+  | { kind: 'mandate_without_departures' }
+  | { kind: 'mandate_without_prices' };
+
+export type CompetitionOverviewDto = {
+  id: string;
+  title: string;
+  discipline: Discipline;
+  hasParaTir: boolean;
+  startDate: string;
+  endDate: string;
+  town: string;
+  departmentCode: string;
+  isPostponed: boolean;
+  isCancelled: boolean;
+  mandateUrl: string | null;
+  /** Club archers with an active départ: their registrations can be opened. */
+  clubArcherCount: number;
+  problems: CompetitionProblem[];
+};
+
+export type CompetitionOverviewResponse = {
+  /** Upcoming (not finished), soonest first. */
+  competitions: CompetitionOverviewDto[];
 };
 
 /** One row per départ, with everything the secretary needs. Never the birth date. */

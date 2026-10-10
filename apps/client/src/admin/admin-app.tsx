@@ -12,23 +12,25 @@ import { ERROR_MESSAGES } from '@/registrations/messages';
 
 import { AdminCompetitions } from './admin-competitions';
 import { ChangePasswordDialog, ForcedPasswordChange } from './change-password';
+import { CompetitionsPage } from './competitions-page';
 import { MembersPage } from './members-page';
 import { ScraperPage } from './scraper-page';
 
 type Admin = AdminSessionResponse['admin'];
-type Section = 'registrations' | 'members' | 'scraper';
+type Section = 'registrations' | 'competitions' | 'members' | 'scraper';
 
 /** Each section is a page with its own address, so it can be bookmarked, reloaded and opened in a new tab. */
 const SECTIONS: Record<Section, { path: string; title: string }> = {
   registrations: { path: '/admin/inscriptions', title: 'Inscriptions' },
+  competitions: { path: '/admin/concours', title: 'Concours' },
   members: { path: '/admin/licencies', title: 'Licenciés' },
   scraper: { path: '/admin/calendrier', title: 'Calendrier FFTA' },
 };
 
 /** `/admin` and unknown admin paths show the registrations. */
 function sectionFromPath(pathname: string): Section {
-  if (pathname.startsWith(SECTIONS.members.path)) return 'members';
-  return pathname.startsWith(SECTIONS.scraper.path) ? 'scraper' : 'registrations';
+  const found = (Object.keys(SECTIONS) as Section[]).find((section) => pathname.startsWith(SECTIONS[section].path));
+  return found ?? 'registrations';
 }
 
 /** `/admin/inscriptions/26492` → `26492`: the competition open on the registrations page. */
@@ -93,8 +95,9 @@ export function AdminApp() {
         <ShieldCheckIcon className='text-primary size-6 shrink-0' />
         <span className='min-w-0 truncate text-lg font-semibold tracking-tight'>Administration</span>
         {ready && (
-          <nav className='flex gap-1' aria-label='Rubriques'>
+          <nav className='flex flex-wrap gap-1' aria-label='Rubriques'>
             <SectionLink section='registrations' active={section === 'registrations'} onNavigate={navigate} />
+            <SectionLink section='competitions' active={section === 'competitions'} onNavigate={navigate} />
             <SectionLink section='members' active={section === 'members'} onNavigate={navigate} />
             <SectionLink section='scraper' active={section === 'scraper'} onNavigate={navigate} />
           </nav>
@@ -143,6 +146,15 @@ export function AdminApp() {
       )}
       {ready && section === 'registrations' && (
         <AdminCompetitions selectedId={competitionId} onSelect={selectCompetition} onSessionExpired={sessionExpired} />
+      )}
+      {ready && section === 'competitions' && (
+        <div className='min-h-0 flex-1 overflow-y-auto'>
+          <CompetitionsPage
+            onOpenRegistrations={selectCompetition}
+            onOpenScraper={() => navigate(SECTIONS.scraper.path)}
+            onSessionExpired={sessionExpired}
+          />
+        </div>
       )}
       {ready && section === 'members' && (
         <div className='min-h-0 flex-1 overflow-y-auto'>
