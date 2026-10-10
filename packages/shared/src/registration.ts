@@ -40,23 +40,32 @@ export function canChangeStatus(from: RegistrationStatus, to: RegistrationStatus
   return from === to || from !== 'cancelled';
 }
 
-export const PAYMENT_STATUSES = ['to_pay', 'paid'] as const;
+/**
+ * Stored and chosen by the club (a menu in the panel, asked 2026-10-10). "Rien à payer" and "À rembourser" belong to
+ * a départ the club no longer counts on ("Plus de place", "Annulée"): never paid, or paid and to give back.
+ */
+export const PAYMENT_STATUSES = ['to_pay', 'paid', 'nothing_due', 'to_refund', 'refunded'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   to_pay: 'En attente de paiement',
   paid: 'Payé',
+  nothing_due: 'Rien à payer',
+  to_refund: 'À rembourser',
+  refunded: 'Remboursé',
 };
 
 /**
- * A départ the club no longer counts on ("Plus de place", "Annulée") has nothing to pay while it is not paid: the
- * panel shows "Rien à payer" instead of "En attente de paiement". Derived, not stored: a départ put back to another
- * status is due again. A départ already paid stays "Payé" (the club may have to pay it back).
+ * The payment that goes with a new status, when the club does not choose one itself: a départ that ends ("Plus de
+ * place", "Annulée") has nothing to pay, or must be refunded when it was paid; one put back the other way round.
  */
-export function isPaymentDue(status: RegistrationStatus, paymentStatus: PaymentStatus): boolean {
-  return paymentStatus === 'to_pay' && status !== 'full' && status !== 'cancelled';
+export function paymentForStatus(status: RegistrationStatus, payment: PaymentStatus): PaymentStatus {
+  const ended = status === 'full' || status === 'cancelled';
+  if (ended && payment === 'to_pay') return 'nothing_due';
+  if (ended && payment === 'paid') return 'to_refund';
+  if (!ended && payment === 'nothing_due') return 'to_pay';
+  if (!ended && payment === 'to_refund') return 'paid';
+  return payment;
 }
-
-export const NOTHING_TO_PAY_LABEL = 'Rien à payer';
 
 /** How the archer will pay the club; chosen when registering. */
 export const PAYMENT_METHODS = ['cash', 'cheque', 'transfer'] as const;

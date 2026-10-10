@@ -1,7 +1,7 @@
 import {
   canChangeStatus,
-  isPaymentDue,
   PAYMENT_STATUSES,
+  paymentForStatus,
   REGISTRATION_STATUSES,
   type PaymentStatus,
   type RegistrationStatus,
@@ -30,6 +30,8 @@ export type AdminCompetition = {
   isFinished: boolean;
   statusCounts: Record<RegistrationStatus, number>;
   toPayCount: number;
+  /** Paid départs the club no longer counts on: their money goes back to the archer. */
+  toRefundCount: number;
 };
 
 export type CompetitionRegistrations = { competition: AdminCompetition; registrations: RegistrationDetails[] };
@@ -184,22 +186,26 @@ function summarize(
     number
   >;
   let toPayCount = 0;
+  let toRefundCount = 0;
   for (const { status, paymentStatus, count } of counts) {
     statusCounts[status] += count;
-    if (isPaymentDue(status, paymentStatus)) toPayCount += count;
+    if (paymentStatus === 'to_pay') toPayCount += count;
+    if (paymentStatus === 'to_refund') toRefundCount += count;
   }
-  return { competition, isFinished: isFinished(competition, today), statusCounts, toPayCount };
+  return { competition, isFinished: isFinished(competition, today), statusCounts, toPayCount, toRefundCount };
 }
 
 /**
- * "Tout marquer payé" leaves the "Plus de place" départs with nothing to pay as they are: nothing is due on them.
- * `null` when the row is left untouched, so it does not show this admin as the last one who changed it.
+ * "Tout marquer payé" / "Tout remettre en attente" only move départs between those two states: the others (nothing
+ * to pay, to refund, refunded) are left as they are. `null` when the row is left untouched, so it does not show this
+ * admin as the last one who changed it.
  */
 function forReferenceRow(registration: Registration, update: RegistrationUpdate): RegistrationUpdate | null {
-  const status = update.status ?? registration.status;
-  if (update.paymentStatus !== 'paid' || isPaymentDue(status, registration.paymentStatus)) return update;
+  const switches = update.paymentStatus === 'paid' || update.paymentStatus === 'to_pay';
+  if (!switches || registration.paymentStatus === 'paid' || registration.paymentStatus === 'to_pay') return update;
   if (update.status === undefined) return null;
-  return { ...update, paymentStatus: registration.paymentStatus };
+  const { paymentStatus: _ignored, ...statusOnly } = update;
+  return statusOnly;
 }
 
 /** `null` when the form is not valid or changes nothing. */
@@ -224,7 +230,10 @@ function parseUpdate(form: RegistrationUpdateForm, allowNote: boolean): Registra
   return Object.keys(update).length > 0 ? update : null;
 }
 
-/** The new values of one row; the status change was checked before. Cancelling adds a line to the note. */
+/**
+ * The new values of one row; the status change was checked before. Cancelling adds a line to the note. A status
+ * change without a payment choice moves the payment along (`paymentForStatus`).
+ */
 function changeOf(registration: Registration, update: RegistrationUpdate, today: CalendarDate): RegistrationChange {
   const status = update.status ?? registration.status;
   const note = update.clubNote === undefined ? registration.clubNote : update.clubNote;
@@ -232,7 +241,7 @@ function changeOf(registration: Registration, update: RegistrationUpdate, today:
   return {
     id: registration.id,
     status,
-    paymentStatus: update.paymentStatus ?? registration.paymentStatus,
+    paymentStatus: update.paymentStatus ?? paymentForStatus(status, registration.paymentStatus),
     clubNote: cancels ? [note, `Annulée par le club le ${toFrenchDate(today)}`].filter(Boolean).join('\n') : note,
     ...(cancels ? { cancelledAt: today } : {}),
   };

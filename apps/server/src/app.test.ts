@@ -776,7 +776,7 @@ describe('admin registrations', () => {
     for (const body of [
       {},
       { status: 'awaiting_payment' },
-      { paymentStatus: 'refunded' },
+      { paymentStatus: 'free' },
       { clubNote: 42 },
       { clubNote: 'x'.repeat(501) },
     ]) {
@@ -817,37 +817,41 @@ describe('admin registrations', () => {
         paymentStatus,
       ]),
     ).toEqual([
-      ['R-0001', 'cancelled', 'to_pay'],
+      ['R-0001', 'cancelled', 'nothing_due'],
       ['R-0001', 'sent_to_organizer', 'paid'],
       ['R-0002', 'received', 'to_pay'],
     ]);
   });
 
-  test('a "Plus de place" départ not paid has nothing to pay', async () => {
+  test('the payment follows the status: nothing to pay or to refund when a départ ends, back when it does not', async () => {
     await registerBoth();
-    const [first] = await adminRegistrations(cookie);
-    await call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body: { status: 'full' } });
-    const toPay = async () => {
+    const [first, second] = await adminRegistrations(cookie);
+    const counts = async () => {
       const response = await call('/api/admin/competitions', { cookie });
       const { competitions } = (await response.json()) as ListAdminCompetitionsResponse;
-      return competitions.find(({ id }) => id === SALLE)?.toPayCount;
+      const competition = competitions.find(({ id }) => id === SALLE);
+      return [competition?.toPayCount, competition?.toRefundCount];
     };
-    expect(await toPay()).toBe(2);
+    const payments = async () => (await adminRegistrations(cookie)).map(({ paymentStatus }) => paymentStatus);
+    const patch = (id: number, body: object) =>
+      call(`/api/admin/registrations/${id}`, { method: 'PATCH', cookie, body });
 
-    // Marking the whole reference paid leaves the refused départ as it is.
+    // Not paid, then « Plus de place »: nothing to pay. Marking the whole reference paid leaves it so.
+    await patch(first!.id, { status: 'full' });
+    expect(await counts()).toEqual([2, 0]);
     await call('/api/admin/payment-references/R-0001', { method: 'PATCH', cookie, body: { paymentStatus: 'paid' } });
-    expect(
-      (await adminRegistrations(cookie)).map(({ paymentReference, status, paymentStatus }) => [
-        paymentReference,
-        status,
-        paymentStatus,
-      ]),
-    ).toEqual([
-      ['R-0001', 'full', 'to_pay'],
-      ['R-0001', 'received', 'paid'],
-      ['R-0002', 'received', 'to_pay'],
-    ]);
-    expect(await toPay()).toBe(1);
+    expect(await payments()).toEqual(['nothing_due', 'paid', 'to_pay']);
+
+    // Paid, then « Plus de place »: to refund, until the club says it refunded.
+    await patch(second!.id, { status: 'full' });
+    expect(await payments()).toEqual(['nothing_due', 'to_refund', 'to_pay']);
+    expect(await counts()).toEqual([1, 1]);
+    await patch(second!.id, { paymentStatus: 'refunded' });
+    expect(await counts()).toEqual([1, 0]);
+
+    // Back to « Reçue »: what is due is due again.
+    await patch(first!.id, { status: 'received' });
+    expect(await payments()).toEqual(['to_pay', 'refunded', 'to_pay']);
   });
 
   test('a whole payment reference can go back to "Reçue"', async () => {

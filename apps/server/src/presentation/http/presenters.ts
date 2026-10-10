@@ -77,6 +77,7 @@ export function toAdminCompetitionDto({
   isFinished,
   statusCounts,
   toPayCount,
+  toRefundCount,
 }: AdminCompetition): AdminCompetitionDto {
   return {
     id: competition.id,
@@ -95,6 +96,7 @@ export function toAdminCompetitionDto({
     isFinished,
     statusCounts,
     toPayCount,
+    toRefundCount,
   };
 }
 

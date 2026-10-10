@@ -208,26 +208,29 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   the panel warns that the archer can withdraw it again without the organizer knowing. Cancelling adds "Annulée par
   le club le JJ/MM/AAAA" to the note; both ask for a confirmation in the UI. Each admin change writes `updated_by`.
 - The page lists competitions with registrations (upcoming first; date block in the discipline color, "à
-  transmettre" / "en attente de paiement" as sky / amber badges), then one card per payment reference (= one archer
-  per competition) on a light grey pane. Card: grey header band (name, reference, licence, category, contact) with
-  the reference actions (status of all départs, "Tout marquer payé", only with 2+ active départs); then **one line
-  per départ** in aligned columns: départ + bow, status select, a **"Payé" checkbox** (green when ticked, amber "En
-  attente de paiement" otherwise), a pencil **icon button** for the note. The note and "Modifié par" go under the
-  line only when present; cancelled lines are dimmed (the user asked for more contrast and a smaller note button,
-  2026-10-07). A card **starts closed only when nothing is left to do** (user's rule, 2026-10-08): every active départ
-  is "Plus de place", or "Validée" and paid (a card where everything is cancelled is closed too). The "Tout est payé
-  · N départs" badge only says the payment. The header toggles the card; it does not close by itself after a change.
+  transmettre" / "en attente de paiement" / "à rembourser" as sky / amber / violet badges), then one card per payment
+  reference (= one archer per competition) on a light grey pane. Card: grey header band (name, reference, licence,
+  category, contact, a violet « N départs à rembourser » badge) with the reference actions (status of all départs,
+  "Tout marquer payé", only with 2+ active départs); then **one line per départ** in aligned columns: départ + bow,
+  status select, **payment select** (5 states with a colored dot), a pencil **icon button** for the note. The note
+  and "Modifié par" go under the line only when present; cancelled lines are dimmed (the user asked for more contrast
+  and a smaller note button, 2026-10-07). A card **starts closed only when nothing is left to do** (user's rule,
+  2026-10-08): every active départ is "Plus de place", or "Validée" and paid, and nothing is "À rembourser" (a card
+  where everything is cancelled is closed too). The "Tout est payé · N départs" badge only says the payment. The
+  header toggles the card; it does not close by itself after a change.
   A **search field** above the cards (name, licence
   or reference, `lib/search.ts`, accents ignored) opens every card found; it does not change the Excel file.
-  Filters: status and payment (Tous / Payés / En attente de paiement). The "Fichier Excel pour
+  Filters: status and payment (Tous, or one of the 5 states, with counts). The "Fichier Excel pour
   l'organisateur" button sits at the right of the filter row, its count on its left, and **follows these filters**:
   the user usually sends only the paid départs. "Plus de place" and "Annulée" never go in the file. The payment label
   of `to_pay` is "En attente de paiement" (user's wording, 2026-10-07; not the old status of that name).
-- **"Rien à payer"** (asked by a member, 2026-10-08): a "Plus de place" or cancelled départ not paid has nothing to
-  pay (`isPaymentDue` in `shared/src/registration.ts`). Derived, never stored: `payment_status` stays `to_pay`, so
-  putting the départ back to another status makes it due again. The row shows a half-ticked, greyed, disabled
-  checkbox; the "à payer" counts, the "En attente de paiement" filter and "Mon suivi" leave it out, and "Tout marquer
-  payé" skips it (no `updated_by` on it either). A départ already paid stays "Payé" (the club may owe a refund).
+- **Payment states** (stored, a menu since 2026-10-10, the user's choice; migration `0008` copied the table to change
+  the CHECK list): En attente de paiement (`to_pay`), Payé (`paid`), Rien à payer (`nothing_due`), À rembourser
+  (`to_refund`), Remboursé (`refunded`). A status change without a payment choice moves it along
+  (`paymentForStatus` in `shared/src/registration.ts`): a départ that becomes "Plus de place" or "Annulée" goes to
+  « Rien à payer » when unpaid, « À rembourser » when paid; put back to an active status, the reverse. « Remboursé »
+  stays as it is. "Tout marquer payé" / "Tout remettre en attente" only touch `to_pay` and `paid` rows (no
+  `updated_by` on the others). "Mon suivi" says « Le club va vous rembourser ce départ » / « remboursé ».
 - **Excel file layout** (`organizer-spreadsheet.ts`), copied from the registration grids of FFTA mandates (user's
   examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports) with their
   "Email" and "Tél" (empty when not stored), then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |

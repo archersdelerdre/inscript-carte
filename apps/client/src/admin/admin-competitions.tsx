@@ -168,6 +168,9 @@ function CompetitionItem({
           {competition.toPayCount > 0 && (
             <Badge className='bg-amber-100 text-amber-900'>{competition.toPayCount} en attente de paiement</Badge>
           )}
+          {competition.toRefundCount > 0 && (
+            <Badge className='bg-violet-100 text-violet-900'>{competition.toRefundCount} à rembourser</Badge>
+          )}
         </span>
       </span>
     </button>

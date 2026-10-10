@@ -3,7 +3,6 @@ import {
   API_ROUTES,
   BOW_TYPE_LABELS,
   departureTitle,
-  isPaymentDue,
   type ListMyRegistrationsResponse,
   type MyRegistrationDto,
   type SignedInArcher,
@@ -141,12 +140,18 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                         </Badge>
                       )}
                     </div>
-                    {isPaymentDue(registration.status, registration.paymentStatus) && (
+                    {registration.paymentStatus === 'to_pay' && (
                       <p className='text-sm'>
                         En attente de paiement : à régler avant le {formatDay(registration.clubRegistrationDeadline)}
                         {registration.paymentMethod && `, ${PAYMENT_METHOD_PHRASES[registration.paymentMethod]}`},
                         référence <strong>{registration.paymentReference}</strong>
                       </p>
+                    )}
+                    {registration.paymentStatus === 'to_refund' && (
+                      <p className='text-sm'>Le club va vous rembourser ce départ.</p>
+                    )}
+                    {registration.paymentStatus === 'refunded' && (
+                      <p className='text-muted-foreground text-sm'>Ce départ vous a été remboursé.</p>
                     )}
                     {registration.clubNote && <p className='text-muted-foreground text-sm'>{registration.clubNote}</p>}
                     {registration.canWithdraw && (

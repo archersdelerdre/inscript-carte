@@ -233,8 +233,10 @@ export type AdminCompetitionDto = {
   isFinished: boolean;
   /** Rows (one per départ) in each status. */
   statusCounts: Record<RegistrationStatus, number>;
-  /** Rows not cancelled and not paid yet. */
+  /** Départs « En attente de paiement ». */
   toPayCount: number;
+  /** Départs « À rembourser ». */
+  toRefundCount: number;
 };
 
 export type ListAdminCompetitionsResponse = {

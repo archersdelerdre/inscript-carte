@@ -6,10 +6,9 @@ import {
   categoryLabel,
   departureTitle,
   DISTANCE_LABELS,
-  isPaymentDue,
-  NOTHING_TO_PAY_LABEL,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUSES,
   REGISTRATION_STATUS_LABELS,
   REGISTRATION_STATUSES,
   type AdminCompetitionRegistrationsResponse,
@@ -43,7 +42,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -187,19 +185,12 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   const shown = registrations.filter(
     (registration) =>
       (statusFilter === ALL || registration.status === statusFilter) &&
-      // "En attente de paiement" leaves out the départs with nothing to pay (cancelled, "Plus de place").
-      (paymentFilter === ALL ||
-        (paymentFilter === 'paid'
-          ? registration.paymentStatus === 'paid'
-          : isPaymentDue(registration.status, registration.paymentStatus))),
+      (paymentFilter === ALL || registration.paymentStatus === paymentFilter),
   );
   // The search only narrows what is shown: the Excel file follows the status and payment filters alone.
   const groups = groupByReference(shown, registrations).filter((group) =>
     matchesSearch(query, `${group.fullName} ${group.licenceNumber} ${group.paymentReference}`),
   );
-  const paidCount = registrations.filter(
-    (registration) => registration.paymentStatus === 'paid' && registration.status !== 'cancelled',
-  ).length;
   /** Same rule as the server: the shown départs the club still counts on. */
   const exported = shown.filter((registration) => SENT_STATUSES.includes(registration.status)).length;
 
@@ -256,10 +247,13 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Tous les paiements</SelectItem>
-              <SelectItem value='paid'>Seulement les départs payés ({paidCount})</SelectItem>
-              <SelectItem value='to_pay'>
-                Seulement les départs en attente de paiement ({competition.toPayCount})
-              </SelectItem>
+              {PAYMENT_STATUSES.map((paymentStatus) => (
+                <SelectItem key={paymentStatus} value={paymentStatus}>
+                  <PaymentDot paymentStatus={paymentStatus} />
+                  {PAYMENT_STATUS_LABELS[paymentStatus]} (
+                  {registrations.filter((registration) => registration.paymentStatus === paymentStatus).length})
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {/* On the right of the same row, with how many départs the file will have. */}
@@ -406,9 +400,10 @@ function ReferenceCard({
 }: ReferenceCardProps) {
   const [first] = group.rows as [AdminRegistrationDto, ...AdminRegistrationDto[]];
   const paidCount = group.activeRows.filter((row) => row.paymentStatus === 'paid').length;
-  const dueRows = group.activeRows.filter((row) => isPaymentDue(row.status, row.paymentStatus));
-  // "Plus de place" départs not paid have nothing to pay: they do not stop "Tout est payé".
+  const dueRows = group.activeRows.filter((row) => row.paymentStatus === 'to_pay');
   const allPaid = paidCount > 0 && dueRows.length === 0;
+  // Cancelled départs included: their money too goes back to the archer.
+  const toRefund = group.rows.filter((row) => row.paymentStatus === 'to_refund').length;
   // The reference actions are only worth showing when they change more than one départ.
   const showReferenceActions = group.activeRows.length > 1;
   const referenceStatuses = REGISTRATION_STATUSES.filter((status) =>
@@ -419,11 +414,13 @@ function ReferenceCard({
     ...new Set(group.rows.flatMap((row) => (row.paymentMethod ? [PAYMENT_METHOD_LABELS[row.paymentMethod]] : []))),
   ];
   // Nothing left to do for this archer: every départ is paid and answered by the organizer (Validée or Plus de place),
-  // cancelled ones aside. Their card starts closed. It does not close by itself after a change, so the admin keeps
-  // seeing what they just did.
-  const finished = group.activeRows.every(
-    (row) => row.status === 'full' || (row.status === 'confirmed' && row.paymentStatus === 'paid'),
-  );
+  // cancelled ones aside, and nothing is left to refund. Their card starts closed. It does not close by itself after a
+  // change, so the admin keeps seeing what they just did.
+  const finished =
+    toRefund === 0 &&
+    group.activeRows.every(
+      (row) => row.status === 'full' || (row.status === 'confirmed' && row.paymentStatus === 'paid'),
+    );
   const [open, setOpen] = useState(!finished);
   const expanded = open || forceOpen;
 
@@ -453,6 +450,11 @@ function ReferenceCard({
               {allPaid && (
                 <Badge className='bg-green-100 text-green-900'>
                   Tout est payé · {paidCount} {paidCount > 1 ? 'départs' : 'départ'}
+                </Badge>
+              )}
+              {toRefund > 0 && (
+                <Badge className='bg-violet-100 text-violet-900'>
+                  {toRefund > 1 ? `${toRefund} départs à rembourser` : '1 départ à rembourser'}
                 </Badge>
               )}
               {group.activeRows.some((row) => row.carpool) && (
@@ -535,18 +537,12 @@ type DepartureRowProps = {
  */
 function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRowProps) {
   const cancelled = registration.status === 'cancelled';
-  const paid = registration.paymentStatus === 'paid';
-  const nothingToPay = !paid && !isPaymentDue(registration.status, registration.paymentStatus);
   const details = [
     BOW_TYPE_LABELS[registration.bowType],
     registration.trispot && 'Trispot',
     registration.distance && `Distances ${DISTANCE_LABELS[registration.distance].toLowerCase()}`,
   ].filter(Boolean);
   const noteLabel = registration.clubNote ? 'Modifier la note' : 'Ajouter une note';
-  // How the archer said they would pay; rows made before the question was asked have none.
-  const paymentMethod = registration.paymentMethod && (
-    <span className='text-muted-foreground font-normal'> ({PAYMENT_METHOD_LABELS[registration.paymentMethod]})</span>
-  );
 
   return (
     <div className={cn('grid gap-x-4 gap-y-1.5', cancelled && 'opacity-70')}>
@@ -574,33 +570,20 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
           </Select>
         )}
 
-        {/* Ticked = paid. A cancelled départ that was paid still says so: the club may have to pay it back. */}
-        {cancelled && (
-          <span className='text-sm font-medium text-green-800'>
-            {paid && PAYMENT_STATUS_LABELS.paid}
-            {paid && paymentMethod}
-          </span>
-        )}
-        {/* "Plus de place" and not paid: half-ticked and greyed, nothing to pay (the status gives it back). */}
-        {!cancelled && nothingToPay && (
-          <label className='flex min-h-10 items-center gap-2.5'>
-            <Checkbox checked='indeterminate' disabled aria-label={NOTHING_TO_PAY_LABEL} />
-            <span className='text-muted-foreground text-sm font-medium'>{NOTHING_TO_PAY_LABEL}</span>
-          </label>
-        )}
-        {!cancelled && !nothingToPay && (
-          <label className='flex min-h-10 cursor-pointer items-center gap-2.5'>
-            <Checkbox
-              checked={paid}
-              onCheckedChange={(checked) => onPayment(checked === true ? 'paid' : 'to_pay')}
-              className='data-checked:border-green-700 data-checked:bg-green-700'
-            />
-            <span className={cn('text-sm font-medium', paid ? 'text-green-800' : 'text-amber-800')}>
-              {PAYMENT_STATUS_LABELS[registration.paymentStatus]}
-              {paymentMethod}
-            </span>
-          </label>
-        )}
+        {/* Open on cancelled départs too: one paid then cancelled is refunded later. */}
+        <Select value={registration.paymentStatus} onValueChange={(value) => onPayment(value as PaymentStatus)}>
+          <SelectTrigger aria-label={`Paiement du départ ${registration.departure}`} className='w-60 md:w-full'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAYMENT_STATUSES.map((paymentStatus) => (
+              <SelectItem key={paymentStatus} value={paymentStatus}>
+                <PaymentDot paymentStatus={paymentStatus} />
+                {PAYMENT_STATUS_LABELS[paymentStatus]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <Button variant='ghost' size='icon' onClick={onNote} aria-label={noteLabel} title={noteLabel}>
           <PencilIcon />
@@ -620,6 +603,18 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
       )}
     </div>
   );
+}
+
+const PAYMENT_DOT: Record<PaymentStatus, string> = {
+  to_pay: 'bg-amber-500',
+  paid: 'bg-green-600',
+  nothing_due: 'bg-gray-400',
+  to_refund: 'bg-violet-600',
+  refunded: 'bg-gray-400',
+};
+
+function PaymentDot({ paymentStatus }: { paymentStatus: PaymentStatus }) {
+  return <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', PAYMENT_DOT[paymentStatus])} />;
 }
 
 type NoteDialogProps = {
