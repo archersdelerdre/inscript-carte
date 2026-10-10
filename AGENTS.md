@@ -1,522 +1,276 @@
-<!-- BEGIN:turborepo-agent-rules -->
-
-# This is NOT the Turborepo you know
-
-Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
-
-Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
-
-This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
-<!-- END:turborepo-agent-rules -->
-
 # inscript-carte
 
-Rebuild of a friend's app: a map and list of upcoming FFTA archery competitions in France, plus (later) registration
-through **one club**. What the old app does and the product decisions are in [`CONCEPT.md`](CONCEPT.md): read it first.
+Map and list of upcoming FFTA archery competitions in France, with registration through one club, « Les Archers de
+l'Erdre ». A rebuild of a friend's app.
 
-All UI text is in **French**. Code, comments and docs are in English, except `README.md`, which is in French for the
-club members (why and for whom the project exists, no technical content).
+- UI text is **French**. Code, comments and docs are **English**, except `README.md` (French, for club members, no
+  technical content) and the user guides in `docs/notice/`.
+- "Decided" below marks a choice the user made on purpose: do not undo it without asking.
 
 ## UI text (French)
 
-Every sentence must read as natural, correct French, the way a person would write it. Reviewed as a whole on
-2026-10-08; keep that level for any new or changed text.
+Every sentence must read as natural French, written by a person.
 
-- Write full, plain sentences. No stacked nouns ("fiches des concours nouveaux ou modifiés" → "fiches des concours à
-  mettre à jour"), no telegram style ("Date limite du club dépassée"), no English words.
-- Agreements: "concours" and "départ" are masculine, "inscription" is feminine; a badge or status agrees with the
-  thing it describes. When a text names a member, use the pronoun of their sex (`sex` is in the DTOs): "Elle ne pourra
-  plus se connecter", "administratrice".
-- One wording per idea across the app: "Inscription par le club jusqu'au …", "En attente de paiement", "Mon suivi",
-  "fiche" for an FFTA competition page, "mise à jour" (never "scrape") for the calendar refresh.
-- Buttons say what they do ("Oui, le retirer", "Non, ne rien changer"), never "OK"; a cancel button that cancels is
-  "Annuler", not "Fermer".
-- Errors say what is wrong and what to do next, in one or two sentences, without blaming the member. Any server
-  message that reaches the screen (scraper run errors, `report.aborted`) follows the same rules.
-- French typography: space before `:` `?` `!`, « » with spaces inside, "…" as one character. Apostrophes are still
-  mixed (`'` and `’`); do not add new inconsistency inside one dialog.
-- Counts with plurals are built in code (`${n} ${n > 1 ? 'départs' : 'départ'}`); never leave "(s)" except in a short
-  label such as "Départ(s) souhaité(s)".
+- Full, plain sentences. No stacked nouns, no telegram style ("Date limite du club dépassée"), no English words.
+- Agreements: "concours" and "départ" are masculine, "inscription" is feminine; a badge agrees with what it describes.
+  When a text names a member, use the pronoun of their sex (`sex` is in the DTOs): "Elle ne pourra plus se connecter".
+- One wording per idea: "Inscription par le club jusqu'au …", "En attente de paiement", "Mon suivi", "fiche" for an
+  FFTA competition page, "mise à jour" (never "scrape") for the calendar refresh.
+- Buttons say what they do ("Oui, le retirer", "Non, ne rien changer"), never "OK". A cancel button is "Annuler".
+- Errors say what is wrong and what to do next, in one or two sentences, without blaming the member. Server messages
+  that reach the screen (scraper `report.aborted`, run errors) follow the same rules.
+- Typography: space before `:` `?` `!`, « » with spaces inside, "…" as one character. Apostrophes are mixed (`'` and
+  `’`); stay consistent inside one dialog.
+- Plurals are built in code (`${n} ${n > 1 ? 'départs' : 'départ'}`); "(s)" only in short labels ("Départ(s)
+  souhaité(s)").
+
+## Stack and commands
+
+- Turborepo + Bun 1.4 workspaces, TypeScript only (TS 7, strict, `erasableSyntaxOnly`).
+- `apps/server`: `Bun.serve`, clean architecture, SQLite through Knex + `better-sqlite3`.
+- `apps/client`: React 19, Vite 8, Tailwind 4, shadcn (radix-nova), Leaflet (`react-leaflet`, `react-leaflet-cluster`).
+- `packages/shared`: API types (`api.ts`, error codes included), reference data and rules both sides use; TypeScript
+  source, no build step.
+- Lint `oxlint`, format `oxfmt` (width 120, single quotes). Use Tailwind's canonical class names (`size-4.5`, not
+  `size-[1.125rem]`).
+
+From the root: `bun run dev` (server `:3998`, client `:5173`, Vite proxies `/api`), `bun run format`, `lint`,
+`typecheck`, `test`, `build`. Server scripts, with `bun run --cwd apps/server`:
+
+| Script | |
+| --- | --- |
+| `db:import-archers <export.xlsx>` | sync the member list (FFTA extranet export) |
+| `db:add-admin <licence>` / `db:remove-admin <licence>` | give admin rights (password typed hidden) / remove them |
+| `db:import-legacy-events <events.json>` | import the old app's competitions |
+| `db:relocate [--dry-run]` | locate every upcoming competition again |
+| `scrape [--dry-run] [--max-details N] [--max-mandates N]` | one FFTA run by hand (needs `CHROME_PATH`) |
+| `mandate:read <url> <start> [end]` | read one mandate with the LLM and print it, writes nothing |
+
+Migrations run when the server starts. There is no rollback command; to start over, stop the server and delete the
+`.sqlite`, `-wal` and `-shm` files.
+
+## Production (Docker)
+
+- One image, one port (3998): the server answers `/api/*` and serves the built client for every other path
+  (`static-files.ts`, on when `CLIENT_DIST_PATH` is set; unknown paths get `index.html`, `/assets/*` cached a year).
+- Built for `linux/amd64` and pushed by `npm run deploy` (registry `registry.jonas.bzh`). The user pushes and deploys.
+  Behind Caddy, which must send `X-Forwarded-Proto: https` (session cookies get `Secure`) and flushes SSE by itself.
+- Database: `/data/inscript-carte.sqlite` in a volume. Runs as user `bun`. Env: `OPENROUTER_API_KEY` (never commit
+  it; locally it lives in `apps/server/.env`, git-ignored).
+- Bun runs the TypeScript sources, no server bundle. `bun install --ignore-scripts`: `better-sqlite3` loads its
+  prebuilt binary (a rebuild would need Python and a compiler).
+- `.dockerignore` is an **allow list**: a new file reaches the build only if it is listed.
+- The server prints `Version: <commit>` at startup (`app-version.ts`): `/app/VERSION` written by the build from
+  `.git/HEAD`, else `--build-arg GIT_COMMIT`; in development, git plus "+ uncommitted changes".
+- Commands in the container: `docker exec -it <container> bun run --cwd apps/server db:add-admin <licence>` (first
+  admin). The image has no `sqlite3`: use `bun -e` with `bun:sqlite`.
+- Chrome for the scraper: `chrome-headless-shell` at `CHROME_VERSION` (tested with the stealth plugin; after a change,
+  check a run still passes Cloudflare), plus `poppler-utils` for mandates. Decided: **no Chrome sandbox**
+  (`CHROME_NO_SANDBOX=1`, image only; containers do not give the user namespaces it needs). In exchange Chrome may only
+  reach `https` `ffta.fr` hosts and `challenges.cloudflare.com` (`isAllowedUrl`, exact host match, tested against
+  look-alikes).
+
+## Server architecture
+
+Inner layers never import outer ones. The domain may import types and rules from `@inscript-carte/shared`.
+
+- `domain/`: `Competition` (`clubRegistrationDeadline`, `isPublic`), `Registration` (`isClubRegistrationOpen`,
+  `canWithdraw`), `Archer`, `member-list.ts`, `mandate.ts` (answer checks), `pricing.ts`, `CalendarDate` (`YYYY-MM-DD`
+  strings), repository ports.
+- `application/`: use cases (`ClubRegistrations`, `AdminRegistrations`, `ClubMembers`, `AdminAccounts`, scraper
+  runs, calendar sync, mandate reading…) and ports (`Clock` in Paris time…). Business errors are result codes
+  (`{ ok: false, reason }`), never exceptions.
+- `infrastructure/`: config, SQLite repositories and migrations, FFTA scraper, geocoding, member export parser, Excel
+  export, password hashing (argon2id).
+- `presentation/http/`: `routes.ts` (members), `admin-routes.ts`, presenters (DTOs). `app.ts` wires everything; it is
+  used by `main.ts` and `app.test.ts`.
+- Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without an admin session, and
+  `403 password_change_required` while the admin still has a generated password.
+
+## Database
+
+- Tables: `competitions` (PK `ffta_id`), `archers` (PK `licence_number`), `registrations` (one row per départ),
+  `sessions`, `admins`, `admin_sessions`, `member_imports`, `scraper_runs`, `competition_mandates`.
+- Value lists are `CHECK` constraints. SQLite cannot change one: the migration copies the table (see `0008`). One
+  active registration per (competition, archer, départ): a partial unique index that ignores `cancelled`.
+- **Any schema change is a new migration**, listed in `migrations/index.ts` (explicit, so it survives `bun build`).
+  Never edit an applied one.
+- `archers.email` / `phone`: storage only, set by hand, used for the exporting admin in the Excel file; never shown,
+  never touched by the member import.
+- Two processes write (server and scraper): `busy_timeout = 5000`, short transactions.
+- **Personal data** (members' birth dates, minors): `*.sqlite` is git-ignored. Never print names, birth dates,
+  emails or phones in logs or tool output: counts only. Birth dates never reach the client, not even admins (the
+  server sends the category).
+
+## Members and sign-in
+
+- Members come from the FFTA extranet export (`.xlsx`), parsed by `ffta-member-export.ts` (columns matched by the start
+  of their title; addresses dropped). An import (script or admin upload, 5 MB max, read in memory) adds and updates
+  in one transaction; a bad row refuses the whole file with its line number. Decided: members missing from the file are
+  **not** touched; an admin deactivates them by hand. Members are never deleted.
+- Member sign-in: licence + birth date of an **active** member; unknown, departed and wrong date get the same error.
+  Limits: 30 failures per licence, 200 per address, per 15 min (high on purpose: no lockout for members who
+  mistype). Cookie `HttpOnly`, `SameSite=Lax`, 180 days; only the token's SHA-256 is stored. The browser never keeps
+  the birth date.
+- Admins: decided, **two steps**: member sign-in, then a personal password (`admins` table). 10 wrong passwords per
+  licence, 50 per address, per 15 min. Session 1 year, cookie `admin_session` (`Path=/api/admin`, `SameSite=Strict`).
+  "Nommer admin" generates a password (`XXXX-XXXX-XXXX`) shown once; the new admin must replace it before anything
+  else (decided: the giver never knows the password in use); that forced change does not ask for the old one.
+  Nobody can remove their own rights or deactivate themselves. Leaving the club ends admin access at once.
+
+## Registration
+
+- Category is computed, never typed: `ageCategory(birthYear, date)` (`shared/src/ffta-category.ts`, FFTA season runs
+  1 Sept to 31 Aug); stored on each row.
+- Form: the mandate's départs when a checked reading of the current mandate link has some (the server refuses a
+  number beyond them), else départs 1 to 4 with a warning. Bow per départ (one menu by default, « Un arc différent
+  selon le départ ? » with 2+ départs), distances for Extérieur only, trispot, covoiturage, payment method (required,
+  remembered on the device), optional contact.
+- Covoiturage is one answer per archer and competition: each request sets it on all their active départs there.
+- **One payment reference per archer and competition** (`R-0001`, club-wide counter): later départs reuse it, even if
+  the first ones were withdrawn.
+- **Club deadline** (`clubRegistrationDeadline`), last day included. Decided:
+  - no mandate: 7 days before the start;
+  - with a mandate: the later of 14 days before the start and 2 days after the day the mandate appeared, but never
+    after 7 days before the start;
+  - a link stored before that day was tracked (`mandate_added_on` `NULL`) counts as early (14 days).
+
+  `competitions.mandate_added_on` is set by the scraper's upsert when a link appears, kept while a link stays (even
+  another file), cleared when it goes.
+- Withdraw: only `received` départs, until the deadline. The row stays, `cancelled`, with "Retirée par l'archer le …"
+  in the note, and leaves "Mon suivi".
+- Names of registrants: signed-in members only; the count (`clubArcherCount`) is public.
+- « Ajouter à mon agenda » (success screen and "Mon suivi", hidden once the competition is over): Google Agenda link
+  or an `.ics` built in the browser (`registrations/calendar.ts`). Decided: one event **per day**, merging that day's
+  départs, from the first greffe to the last estimated end (shooting + 3 h, else greffe + 4 h), floating local times;
+  a whole-day event when the mandate gives no times.
+- A départ shows as "Départ 2 · Après-midi" (`departureTitle`) when the mandate names it; the number always stays.
+
+## Statuses and payments
+
+Both lists live in `shared/src/registration.ts` with their rules, so the client greys out the same options.
+
+- Status: Reçue → Transmise à l'organisateur → Validée, plus Plus de place and Annulée. A cancelled row never changes
+  again (the archer registers again); any other change is allowed. Going back to Reçue and cancelling both ask for
+  confirmation; cancelling adds "Annulée par le club le …" to the note. Each admin change writes `updated_by`.
+- Payment, stored, a menu: En attente de paiement (`to_pay`), Payé, Rien à payer, À rembourser, Remboursé. A status
+  change without a payment choice moves it (`paymentForStatus`): ending (full / cancelled) turns unpaid into « Rien à
+  payer » and paid into « À rembourser »; un-ending reverses it; « Remboursé » stays.
+- Bulk actions on a reference only replace their source state (`REFERENCE_PAYMENT_FROM`): « Tout marquer comme payé »
+  (En attente → Payé), « Tout remettre en attente » (Payé → En attente), « Tout marquer comme remboursé » (À
+  rembourser → Remboursé, shown with 2+ to refund). Cancelled rows keep their status but their payment can change.
+  Untouched rows get no `updated_by`.
+
+## Admin panel (`apps/client/src/admin/`)
+
+- Pages `/admin/inscriptions[/<ffta_id>]`, `/admin/licencies`, `/admin/calendrier`. No router library: the address is
+  the only state (`pushState` + `popstate`), tabs are real links. `main.tsx` lazy-loads the member app or the admin app
+  as separate chunks (also keeps chunks under Vite's 500 kB warning).
+- Inscriptions: competitions with registrations (badges « à transmettre », « en attente de paiement », « à
+  rembourser »), then one card per payment reference, one line per départ (status menu, payment menu, note).
+  Decided: a card starts closed only when nothing is left to do (every active départ full, or validated and paid,
+  nothing to refund); it never closes by itself. Search (name, licence, reference; accents ignored) and filters
+  (status, payment).
+- **Excel file for the organizer** (`organizer-spreadsheet.ts`, layout of FFTA mandate grids): follows the panel's
+  filters (the club usually sends only paid départs); never "Plus de place" or "Annulée". One line per archer and
+  bow; Montant from the mandate prices (`pricing.ts`: youth = every Uxx category); empty when no price fits.
+- Below the competition title: "Mandat (PDF)" and « Lu dans le mandat » (départs and prices read).
+- Licenciés: table with search and active/left filter, a "⋯" menu per row (deactivate, admin rights), import dialog.
+
+## FFTA scraper (`infrastructure/ffta/`, `application/sync-ffta-calendar.ts`)
+
+- A **separate process** (`scrape.ts --run <id>`, `nice`), started by the server at 03:00 Paris or by an admin (full
+  run or one competition). One run at a time: a partial unique index on `running` rows. The process writes progress
+  and a heartbeat to its row; silent for 2 min means dead (`interrupted`); an exit without finishing marks it
+  `failed`. A run by hand takes the same lock.
+- Live page over SSE (`scraper-events.ts`): the server reads the row every second while a page is open; keep-alive
+  every 15 s; `server.timeout(request, 0)` because Bun closes idle connections after 10 s.
+- Cloudflare blocks plain HTTP and plain headless Chrome: `puppeteer-core` + `puppeteer-extra` stealth passes. Chrome
+  runs with `pipe: true` so it dies with the process. A blocked page throws `CloudflareBlockedError` and the run changes
+  nothing. One tab, 1 s between pages, no images or fonts.
+- Every run reads the **whole list** (one year ahead, ~75 pages); detail pages (`/epreuve/<id>`) only for new or
+  changed cards (list fingerprint). Para-tir entries become a flag on the main entry (`mergeParaTir`).
+- Département: the venue's postal code first, else the departmental committee (longest name wins: "HAUTE LOIRE"
+  before "LOIRE"), else the regional committee overseas only. Abroad: skipped.
+- Competitions not listed anymore get `missing_since` (only after a complete list), are hidden, never deleted.
+- Safety: nothing is written when the list cannot be read or holds less than half the known upcoming competitions.
+  Read everything first, then write in batches of 100.
+- **Mandates** (`application/read-mandates.ts`, table `competition_mandates`): after the save, each upcoming listed
+  competition whose link has no good reading (fewer than 3 tries per link) is read, 3 at a time. "Mettre à jour ce
+  concours" re-reads its mandate; a failed forced reading keeps the previous good one.
+  - PDF over plain HTTP (`https://*.ffta.fr` only, 10 MB max); same SHA-256 as the last good reading → not sent again.
+    poppler gives the first 6 pages as JPEG + `pdftotext`.
+  - LLM via `@openrouter/sdk`: `MANDATE_MODEL` (default `z-ai/glm-5.3-flash`), temperature 0, reasoning `medium`,
+    `dataCollection: 'deny'`, JSON schema from zod. Prompt in French in `openrouter-mandate-extractor.ts`.
+  - `checkMandateData` checks the answer (≤ 12 départs, 0–150 €). A mandate often covers two FFTA entries of one
+    weekend: départs on other days are dropped. Refused answers are kept as `invalid`, never used. Errors never fail
+    the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
+
+## Places and geocoding
+
+- Decided: no Google API anywhere. Positions come from the Géoplateforme address service (`data.geopf.fr`), map tiles
+  from OpenStreetMap.
+- The FFTA "Itinéraire" GPS point is **never read**: organizers type it, and some are hundreds of km off.
+- Scraper: `geocodeCommune(postalCode, names)` (postal line's commune, then the title's town), never the service's
+  fuzzy matches (it offers Fontaine-sur-Ay for « AY 51160 »); else `geocodeTown` in the département. Requests are
+  60 ms apart, retried after 429/5xx.
+- `known-places.ts`: places the service cannot find, looked up by hand.
+- Competitions without a place, cancelled or missing are kept but **not shown** to the public
+  (`CompetitionDto.position` is never `null`); registered members and admins still see them.
+
+## Client UI (decided, keep it)
+
+- Layout like SeLoger: list on the left (500 px, own scroll), full-height map on the right. On phones the list
+  **covers** the map (never hide the map: Leaflet needs its real size); a floating "Carte / Liste" button switches.
+- Filters: a round button opening a dialog (discipline, para-tir, dates, "avec des inscrits du club", "cibles
+  mousses"), and a "where" pill: place menu (départements grouped by region, `region:<id>`, remembered, default 44)
+  plus a town search (our own ARIA combobox, not `<datalist>`). Chosen filters show as removable chips on a second
+  line, never inside the search field. All filtering happens in the browser: `GET /api/competitions` sends everything.
+- Cards: date block in the discipline color, badges, town with « Voir sur la carte » (icon only on phones), club
+  deadline, links "Mandat (PDF)" and "Détail FFTA", then "Voir les inscrits" (disabled when nobody) and "S'inscrire"
+  (before the deadline only). Actions ask to sign in first, then continue.
+- Hovering a card does nothing on the map; « Voir sur la carte » is the only link from list to map.
+- Map: OSM standard tiles (CARTO and Plan IGN rejected), one dot per position, red cluster bubbles, zoom bottom right,
+  "© OpenStreetMap" bottom left in 10 px (required credit).
+- FFTA titles are shown as they come (often in capitals). Labels: "Salle 18m" (no space). App accent: red.
+
+## Accessibility (older and disabled members)
+
+Material Design baseline, without overdoing it:
+
+- Body text 16 px, nothing to read below 14 px (except the map credit).
+- Buttons, selects, menu items and map controls are **40 px** tall, text 14 px. These sizes live in
+  `components/ui/*`; new components must follow them.
+- `--muted-foreground` about 7:1, control borders `--input` 3:1. Hand cursor on every enabled button. Map dots have
+  the town name as `title`.
+- No 2024+ browser APIs in the client (`Map.groupBy`…): members use older tablets.
 
 ## User guides (`docs/notice/`)
 
-Two printed guides in formal French (user's request, 2026-10-10), sharing `notice.css`, captures on made-up data:
-`notice-membre.html` (members: search, registration, deadline, payment with the club's RIB, "Mon suivi"; must stay
-**2 A4 pages**) and `notice-admin.html` (admins only, in detail: sign-in, statuses and payment states, reference
-actions, Excel file, members, FFTA calendar; 3 pages). Each has its `.pdf` next to it: serve the folder
-(`bunx --bun serve -l 3995 docs/notice`), print the page to PDF in A4 with backgrounds, check the page count. Update
-them when a screen they describe changes.
-
-## Stack
-
-- Monorepo: **Turborepo** + **Bun 1.4** workspaces. **TypeScript only** (TS 7, strict, `erasableSyntaxOnly`).
-- `apps/server`: Bun HTTP server (`Bun.serve`), **clean architecture**, SQLite through **Knex** + `better-sqlite3`.
-- `apps/client`: React 19 + Vite 8 + Tailwind 4 + **shadcn** (radix-nova style) + Leaflet (`react-leaflet`,
-  `react-leaflet-cluster`).
-- `packages/shared`: API contract types and reference data, used as TypeScript source (no build step).
-- Lint: `oxlint`. Format: `oxfmt` (print width 120, single quotes). No eslint, no prettier.
-
-## Commands (from the root)
-
-| Command | What it does |
-| --- | --- |
-| `bun run dev` | server on `:3998` + client on `:5173` (Vite proxies `/api` to the server) |
-| `bun run typecheck` / `test` / `build` / `lint` / `format` | through turbo, or oxlint/oxfmt at the root |
-| `bun run --cwd apps/server db:import-legacy-events <events.json>` | import the old app's competitions (see Data) |
-| `bun run --cwd apps/server db:import-archers <export.xlsx>` | sync the club member list (FFTA extranet export) |
-| `bun run --cwd apps/server db:add-admin <licence>` | make an active member an admin, or change their password (typed hidden) |
-| `bun run --cwd apps/server db:remove-admin <licence>` | remove an admin (ends their admin sessions) |
-| `CHROME_PATH=… bun run --cwd apps/server scrape [--dry-run] [--max-details N]` | one FFTA scraper run (counts only in the output); `--dry-run` reads everything and writes nothing |
-
-Migrations run **when the server starts** (`main.ts`), before it accepts requests. There is no rollback command (removed
-on 2026-10-07: with one migration it only dropped every table); to start over, stop the server and delete the
-`.sqlite`, `-wal` and `-shm` files.
-
-## Docker (production)
-
-- One image, **one port (3998)**: the Bun server answers `/api/*` and serves the built client for every other path
-  (`presentation/http/static-files.ts`, enabled by `CLIENT_DIST_PATH`; unknown paths get `index.html`, `/assets/*`
-  is cached for a year). In development `CLIENT_DIST_PATH` is unset and Vite serves the client.
-- `docker build -t inscript-carte .` then `docker run -p 3998:3998 -v inscript-carte-data:/data inscript-carte`.
-  The database is `/data/inscript-carte.sqlite` in the volume (personal data, never in the image). Runs as user `bun`.
-- Imports inside the container: `docker exec <container> bun run --cwd apps/server db:import-archers <file>` (mount
-  the file read-only first), or upload it from the admin page. First admin: `docker exec -it <container> bun run
-  --cwd apps/server db:add-admin <licence>`; the next ones can be named from the members page.
-- Bun runs the TypeScript sources directly (no server bundle). `bun install --ignore-scripts`: better-sqlite3 loads
-  its binary from `prebuilds/`, and its automatic rebuild would need Python and a C++ compiler.
-- `.dockerignore` is an **allow list**: a new file reaches the build only if it is listed there.
-- The server prints `Version: <commit>` at startup (`infrastructure/app-version.ts`). The Docker build writes it to
-  `/app/VERSION`, read from `.git/HEAD` and refs (allowed in `.dockerignore`, no history), else from
-  `--build-arg GIT_COMMIT=...`, else `unknown`. In development it asks git and adds "+ uncommitted changes".
-- Behind HTTPS, the reverse proxy must send `X-Forwarded-Proto: https` so the session cookie gets `Secure`.
-- The proxy in production is **Caddy**: it flushes `text/event-stream` responses at once (also through `encode`,
-  which skips SSE), so the scraper's live page needs no proxy setting.
-- **Chrome in the image** for the FFTA scraper: `chrome-headless-shell` at `CHROME_VERSION` (the version tested with
-  the stealth plugin), installed with its system libraries by `@puppeteer/browsers --install-deps`; `CHROME_PATH` is
-  set, so the server turns the scraper on. The image grew from about 86 MB to about 314 MB. Linux builds exist for
-  amd64 only (`--platform=linux/amd64`, as `npm run deploy` already does). To update Chrome, change `CHROME_VERSION`
-  and check a run still passes Cloudflare.
-- **No Chrome sandbox in Docker** (`CHROME_NO_SANDBOX=1`, only in the image), the user's choice (2026-10-08): the
-  sandbox needs user namespaces a container does not give (Docker's seccomp profile and Ubuntu 24.04's AppArmor block
-  them), and `chrome-headless-shell` has no SUID helper. It does not change what Cloudflare sees (checked: a full list
-  and detail pages read in the container). Chrome runs as `bun`, and may only reach `ffta.fr` and its subdomains plus
-  `challenges.cloudflare.com` (`isAllowedUrl` in `ffta-browser.ts`, https only, exact host match, tested against
-  look-alikes): everything else is refused.
-
-## Server: clean architecture
-
-Inner layers never import outer ones.
-
-- `domain/`: `Competition` (+ the club deadline rule), `Archer`, `Registration` (+ `isClubRegistrationOpen`,
-  `canWithdraw`), `member-list.ts` (`planMemberListSync`: what an FFTA export adds and updates),
-  `CalendarDate` (`YYYY-MM-DD` strings), repository ports. The domain may import types from `@inscript-carte/shared`
-  (shared kernel). The status rule `canChangeStatus` lives in `shared/src/registration.ts` so the client greys out the
-  same options.
-- `application/`: `ListUpcomingCompetitions` (keeps `isPublic` ones only: not cancelled, not `missing_since`, with a
-  place; drops finished; adds the club archer count),
-  `Authentication`, `ClubRegistrations`, `AdminAuthentication` (sign-in, password change), `AdminAccounts` (admin
-  rights: command line and panel),
-  `AdminRegistrations`, `ClubMembers` (import, status, list); ports `Clock` (Paris time zone), `SessionStore`, `LoginAttemptLimiter`,
-  `PasswordHasher`. Use cases return result codes (`{ ok: false, reason }`), never throw for business errors.
-- `infrastructure/`: `config.ts` (`PORT`, `DATABASE_PATH` default `data/inscript-carte.sqlite`, `CLIENT_DIST_PATH`),
-  database (connection, migrations, SQLite repositories and session store, scripts), geocoding, member export
-  parser, organizer Excel export (`exports/organizer-spreadsheet.ts`, `write-excel-file`), in-memory login limiter,
-  `BunPasswordHasher` (argon2id), `SystemClock`.
-- `presentation/http/`: routes (`routes.ts` members, `admin-routes.ts` admins, helpers in `http.ts`) and DTO
-  presenters. `app.ts` wires everything (used by `main.ts` and `app.test.ts`).
-
-API (types and error codes in `packages/shared/src/api.ts`; the client turns codes into French messages):
-
-| Route | |
-| --- | --- |
-| `GET /api/competitions` | public, with `clubArcherCount` (distinct archers with an active départ; card: "2 archers inscrits") |
-| `GET/POST/DELETE /api/session` | current archer / sign in (licence + birth date) / sign out |
-| `GET/POST /api/competitions/:competitionId/registrations` | members only: who is registered / register |
-| `GET /api/me/registrations`, `DELETE /api/me/registrations/:registrationId` | "Mon suivi" / withdraw a départ |
-| `GET/POST/DELETE /api/admin/session` | admin: current admin (+ `mustChangePassword`) / password step (needs the member session) / sign out |
-| `PUT /api/admin/session/password` | change own password: `currentPassword` required, except (`null`) during the forced first change; the only route open while a change is required |
-| `GET /api/admin/competitions` | competitions with registrations, counts per status and "to pay" |
-| `GET /api/admin/competitions/:competitionId/registrations` | every row, cancelled included, with names and contact |
-| `GET /api/admin/competitions/:competitionId/export` | `.xlsx` for the organizer: Reçue, Transmise, Validée rows, narrowed by `?status=` and `?paymentStatus=` (the panel filters) |
-| `PATCH /api/admin/registrations/:registrationId` | status, payment status, club note of one départ |
-| `PATCH /api/admin/payment-references/:paymentReference` | status / payment of every non-cancelled row of the reference |
-| `GET /api/admin/members` | every member, those who left included: licence, name, sex, current-season category, active, admin |
-| `PATCH /api/admin/members/:licenceNumber` | `{ isActive }` by hand, never on oneself (the next import sets it from the file again) |
-| `POST/DELETE /api/admin/members/:licenceNumber/admin` | give admin rights (returns the generated password once) / remove them (never one's own) |
-| `GET/POST /api/admin/members/import` | last import + active count / upload the FFTA export (multipart `file`) |
-| `GET /api/admin/scraper` | FFTA scraper: `available` (a browser is set up), the current run, the last 10 finished |
-| `GET /api/admin/scraper/events` | server-sent events: that same status at once, then each time it changes |
-| `POST /api/admin/scraper/runs` | `{ kind: 'full' }` or `{ kind: 'competition', fftaId }`: `202` with the run (its process goes on alone), `409 scraper_busy` with the run already going, `503 scraper_unavailable` without `CHROME_PATH` |
-
-Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without a valid admin session, and
-`403 password_change_required` while the admin still has a generated password.
-
-## Registration through the club
-
-- **Sign-in** = licence number + birth date, checked against active `archers`. Unknown, departed and wrong-date
-  sign-ins get the same error. Max 30 failures per licence and 200 per network address in 15 minutes (in memory):
-  high on purpose (the user wants no lockout for members who mistype), but it still stops birth-date guessing scripts.
-  Success gives a random token in an `HttpOnly`, `SameSite=Lax` cookie for 180 days; only its SHA-256 hash is stored
-  (`sessions` table). The browser keeps the licence number, never the birth date: `SignedInArcher`
-  only has the birth year.
-- **Category** is computed, never typed: `ageCategory(birthYear, competitionDate)` in `shared/src/ffta-category.ts`
-  (FFTA table: season N runs 1 Sept N-1 to 31 Aug N, age reached in year N). Stored on each registration row.
-- **Form**: the départs of the mandate when a checked reading of the current mandate link has some (one button per
-  départ: name, day when the competition lasts several days, greffe and shooting times; the server refuses a number
-  beyond them), else départs 1 to 4 (`DEFAULT_DEPARTURE_COUNT`) with a warning that a départ that does not exist may
-  be cancelled. Then bow, distances only for Extérieur (required there), trispot, **covoiturage**
-  (checkbox, `carpool` column from migration `0002`; one answer per archer and competition: each request sets it on
-  all the archer's active départs of that competition, so unticking removes it everywhere; the form opens ticked when
-  the archer already said yes, read from "Mon suivi"; not remembered across competitions), **payment method**
-  (required: Espèces / Chèque / Virement, remembered on the device), optional contact.
-  The request carries a bow **per départ** (`departures: [{ departure, bowType }]`). The usual case stays one bow
-  choice; the link « Un arc différent selon le départ ? » (only with 2+ départs) shows one bow menu per départ.
-  One row per départ; **one payment reference per archer and competition** (`R-0001`, club-wide counter): a later
-  request on the same competition (another départ) reuses it, even if its first départs were withdrawn. References
-  made before 2026-10-07 were per request and were not merged (archers may already have paid with them). Taken
-  départs are refused.
-- **Club deadline** (`clubRegistrationDeadline`, the user's rules, 2026-10-10), the last day included: without a
-  mandate, 7 days before the start; with one, the later of 14 days before the start and 2 days after the day the
-  mandate appeared, never past 7 days before (a mandate that comes later opens nothing). That day is
-  `competitions.mandate_added_on` (migration `0009`): the scraper's upsert sets it when a link appears, keeps it while
-  a link stays (even another file), clears it when the link goes; links stored before 2026-10-10 have none and count
-  as early (14 days). The night run may see a mandate a day late: archers get a day more, never less. A card's date
-  can move earlier when an early mandate comes out (7 → 14 days).
-- Open until the club deadline **included**. Withdraw only while `received` and before the deadline: the row stays in
-  the database, `cancelled`, with "Retirée par l'archer le JJ/MM/AAAA" in `club_note`, but it disappears from "Mon
-  suivi" (`GET /api/me/registrations` only returns rows that are not cancelled).
-- Names of registrants are for signed-in members only; the count is public. "Voir les inscrits" shows a
-  "Covoiturage" badge for archers interested; "Mon suivi" and the admin card too. "Mon suivi" also shows a violet
-  "Trispot" badge on each départ shot on trispot (asked by a member, 2026-10-08).
-- **« Ajouter à mon agenda »** (asked by Loïc, 2026-10-10), on the « Inscription enregistrée » screen and per
-  competition in "Mon suivi": a menu with Google Agenda (pre-filled link) and « Autre agenda » (an `.ics` file built
-  in the browser, `registrations/calendar.ts`). The site cannot write into a calendar by itself. When the mandate
-  gives each chosen départ's day and a time: one event **per day** (the user's choice, 2026-10-10: the day's départs
-  merged), from the first greffe (else shooting start) to the last estimated end (3 h after shooting starts, else 4 h
-  after the greffe; the mandates give none). The description lists each départ with « fin vers 12 h (estimée) »; the
-  `.ics` holds every day, Google gets one menu line per day (« samedi 14 »). Times are local
-  ("floating"). Otherwise one whole-day event over the competition's days. "Mon suivi" gets the mandate's départ
-  in `MyRegistrationDto.mandateDeparture`. In "Mon suivi" the button sits under a line, apart from the départs, and
-  is hidden once the competition's last day is over (Paris time, user's request 2026-10-10).
-
-## Admin panel (`/admin`, `apps/client/src/admin/`)
-
-- **Pages**: `/admin/inscriptions`, `/admin/inscriptions/<ffta_id>` (that competition open), `/admin/licencies` and `/admin/calendrier`
-  (`SECTIONS` in `admin-app.tsx`); `/admin` alone is replaced by `/admin/inscriptions`. The address is the only source
-  of truth: `AdminApp` keeps `pathname` in state and passes the selected competition down. No router library:
-  `history.pushState` + `popstate` (back/forward switch competitions too), and the tabs are real `<a>` links
-  (Ctrl/Cmd/middle click opens a new tab). `main.tsx` picks the admin app for any path under `/admin`, each page
-  loaded lazily as its own chunk (members never download the panel, admins never download Leaflet; it also keeps
-  every chunk under Vite's 500 kB warning); the server and Vite answer `index.html` for those paths, so reloading
-  works. An unknown id shows "n'existe plus".
-- **Sign-in in two steps**: the normal member sign-in, then a **personal password** (the user chose this: a birth
-  date can be guessed, and the panel shows every member's contact). Admins are rows of `admins` (FK to `archers`,
-  argon2id hash, `must_change_password`). Max 10 wrong passwords per licence and 50 per address
-  in 15 minutes (the password change shares this limit). Admin session: **1 year** (user's choice, 2026-10-09; was 12 hours), `admin_sessions` table, cookie
-  `admin_session` with `Path=/api/admin`, `HttpOnly`, `SameSite=Strict`. An admin who leaves the club or is removed
-  loses access at once.
-- **Becoming an admin**: `db:add-admin` (the person types their own password), or "Nommer admin" on the members page.
-  The panel way generates a password (`XXXX-XXXX-XXXX`, no 0/O/1/I/L) shown **once** to the admin who gave the
-  rights; the new admin must replace it at first sign-in before anything else works (the user asked for this: the
-  giver never knows the password in use). That forced change only asks for the new password twice (user's request,
-  2026-10-08): the session was opened with the generated one moments ago. The server still refuses keeping it.
-  Nobody can remove their own rights or deactivate themselves.
-- **Statuses**: Reçue → Transmise à l'organisateur → Validée, plus Plus de place and Annulée ("En attente de paiement"
-  was dropped on 2026-10-07: payment has its own field). `canChangeStatus`: a cancelled row stays cancelled (the archer
-  registers again), every other change is allowed. Going back to "Reçue" was allowed on 2026-10-07 to fix mistakes:
-  the panel warns that the archer can withdraw it again without the organizer knowing. Cancelling adds "Annulée par
-  le club le JJ/MM/AAAA" to the note; both ask for a confirmation in the UI. Each admin change writes `updated_by`.
-- The page lists competitions with registrations (upcoming first; date block in the discipline color, "à
-  transmettre" / "en attente de paiement" / "à rembourser" as sky / amber / violet badges), then one card per payment
-  reference (= one archer per competition) on a light grey pane. Card: grey header band (name, reference, licence,
-  category, contact, a violet « N départs à rembourser » badge) with the reference actions (status of all départs,
-  "Tout marquer payé", only with 2+ active départs); then **one line per départ** in aligned columns: départ + bow,
-  status select, **payment select** (5 states with a colored dot), a pencil **icon button** for the note. The note
-  and "Modifié par" go under the line only when present; cancelled lines are dimmed (the user asked for more contrast
-  and a smaller note button, 2026-10-07). A card **starts closed only when nothing is left to do** (user's rule,
-  2026-10-08): every active départ is "Plus de place", or "Validée" and paid, and nothing is "À rembourser" (a card
-  where everything is cancelled is closed too). The "Tout est payé · N départs" badge only says the payment. The
-  header toggles the card; it does not close by itself after a change.
-  A **search field** above the cards (name, licence
-  or reference, `lib/search.ts`, accents ignored) opens every card found; it does not change the Excel file.
-  Filters: status and payment (Tous, or one of the 5 states, with counts). The "Fichier Excel pour
-  l'organisateur" button sits at the right of the filter row, its count on its left, and **follows these filters**:
-  the user usually sends only the paid départs. "Plus de place" and "Annulée" never go in the file. The payment label
-  of `to_pay` is "En attente de paiement" (user's wording, 2026-10-07; not the old status of that name).
-- **Payment states** (stored, a menu since 2026-10-10, the user's choice; migration `0008` copied the table to change
-  the CHECK list): En attente de paiement (`to_pay`), Payé (`paid`), Rien à payer (`nothing_due`), À rembourser
-  (`to_refund`), Remboursé (`refunded`). A status change without a payment choice moves it along
-  (`paymentForStatus` in `shared/src/registration.ts`): a départ that becomes "Plus de place" or "Annulée" goes to
-  « Rien à payer » when unpaid, « À rembourser » when paid; put back to an active status, the reverse. « Remboursé »
-  stays as it is. A reference-wide payment change only replaces its source state (`REFERENCE_PAYMENT_FROM`): "Tout
-  marquer payé" ← En attente, "Tout remettre en attente" ← Payé, « Tout marquer comme remboursé » (shown with 2+
-  départs to refund) ← À rembourser; cancelled départs keep their status but their payment changes too (no
-  `updated_by` on untouched rows). "Mon suivi" says « Le club va vous rembourser ce départ » / « remboursé ».
-- **Excel file layout** (`organizer-spreadsheet.ts`), copied from the registration grids of FFTA mandates (user's
-  examples, 2026-10-08): title and dates, then "Nom du club", "Responsable" (the admin who exports) with their
-  "Email" and "Tél" (empty when not stored), then one line per **archer and bow** (`NOM Prénom | N° licence | Catég. | Type d'arc |
-  (Distances) | Départ N… | Trispot | Montant`; a départ column says "Départ 2 · Après-midi" when the mandate names
-  it), an "X" in each départ column (only the départs in the file), and a
-  "Total" line. **Montant** comes from the mandate's prices (`domain/pricing.ts`): "jeunes" are every Uxx category
-  (U11 to U21, the user's rule), the others adults; the price for the archer's number of départs in the file, else
-  the biggest offers that fit added up, else the "all" prices. Put on the archer's first line (0 on their other
-  bow lines). No price that fits (or no mandate read): the cell stays empty, and so does the total.
-- "Licenciés" page: a table of every member with a search (accents ignored) and an active / left filter, and a
-  "⋯" menu per row (Désactiver / Réactiver, Nommer admin / Retirer les droits d'admin, each with a confirmation; the
-  admin's own row shows "Vous"). The actions column is pinned to the right so phones see it. The upload is in the
-  "Mettre à jour la liste" dialog, read in memory (`readMemberExport(Buffer)`), never written to disk, max 5 MB. A bad file is
-  refused as a whole with `{ error: 'invalid_member_export', problem, line, detail }` (`MemberExportError`); the
-  client turns `problem` into French. Each import is a `member_imports` row (date, admin or `NULL` for the command
-  line, counts).
-- Birth dates are never sent to the client, not even to admins: the member table shows the category computed by the
-  server (`ageCategory(birthYear, today)`).
-
-## Database (SQLite, Knex)
-
-- Tables: `competitions` (PK `ffta_id`), `archers` (PK `licence_number`), `registrations` (PK auto `id`, one row per
-  départ, FKs `competition_ffta_id` / `archer_licence_number` / `updated_by`, `ON DELETE RESTRICT`), `sessions`,
-  `admins`, `admin_sessions`, `member_imports`. Value lists are `CHECK` constraints. One active registration per
-  (competition, archer, départ): partial unique index ignoring `cancelled`. SQLite cannot change a `CHECK`: changing a
-  value list means copying the table into a new one inside the migration.
-- `archers.email` / `archers.phone` (migration `0003`, nullable): **storage only**, read by the organizer Excel
-  file for the exporting admin (`ArcherRepository.contactOf`), never shown in the app and not part of `Archer`. The
-  FFTA export has neither, so they are set by hand for now. The image has no `sqlite3`; use Bun's built-in SQLite:
-  `docker exec -it <container> bun -e "new (require('bun:sqlite').Database)('/data/inscript-carte.sqlite').run(\"UPDATE
-  archers SET email = ?, phone = ? WHERE licence_number = ?\", ['…', '…', '…'])"`. The member import never touches
-  them (`.merge()` only updates the columns it writes).
-- Migrations are TS files listed explicitly in `migrations/index.ts` (so they survive `bun build`). On 2026-10-07 the
-  user reset every database and all migrations were merged into `0001-initial-schema`. From now on the databases
-  hold data again: **any schema change is a new migration** (`0002`…), never an edit of `0001`.
-- The DB file holds **personal data** (club members: birth dates, minors): `*.sqlite` is git-ignored and must never
-  be committed. Never print member names or birth dates in logs or tool output: counts only.
-- `bun build` keeps `knex` and `better-sqlite3` external (Knex requires every SQL driver; `better-sqlite3` is native).
-  The built server needs a `node_modules` with both.
-
-## Club members (`archers`): the base of authentication
-
-- Source: the member list exported from the FFTA extranet (`.xlsx`, one sheet, 108 members on 2026-10-06), kept
-  outside the repo. Parsed by `infrastructure/members/ffta-member-export.ts`: licence number (7 digits + letter),
-  name without civility ("M "/"Me "), sex, birth date, status ("Active"). Addresses are dropped on purpose.
-  Columns are matched by the start of their title (the export adds a sort arrow: "Nom, Prénom↑").
-- An import (command line or admin upload) goes through `ClubMembers.import` → `SqliteMemberListRepository.sync`, in
-  one transaction: adds new members and updates the others, their state ("Etat" column) included. **Members missing
-  from the export are not touched** (the user decided it, 2026-10-07): an admin deactivates them by hand from the
-  members page. Members are never deleted (registrations point to
-  them). Only active members may sign in. A bad row stops the whole import with its line number.
-
-## Data and geocoding
-
-- Competitions come from the old app's `events.json` today (`import-legacy-events.ts`, idempotent upsert on
-  `ffta_id`, one transaction). The FFTA scraper is being built **step by step** with the user (next section).
-- Rows without coordinates are geocoded during import (`infrastructure/geocoding/town-geocoder.ts`, Géoplateforme
-  address service `data.geopf.fr`). Order: GPS text → commune in the département → free text in the département
-  (kept only if the text names the result's commune/former commune or postal code) → commune elsewhere only if its
-  name is unique in France. 971 also accepts 977/978.
-- `known-places.ts`: places the service cannot find, looked up by hand on Google Maps (keyed by `département|FFTA
-  text`), read first by the geocoder.
-- Result on 2026-10-06: 1707 competitions, **8 without a place** (all placeholders: "A Définir", "Inconnu",
-  "Occitanie").
-
-## FFTA scraper (in progress, `infrastructure/ffta/`)
-
-Decided with the user (2026-10-08): TypeScript/Bun, a **separate process** started by the server (`Bun.spawn`) at
-night or by an admin (full run, or one competition), never twice at once (lock in the database), live progress for
-every admin over **SSE**. Every run reads the **whole** list; detail pages and mandates only when new or changed.
-Mandates are read by an LLM (the user's decision; model chosen 2026-10-09: GLM 5.3 Flash). What it reads (départs,
-prices, foam targets) is stored; the app uses the foam targets flag, the départs (registration form) and the prices
-(Excel file).
-
-- **Mandates** (`application/read-mandates.ts`, table `competition_mandates`, migration `0007`, one row per
-  competition): after the save, every upcoming, listed, not cancelled competition whose mandate link has no reading,
-  a reading of another link, or a failed one (fewer than 3 tries per link) is read, soonest first, 3 at a time
-  (they don't touch www.ffta.fr). `--max-mandates N` caps a run; a dry run reads none. "Mettre à jour un concours"
-  reads its mandate **again** (`force`), even already read or the same file: an admin who sees a wrong reading gets a
-  new one. A forced reading that fails or is refused keeps the previous good one (the run says so).
-  - `PdfMandateFetcher`: plain HTTP (extranet.ffta.fr is not behind Cloudflare), `https://*.ffta.fr` only (also
-    after redirects), 10 MB max, must start with `%PDF-`. poppler (`poppler-utils` in the image, `brew install
-    poppler` on a Mac): first 6 pages as JPEG at 110 DPI (about 80–200 KB each) + `pdftotext -layout`.
-  - Same SHA-256 as the last good reading → not sent again (only the link is updated).
-  - `OpenRouterMandateExtractor` (`@openrouter/sdk`): `OPENROUTER_API_KEY` (never logged; without it the run still
-    stores competitions and says the mandates were not read), `MANDATE_MODEL` (default `z-ai/glm-5.3-flash`),
-    temperature 0, reasoning effort `medium` (user's choice; some providers refuse reasoning off), `dataCollection: 'deny'` (mandates name organizers), `requireParameters`, JSON
-    schema from zod. The prompt is in French in that file.
-  - The answer is checked by `checkMandateData` (`domain/mandate.ts`, zod `MandateAnswer`, also the JSON schema sent
-    to the LLM): shape, ranges (≤ 12 départs, 0–150 €). One mandate often covers a weekend the FFTA lists as two
-    competitions (seen in the first full run, 2026-10-08): départs on other days are left out, refused only when
-    none is on the competition's days; a price given twice with the same amount is kept once, two amounts for the
-    same case are refused. The answer's JSON is also read inside a ```json fence or a sentence (`answerJson`).
-    Refused → `invalid`, raw answer and problems kept, nothing used. `foamTargets` is `yes` / `no` /
-    `not_mentioned`; `has_foam_targets` is set from a `parsed` reading only.
-  - Errors never fail the run: the row is `failed` with the reason, tried again next run. The report counts read /
-    same file / refused / failed / left and the OpenRouter cost (`usage.cost`).
-  - `bun run --cwd apps/server mandate:read <url> <start> [end]`: reads one mandate and prints the result, writes
-    nothing (to check quality).
-
-- **Runs** (`application/scraper-runs.ts`, table `scraper_runs`, migration `0006`): the server takes the lock, then
-  starts `scrape.ts --run <id>` (`ProcessScraperLauncher`, `nice -n 10`, stdout ignored); the process reads its row
-  for what to do, writes its progress (every 2 s at most) and a heartbeat (every 10 s), then `succeeded` / `failed`
-  with its report. The **lock** is a partial unique index (one `running` row): two admins, or an admin and the
-  night run, cannot start two. A `running` row silent for 2 min is a dead process: the next start marks it
-  `interrupted`. If the process exits without finishing its row (`kill -9`, out of memory), the server marks it
-  `failed` with the exit code. By hand (`bun run scrape …`), the command takes the same lock itself (`startHere`),
-  so admins see it too. Night run: 03:00 Paris (`nightly-scraper.ts`, checked every minute), only with `CHROME_PATH`.
-- Chrome runs with `pipe: true`: with the default WebSocket, a `kill -9` of the scraper left five Chrome processes
-  behind; through a pipe, Chrome quits when its parent dies (checked 2026-10-08). SIGTERM is handled by Puppeteer:
-  it closes Chrome, the run then fails cleanly with its reason.
-- **Live page** (`admin/scraper-page.tsx`, "Calendrier FFTA" tab): last result, then the run going on with its steps
-  (list page N / ~75, detail pages N / total, saving), progress bars, elapsed time and an estimate (about 1 s per
-  page), who started it; "Mettre à jour tout le calendrier" behind a confirmation that says how long and that the
-  page can be closed; one competition, picked from an autocomplete over the public list (title, town or number,
-  `admin/competition-search.tsx`) or by pasted number or link (`fftaIdFrom`); the last 10 runs. Every admin with the
-  page open sees the same thing. The competition's admin page has no refresh button any more (removed 2026-10-08, the
-  user's choice): it shows a "Mandat (PDF)" link next to the title, and under it a **"Lu dans le mandat"** block
-  (`admin/mandate-summary.tsx`): number of départs with their name, day and times, and the prices by audience
-  (Adultes, Jeunes U11 à U21, Tous) and number of départs. A mandate not read yet shows one line instead.
-- **SSE** (`presentation/http/scraper-events.ts`): the run is written by another process, so the server reads its
-  row every second, **only while a page is open**, and pushes the status when it changed; a keep-alive comment every
-  15 s. Bun closes idle connections after 10 s: the route calls `server.timeout(request, 0)`. `x-accel-buffering: no`
-  so nginx does not hold events back (Caddy, used in production, flushes SSE by itself). The client is a
-  plain `EventSource` (reconnects alone); on an error it asks `GET /api/admin/scraper` to tell an expired session.
-
-- **Cloudflare** blocks plain HTTP (403 "Just a moment…", even with browser headers) and a plain headless Chrome.
-  `puppeteer-core` + `puppeteer-extra` stealth (`addExtra(puppeteerCore)`: its own types expect the full `puppeteer`)
-  passes, under Bun (tested 2026-10-08). `chrome-headless-shell` is used: as fast as full Chrome, lighter. Install it
-  with `bunx @puppeteer/browsers install chrome-headless-shell@stable --path <dir>` and set `CHROME_PATH` to the
-  printed binary. A blocked page throws `CloudflareBlockedError`: a run must then change nothing.
-- `FftaBrowser`: one tab, 1 s between pages, images/fonts/media not downloaded, only `ffta.fr` (and subdomains) and
-  the Cloudflare check reachable, `--disable-dev-shm-usage` (Docker). If Chrome cannot start, the run is marked
-  failed at once, so the lock is not held for nothing.
-- **The list** (`www.ffta.fr/competitions?start=…&end=…&page=N`, one year ahead): 30 cards per page, about 75 pages
-  for all of France (2 235 entries on 2026-10-08, about 2 min), read until an empty page. Card markup:
-  `article.competition_item`, head class `--valid` / `--report` / `--cancel`, `__dates` ("Le …", "Du … au …", once
-  with both years), title "NAME à TOWN" (cut at the last " à "), `field--name-field-discipline` (FFTA labels mapped
-  in `ffta-values.ts`, shared by both pages; an unknown one is a problem, never a guess), organizer `<span>CLUB
-  <small>(TOWN)</small>`, plain `mailto:`, `__mandat_btn`. Parsed with `node-html-parser` (`calendar-page.ts`,
-  tested on made-up markup).
-- The list has **no département**: it comes from the **detail page** (`/epreuve/<id>`, `competition-page.ts`), read
-  only for new competitions (the user's choice over reading the list per département; `dep[]` filter values are not
-  département codes anyway, 2A/2B shift them). The page (`article.competition_detail`) has the same title, dates,
-  status badge (`status--valid/report/cancel`) and discipline, so "re-scrape one competition" needs only it, plus
-  "Label : <strong>value</strong>" lines (Championnat, Duels, Comité régional, Comité départemental, Organisateur,
-  Lieu), then the place: bold venue, street lines, "44800 TOWN", country. Tel / Mail / Site buttons. The
-  "Itinéraire Google" link also holds a GPS point (`destination=lat,lng`), typed by the organizer: **not read** (some
-  are hundreds of km off, Grosbreuil, Vendée, sat next to Mogadishu; swapping latitude and longitude did not fix it).
-- **Département** (`ffta-department.ts`): the venue's **postal code first** (where archers go; a Yvelines club
-  shoots in Eure-et-Loir), else the departmental committee name (accents and signs ignored, longest département
-  name wins: "HAUTE LOIRE" beats "LOIRE"), else the regional committee **overseas only** ("PAYS DE LA LOIRE" would
-  read as Loire). Abroad (Wroclaw) gives none. Para-tir entries and "Inter Club" / "DD Par Equipe" ones have no
-  address: their committee gives the département.
-- **Para-tir** comes as its own entries (same title, day, town): merged as a flag on the main one (`mergeParaTir`);
-  378 merged and 23 alone on 2026-10-08. Open question: 35 groups of normal entries share title, day and town (some
-  the same event twice with and without a type, some Loisirs next to Salle, some different organizers): all kept
-  for now.
-- **Storing** (`application/sync-ffta-calendar.ts`, ports in `application/ports/`, migration `0005` columns:
-  championship, duels, committees, phone, website, venue, street lines, postal code, city, country,
-  `list_fingerprint`, `detail_read_at`, `last_listed_at`, `missing_since`). `planSync` sorts the list read:
-  **new** (detail read, added), **changed** (the list card's fingerprint differs, or a legacy row with none: detail
-  read again), **unchanged** (only `last_listed_at`), **missing** (upcoming, stored, not listed: `missing_since`,
-  hidden from the public list,
-  never deleted; cleared when listed again; only after a complete list). The list's values win over the detail
-  page's (they are what the fingerprint covers); `has_foam_targets` and `created_at` are never touched. Position:
-  always the address service (the app calls no Google API). `geocodeCommune` with that postal code (`postcode`
-  filter), trying the postal line's commune then the title's town: a commune the name really names (ST → SAINT,
-  « LYON 08 » → Lyon 8e Arrondissement, merged communes holding every word), else an address whose commune or former
-  commune has that name (« AY » → Aÿ-Champagne). The service's fuzzy matches are never taken (for « ay 51160 » it
-  offers only Fontaine-sur-Ay, a neighbour). Else `geocodeTown` in the département. On 2026-10-09 this left 4 places
-  out of 53 hard cases unfound (Blériot, Monaco, Haucourt-Saint-Charles, « A Definir »).
-  Requests are spaced 60 ms apart and retried after a 429 or 5xx (the service allows 50 per second and answers 429
-  beyond, 504 when busy). `bun run db:relocate [--dry-run]` locates every upcoming competition again the same way
-  (run once in production on 2026-10-09 for the points stored from the FFTA's GPS). Abroad and unreadable
-  detail pages are skipped and read again next run; so are the ones beyond `--max-details`.
-- **Safety**: nothing is written if the list cannot be read (Cloudflare), or holds less than half of the upcoming
-  competitions already known (once 100+ are known). Cloudflare stopping the detail pages keeps what was read.
-  Everything is read first, then written in batches of 100, each its own short transaction; the connection has
-  `busy_timeout = 5000` since two processes write. The first run on the legacy data reads every detail page
-  (about 1 900, roughly 35-40 min); later runs only new or changed ones.
-
-## Client UI decisions (asked by the user, keep them)
-
-- **Layout like SeLoger**: header, list panel on the left (500 px, own scroll), full-height map on the right. On phones
-  the list **covers** the map (never hide the map: Leaflet must keep its real size) and a floating "Carte / Liste"
-  button switches.
-- **Filters** (`competitions/competition-filters.tsx`, phones need the room). Line 1: a round icon button, then one
-  "where" pill split in two: the place menu (remembered in `localStorage` under `department`, default 44; phones show
-  a département by its code) and the **town search** (debounced 300 ms, our own suggestion list in `town-search.tsx`, an ARIA combobox; the
-  user rejected the native `<datalist>` look). Suggestions use the text after a postal code (FFTA towns are sometimes
-  full addresses) and merge spelling variants per département. The button (badge = number chosen) opens a dialog with
-  Discipline (+ "Para-tir"), a date range (native date inputs; a competition is kept if one of its days is in it),
-  "Seulement les concours avec des inscrits du club" (`clubArcherCount > 0`) and "Seulement les concours sur cibles
-  mousses" (`hasFoamTargets`, column `competitions.has_foam_targets`, migration `0004`, asked 2026-10-08). No
-  competition has that information yet (the scraper will fill it; the legacy import never touches the column): while
-  none has it, a grey note under the checkbox says so, and it disappears by itself. "Tout effacer" there keeps the
-  département. Line 2 shows only when some of those are chosen: removable chips that wrap. Chips inside the search
-  field were tried and rejected (cut or squeezed the town field).
-- **Regions** (asked 2026-10-08, like the FFTA website): the place menu groups départements under their region
-  (`shared/src/regions.ts`, 13 regions + Outre-mer; a test checks every `DEPARTMENT_NAMES` code is in exactly one).
-  A region row (bold) is selectable and keeps all its départements; the value is `region:<id>`
-  (`competitions/areas.ts`). Filtering stays in the browser like every other filter: `GET /api/competitions` already
-  sends every competition, so a list of départements is never sent to the server (the user asked for it; told why
-  not, 2026-10-08).
-- Cards: date block in the discipline color, title, badges ("Para-tir" light blue, "Cibles mousses" lime, "Reportée"
-  amber), town line with
-  **"Voir sur la carte"** (icon only on phones, below Tailwind's `sm`, so long town names stay readable; asked
-  2026-10-10), discipline · club, club deadline, links "Mandat (PDF)" (red) and "Détail FFTA" (grey).
-- **Bottom right of the card: "Voir les inscrits" and "S'inscrire"** ("Voir les inscrits" is disabled and ghost when
-  `clubArcherCount` is 0: hiding it left an odd space; "S'inscrire" only before the club deadline; no buttons at all
-  when the deadline is past and nobody is registered). Each
-  action asks to sign in first when needed, then continues. "Mon suivi" is in the header; on its left, an
-  "Administration" link to `/admin` shows only for admins (`SignedInArcher.isAdmin`; icon only on phones).
-- **Hovering a card does nothing on the map.** "Voir sur la carte" is the only link from list to map (zoom + popup).
-- Map: OpenStreetMap standard tiles (the user rejected CARTO and Plan IGN), one dot per **position** (merges spelling
-  variants of a town), red count bubbles for clusters, zoom buttons bottom right, "© OpenStreetMap" credit bottom left
-  in 10 px without the Leaflet prefix (the OSM credit is required).
-- Discipline colors (`competitions/disciplines.ts`) are data, kept from the old site. App accent: red.
-- Labels: "Salle 18m" (no space). FFTA competition titles are shown as they come (the FFTA writes many in capitals:
-  "SALLE 26AUREC"; our code does not change their case).
-- Competitions without a place (placeholders such as "A Définir") and competitions gone from the FFTA list are kept
-  in the database but **not shown** to the public (the user's choice, 2026-10-09); `CompetitionDto.position` is
-  never `null`. Members already registered still see them in "Mon suivi", and admins on their page.
-- A départ is shown as "Départ 2 · Après-midi" (`departureTitle`) when the mandate names it, in "Mon suivi", the
-  admin page and the Excel file: the number stays, it is what club and organizer use.
-
-## Accessibility (club has older and disabled members)
-
-Material Design baseline, do not exaggerate:
-
-- Body text 16 px, nothing to read below 14 px (the map credit is the only exception).
-- Buttons, selects, menu options and map controls are **40 px** tall; button/select text 14 px. These sizes live in the
-  shadcn components themselves (`components/ui/*`), so new components follow them.
-- Grey text `--muted-foreground` 0.45 (about 7:1); control borders `--input` 0.70 (3:1, WCAG 1.4.11).
-- Hand cursor on every enabled button (global rule in `index.css`; Tailwind 4 removed it).
-- Map dots have the town name as `title`.
+`notice-membre.html` (members, must stay **2 A4 pages**) and `notice-admin.html` (admins, in detail), shared
+`notice.css`, formal French, captures on made-up data. To rebuild a PDF: `bunx --bun serve -l 3995 docs/notice`,
+print the page to A4 PDF with backgrounds, check the page count. Update them when a screen they describe changes.
 
 ## Not done yet
 
-- Competitions that cannot be located: their **count shown in the admin panel**, and the admin can re-run a Google
-  Maps lookup (results should then live in the DB instead of `known-places.ts`).
+- The count of competitions that cannot be located, shown in the admin panel, with a way to fix them (results in the
+  database instead of `known-places.ts`).
 
 ## Traps already hit
 
-- Never remove a migration production has applied: the server would not start (Knex refuses missing migrations).
-  Undo it there first, with the image that still has it (`createDatabase(DATABASE_PATH).migrate.down()` through
-  `docker exec -i <container> bun run -`), then deploy the code without it (done for `0008`, 2026-10-09).
-- Do not overwrite or delete the SQLite file (or its `-wal`/`-shm`) while the server runs: it keeps serving old data.
-  Stop the server first.
-- To move the database elsewhere (a server, a Docker volume), never copy `inscript-carte.sqlite` alone: recent writes
-  may still be in its `-wal` file (the member import was lost that way). Make one self-contained copy with
-  `sqlite3 apps/server/data/inscript-carte.sqlite "VACUUM INTO 'export.sqlite'"`, stop the target server, delete its
-  `.sqlite`, `-wal` and `-shm`, then copy the export in, owned by `bun`.
-- `@radix-ui/react-select` 2.3.8 drops `className`/`style` on `Select.Value`: style it from the trigger with
-  `*:data-[slot=select-value]:…`.
-- react-leaflet calls `popup.update()` when a popup's children change, and moves a marker when its `position` array
-  changes by reference. Keep `shown` memoized, `Town.latLng` stable and `TownMarker` memoized, or open popups flicker.
-- Custom `divIcon` markers need `popupAnchor`, or the popup covers the dot.
-- Leaflet CSS is imported into Tailwind's `base` layer (`index.css`), so Tailwind utilities win over it. Popup spacing
-  is padding on the wrapper (a margin on the content collapses).
-- CARTO basemaps now need an API key.
-- `shadcn add` asks to overwrite `button.tsx` when a new component depends on it: answer **no** (our sizes and the
-  opaque hover live there). New components must be brought to the accessibility sizes (inputs, toggles, checkboxes).
-- Toggle buttons are only grey when "on" by default: chosen départs use solid primary + a check icon.
-- Avoid `Map.groupBy` and other 2024+ APIs in the client: members use older tablets.
-- Menu dropdowns are `components/ui/dropdown-menu.tsx`, written by hand in the shadcn style with 40 px items. Radix
-  opens them on `pointerdown`: browser automation must press the mouse, a synthetic `click()` does nothing.
+- Never remove a migration production has applied: Knex then refuses to start. Undo it there first with the image
+  that has it (`createDatabase(DATABASE_PATH).migrate.down()` through `docker exec -i <container> bun run -`), then
+  deploy without it.
+- Never overwrite or delete the SQLite file (or `-wal`/`-shm`) while the server runs. To copy a database, never copy
+  the `.sqlite` alone (recent writes sit in `-wal`): `sqlite3 <db> "VACUUM INTO 'export.sqlite'"`.
+- An OpenRouter key was once committed and the history had to be rewritten: before committing, check the diff for
+  `sk-or-`.
+- `shadcn add` asks to overwrite `button.tsx`: answer **no** (our sizes live there). Bring new components to the 40 px
+  sizes.
+- `@radix-ui/react-select` drops `className` on `Select.Value`: style it from the trigger
+  (`*:data-[slot=select-value]:…`).
+- Radix menus open on `pointerdown`: browser automation must press the mouse; `click()` does nothing.
+- react-leaflet updates popups when children change and moves markers when `position` changes by reference: keep
+  `shown`, `Town.latLng` and `TownMarker` memoized, or open popups flicker. `divIcon` markers need `popupAnchor`.
+- Leaflet CSS sits in Tailwind's `base` layer, so utilities win over it.
+- Toggle buttons are grey when "on" by default: chosen départs use solid primary + a check icon.
