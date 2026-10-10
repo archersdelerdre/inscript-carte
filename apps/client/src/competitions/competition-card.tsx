@@ -86,7 +86,7 @@ function Place({ competition, onShowOnMap }: { competition: CompetitionDto; onSh
   return (
     // Icon rows share one grid: 18 px icon + 8 px gap, so every text starts at the same place.
     <div className='flex min-w-0 items-center gap-2'>
-      <MapPinIcon className='text-muted-foreground size-[1.125rem] shrink-0' />
+      <MapPinIcon className='text-muted-foreground size-4.5 shrink-0' />
       <span className='truncate'>{competition.town}</span>
       {/* Negative margins keep the 40 px tap target without making the line taller. On phones the icon alone, so
           long town names stay readable (asked 2026-10-10); the words stay for screen readers and as a tooltip. */}
@@ -124,7 +124,7 @@ function RegistrationCount({ competition }: { competition: CompetitionDto }) {
   const count = competition.clubArcherCount;
   return (
     <p className='flex items-center gap-2 text-sm'>
-      <UsersIcon className='text-muted-foreground size-[1.125rem] shrink-0' />
+      <UsersIcon className='text-muted-foreground size-4.5 shrink-0' />
       {count === 0
         ? 'Aucun archer du club inscrit pour le moment'
         : `${count} ${count > 1 ? 'archers inscrits' : 'archer inscrit'}`}

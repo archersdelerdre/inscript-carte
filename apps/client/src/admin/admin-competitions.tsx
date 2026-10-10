@@ -47,7 +47,7 @@ export function AdminCompetitions({ selectedId, onSelect, onSessionExpired }: Pr
     <div className='flex min-h-0 flex-1'>
       <aside
         className={cn(
-          'flex min-w-0 flex-col gap-4 overflow-y-auto p-4 max-md:flex-1 md:w-[360px] md:shrink-0 md:border-r 2xl:w-[420px]',
+          'flex min-w-0 flex-col gap-4 overflow-y-auto p-4 max-md:flex-1 md:w-90 md:shrink-0 md:border-r 2xl:w-105',
           selectedId !== null && 'max-md:hidden',
         )}
       >

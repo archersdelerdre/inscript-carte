@@ -98,7 +98,7 @@ export function App() {
         <div className='relative flex min-h-0 flex-1'>
           <aside
             className={cn(
-              'z-10 flex min-w-0 flex-col bg-background max-md:absolute max-md:inset-0 md:w-[500px] md:shrink-0 md:border-r',
+              'z-10 flex min-w-0 flex-col bg-background max-md:absolute max-md:inset-0 md:w-125 md:shrink-0 md:border-r',
               mobileView === 'map' && 'max-md:hidden',
             )}
           >

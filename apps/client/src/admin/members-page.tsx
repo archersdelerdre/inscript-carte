@@ -168,7 +168,7 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
 
       <div className='flex flex-wrap items-center gap-3'>
         <div className='relative min-w-64 flex-1'>
-          <SearchIcon className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-[1.125rem] -translate-y-1/2' />
+          <SearchIcon className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2' />
           <Input
             aria-label='Chercher un licencié'
             placeholder='Nom ou numéro de licence'
@@ -203,7 +203,7 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
           </p>
           {/* Scrolls sideways on phones instead of squeezing the columns. */}
           <div className='overflow-x-auto rounded-lg border'>
-            <table className='w-full min-w-[640px] border-collapse text-left'>
+            <table className='w-full min-w-160 border-collapse text-left'>
               <thead className='bg-muted whitespace-nowrap'>
                 <tr>
                   <th scope='col' className='px-3 py-2 font-semibold'>
