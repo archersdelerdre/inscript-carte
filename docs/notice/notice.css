@@ -1,0 +1,154 @@
+@page {
+  size: A4;
+  margin: 14mm 15mm;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  color: #1c1c1c;
+  font-size: 11.5pt;
+  line-height: 1.45;
+  margin: 0;
+}
+h1 {
+  font-size: 20pt;
+  margin: 0 0 2mm;
+}
+.sub {
+  color: #555;
+  margin: 0 0 5mm;
+}
+h2 {
+  font-size: 14pt;
+  color: #c8102e;
+  margin: 4mm 0 1.5mm;
+  border-bottom: 2px solid #c8102e;
+  padding-bottom: 1mm;
+}
+h3 {
+  font-size: 11.5pt;
+  margin: 4mm 0 1mm;
+}
+p {
+  margin: 0 0 2mm;
+}
+ol,
+ul {
+  margin: 0 0 2mm;
+  padding-left: 5.5mm;
+}
+li {
+  margin-bottom: 1mm;
+}
+b.btn {
+  background: #c8102e;
+  color: white;
+  border-radius: 4px;
+  padding: 0 5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+b.lnk {
+  color: #c8102e;
+  white-space: nowrap;
+}
+.row {
+  display: flex;
+  gap: 6mm;
+  align-items: flex-start;
+}
+.row .text {
+  flex: 1;
+}
+.shot {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.tip {
+  background: #fff4e5;
+  border-left: 4px solid #e8a33d;
+  padding: 2mm 3mm;
+  border-radius: 3px;
+  margin: 2mm 0;
+}
+.warn {
+  background: #fdecee;
+  border-left: 4px solid #c8102e;
+  padding: 2mm 3mm;
+  border-radius: 3px;
+  margin: 2mm 0;
+  font-weight: 600;
+}
+.rib {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 2mm 4mm;
+  margin: 2mm 0;
+}
+.rib div {
+  display: flex;
+  gap: 3mm;
+}
+.rib span:first-child {
+  color: #555;
+  width: 18mm;
+}
+.rib span:last-child {
+  font-family: Menlo, 'Courier New', monospace;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1mm 0 2mm;
+  font-size: 10.5pt;
+}
+td {
+  padding: 0.7mm 2mm;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+  width: 46mm;
+}
+.page {
+  page-break-after: always;
+}
+.page:last-child {
+  page-break-after: auto;
+}
+h2,
+h3 {
+  break-after: avoid;
+}
+tr,
+li,
+.warn,
+.tip {
+  break-inside: avoid;
+}
+/* The admin notice holds more text per page. */
+body.dense {
+  font-size: 10.5pt;
+  line-height: 1.38;
+}
+body.dense h3 {
+  font-size: 11pt;
+  margin: 3mm 0 0.8mm;
+}
+body.dense li {
+  margin-bottom: 0.6mm;
+}
+body.dense td:first-child {
+  width: 40mm;
+}
+.foot {
+  color: #777;
+  font-size: 9.5pt;
+  margin-top: 3mm;
+}

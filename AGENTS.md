@@ -38,6 +38,15 @@ Every sentence must read as natural, correct French, the way a person would writ
 - Counts with plurals are built in code (`${n} ${n > 1 ? 'départs' : 'départ'}`); never leave "(s)" except in a short
   label such as "Départ(s) souhaité(s)".
 
+## User guides (`docs/notice/`)
+
+Two printed guides in formal French (user's request, 2026-10-10), sharing `notice.css`, captures on made-up data:
+`notice-membre.html` (members: search, registration, deadline, payment with the club's RIB, "Mon suivi"; must stay
+**2 A4 pages**) and `notice-admin.html` (admins only, in detail: sign-in, statuses and payment states, reference
+actions, Excel file, members, FFTA calendar; 3 pages). Each has its `.pdf` next to it: serve the folder
+(`bunx --bun serve -l 3995 docs/notice`), print the page to PDF in A4 with backgrounds, check the page count. Update
+them when a screen they describe changes.
+
 ## Stack
 
 - Monorepo: **Turborepo** + **Bun 1.4** workspaces. **TypeScript only** (TS 7, strict, `erasableSyntaxOnly`).

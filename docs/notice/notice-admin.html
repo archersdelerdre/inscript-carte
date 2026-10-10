@@ -1,0 +1,217 @@
+<!doctype html>
+<!--
+  Notice pour les administrateurs du club (A4). Complète la notice des membres, qui explique l'inscription.
+  Pour refaire le PDF : servir ce dossier, ouvrir ce fichier dans un navigateur, Imprimer, « Enregistrer en PDF », A4,
+  arrière-plans activés.
+-->
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Notice des administrateurs</title>
+    <link rel="stylesheet" href="notice.css" />
+  </head>
+  <body class="dense">
+    <div class="page">
+      <h1>Notice des administrateurs</h1>
+      <p class="sub">
+        Gestion des inscriptions, des paiements, des licenciés et du calendrier FFTA. L'inscription côté archer est
+        décrite dans la notice d'utilisation des membres.
+      </p>
+
+      <h2>1. Connexion</h2>
+      <ul>
+        <li>
+          Connectez-vous d'abord comme un membre (numéro de licence et date de naissance), puis ouvrez
+          <b>Administration</b> en haut de la page et saisissez votre <b>mot de passe administrateur</b>.
+        </li>
+        <li>
+          Lorsqu'un administrateur vous a nommé, il vous a remis un mot de passe provisoire. À la première connexion,
+          choisissez votre propre mot de passe : rien d'autre n'est accessible avant. Il se modifie ensuite avec
+          <b>Changer mon mot de passe</b>.
+        </li>
+        <li>
+          La connexion reste ouverte un an sur l'appareil. Sur un ordinateur partagé, utilisez
+          <b>Se déconnecter</b> en fin de session.
+        </li>
+      </ul>
+      <div class="warn">
+        L'administration donne accès aux coordonnées de tous les licenciés, dont des mineurs : ne communiquez jamais
+        votre mot de passe et ne transmettez le fichier Excel qu'à l'organisateur du concours.
+      </div>
+
+      <h2>2. Inscriptions</h2>
+      <p>
+        La colonne de gauche liste les concours comportant des inscrits, à venir d'abord, puis les concours terminés.
+        Des pastilles signalent ce qui reste à faire : <b>à transmettre</b>, <b>en attente de paiement</b>,
+        <b>à rembourser</b>. À droite, une fiche par archer (une référence R-… par archer et par concours), puis une
+        ligne par départ.
+      </p>
+
+      <h3>Déroulement habituel</h3>
+      <ol>
+        <li>L'archer s'inscrit : ses départs sont à l'état <b>Reçue</b>, paiement <b>En attente de paiement</b>.</li>
+        <li>
+          À réception du règlement (référence R-… sur le chèque ou le virement), passez le paiement à <b>Payé</b>.
+        </li>
+        <li>
+          Générez le <b>Fichier Excel pour l'organisateur</b> avec le filtre de paiement sur « Payé », envoyez-le, puis
+          passez les départs à <b>Transmise à l'organisateur</b>.
+        </li>
+        <li>Selon la réponse de l'organisateur : <b>Validée</b>, ou <b>Plus de place</b> si le départ est complet.</li>
+      </ol>
+
+      <h3>Statut d'un départ</h3>
+      <table>
+        <tr>
+          <td>Reçue</td>
+          <td>
+            Demande enregistrée. L'archer peut encore la retirer jusqu'à la date limite. Revenir à « Reçue » est
+            possible pour corriger une erreur, mais l'archer pourra alors la retirer sans que l'organisateur le sache.
+          </td>
+        </tr>
+        <tr>
+          <td>Transmise à l'organisateur</td>
+          <td>Envoyée à l'organisateur : l'archer ne peut plus la retirer lui-même.</td>
+        </tr>
+        <tr>
+          <td>Validée</td>
+          <td>Place confirmée par l'organisateur.</td>
+        </tr>
+        <tr>
+          <td>Plus de place</td>
+          <td>Départ complet.</td>
+        </tr>
+        <tr>
+          <td>Annulée</td>
+          <td>
+            Définitif : une inscription annulée ne peut plus être réactivée, l'archer doit s'inscrire à nouveau. La
+            mention « Annulée par le club le … » est ajoutée à la note.
+          </td>
+        </tr>
+      </table>
+
+      <h3>Paiement d'un départ</h3>
+      <table>
+        <tr>
+          <td>En attente de paiement</td>
+          <td>Le règlement n'est pas encore arrivé.</td>
+        </tr>
+        <tr>
+          <td>Payé</td>
+          <td>Le club a reçu le règlement.</td>
+        </tr>
+        <tr>
+          <td>Rien à payer</td>
+          <td>Départ complet ou annulé, jamais payé.</td>
+        </tr>
+        <tr>
+          <td>À rembourser</td>
+          <td>Départ complet ou annulé, déjà payé : le club doit rembourser l'archer.</td>
+        </tr>
+        <tr>
+          <td>Remboursé</td>
+          <td>Le remboursement est fait.</td>
+        </tr>
+      </table>
+      <p>
+        Le paiement suit le statut : un départ qui passe en « Plus de place » ou « Annulée » devient « Rien à payer »
+        s'il n'était pas payé, « À rembourser » s'il l'était. Remis dans un autre statut, il revient à « En attente de
+        paiement » ou à « Payé ». Le menu permet toujours de choisir un autre état à la main.
+      </p>
+      <h3>Actions sur toute une fiche</h3>
+      <ul>
+        <li>
+          Dès que l'archer a deux départs ou plus : <b>Statut de tous les départs</b>,
+          <b>Tout marquer comme payé</b> (ou <b>Tout remettre en attente de paiement</b>). Seuls les départs concernés
+          changent ; les départs annulés gardent leur statut.
+        </li>
+        <li>
+          <b>Tout marquer comme remboursé</b> apparaît lorsque deux départs ou plus sont « À rembourser », y compris des
+          départs annulés.
+        </li>
+        <li>
+          Le crayon ajoute une <b>note du club</b>, visible par l'archer dans « Mon suivi ». Chaque modification indique
+          « Modifié par » et le nom de l'administrateur.
+        </li>
+        <li>
+          Une fiche s'affiche fermée lorsqu'il n'y a plus rien à faire : tous les départs sont validés et payés, ou
+          complets, sans remboursement en attente. Un clic sur son en-tête l'ouvre ou la ferme.
+        </li>
+        <li>
+          Le champ <b>Chercher un archer</b> (nom, licence ou référence) et les filtres de statut et de paiement
+          limitent l'affichage.
+        </li>
+      </ul>
+
+      <h3>Fichier Excel pour l'organisateur</h3>
+      <ul>
+        <li>
+          Reprend la grille habituelle des mandats : nom du club, responsable (l'administrateur qui génère le fichier,
+          avec son e-mail et son téléphone s'ils sont connus), puis une ligne par archer et par arc : licence,
+          catégorie, arc, distances, départs, trispot et <b>montant</b>.
+        </li>
+        <li>
+          Il <b>suit les filtres</b> de statut et de paiement affichés : sélectionnez « Payé » pour n'y faire figurer
+          que les départs réglés. Les départs « Plus de place » et « Annulée » n'y figurent jamais.
+        </li>
+        <li>
+          Les montants sont calculés à partir des tarifs du mandat (jeunes U11 à U21, adultes). Sans tarif lisible, la
+          case reste vide. <b>Vérifiez les montants avant tout envoi</b>.
+        </li>
+      </ul>
+
+      <h3>Lu dans le mandat</h3>
+      <p>
+        Sous le titre du concours, le lien <b>Mandat (PDF)</b> ouvre le mandat, et le bloc <b>Lu dans le mandat</b>
+        résume les départs (jour, horaires) et les tarifs. Cette lecture est automatique (intelligence artificielle) :
+        en cas de doute, fiez-vous au PDF. Les départs proposés aux archers en dépendent ; sans lecture, les départs 1 à
+        4 sont proposés.
+      </p>
+
+      <h3>Date limite d'inscription</h3>
+      <p>
+        Calculée automatiquement : 14 jours avant le concours si le mandat est paru ; 2 jours après sa parution s'il
+        paraît tardivement ; 7 jours avant le concours tant qu'il n'est pas paru. Jamais moins de 7 jours avant le
+        concours.
+      </p>
+
+      <h2>3. Licenciés</h2>
+      <ul>
+        <li>
+          <b>Mettre à jour la liste</b> : sur l'extranet FFTA, exportez la liste des licenciés du club (fichier Excel
+          .xlsx, 5 Mo au plus) et déposez-la. Les nouveaux licenciés sont ajoutés et les autres mis à jour. Un fichier
+          incorrect est refusé en entier, avec la ligne en cause.
+        </li>
+        <li>
+          Un licencié absent du fichier n'est <b>pas</b> désactivé automatiquement : utilisez le menu « … » en fin de
+          ligne, <b>Désactiver</b>. Un licencié désactivé ne peut plus se connecter ; <b>Réactiver</b> le rétablit.
+        </li>
+        <li>
+          <b>Nommer admin</b> affiche un mot de passe provisoire <b>une seule fois</b> : copiez-le et remettez-le à la
+          personne, qui le remplacera à sa première connexion. <b>Retirer les droits d'admin</b> la déconnecte de
+          l'administration aussitôt. Personne ne peut se désactiver ni se retirer ses propres droits.
+        </li>
+      </ul>
+
+      <h2>4. Calendrier FFTA</h2>
+      <ul>
+        <li>
+          Le calendrier est mis à jour <b>automatiquement chaque nuit</b> (vers 3 h) : nouveaux concours, concours
+          modifiés, reportés ou annulés, nouveaux mandats.
+        </li>
+        <li>
+          <b>Un seul concours</b> : cherchez-le par nom, ville ou numéro, ou collez le lien de sa fiche FFTA, puis
+          <b>Mettre à jour ce concours</b> (quelques secondes). Son mandat est aussi relu, ce qui corrige une lecture
+          erronée.
+        </li>
+        <li>
+          <b>Mettre à jour tout le calendrier</b> : uniquement en cas de réelle nécessité (plusieurs minutes). La page
+          peut être fermée, la mise à jour continue sur le serveur. Une seule mise à jour à la fois.
+        </li>
+        <li>La page affiche la progression en direct, la dernière mise à jour et les dix précédentes.</li>
+      </ul>
+
+      <p class="foot">Pour toute question : secretariat@archersdelerdre.info.</p>
+    </div>
+  </body>
+</html>
