@@ -1,5 +1,6 @@
 import type { CompetitionProblem } from '@inscript-carte/shared';
 
+import type { CompetitionOverrideRepository } from '../domain/competition-override-repository.ts';
 import type { CompetitionRepository } from '../domain/competition-repository.ts';
 import { isFinished, type Competition } from '../domain/competition.ts';
 import type { RegistrationRepository } from '../domain/registration-repository.ts';
@@ -11,6 +12,7 @@ export type CompetitionOverview = {
   competition: Competition;
   clubArcherCount: number;
   problems: CompetitionProblem[];
+  isEdited: boolean;
 };
 
 /** The admins' table of every upcoming competition, the ones the public does not see included. */
@@ -18,26 +20,30 @@ export class AdminCompetitionOverview {
   readonly #competitions: CompetitionRepository;
   readonly #registrations: RegistrationRepository;
   readonly #readings: MandateReadings;
+  readonly #overrides: CompetitionOverrideRepository;
   readonly #clock: Clock;
 
   constructor(
     competitions: CompetitionRepository,
     registrations: RegistrationRepository,
     readings: MandateReadings,
+    overrides: CompetitionOverrideRepository,
     clock: Clock,
   ) {
     this.#competitions = competitions;
     this.#registrations = registrations;
     this.#readings = readings;
+    this.#overrides = overrides;
     this.#clock = clock;
   }
 
   async list(): Promise<CompetitionOverview[]> {
     const today = this.#clock.today();
-    const [all, counts, readings] = await Promise.all([
+    const [all, counts, readings, edited] = await Promise.all([
       this.#competitions.findAll(),
       this.#registrations.countActiveArchersByCompetition(),
       this.#readings.all(),
+      this.#overrides.editedIds(),
     ]);
     return all
       .filter((competition) => !isFinished(competition, today))
@@ -46,6 +52,7 @@ export class AdminCompetitionOverview {
         competition,
         clubArcherCount: counts.get(competition.id) ?? 0,
         problems: problemsOf(competition, readings.get(competition.id)),
+        isEdited: edited.has(competition.id),
       }));
   }
 }

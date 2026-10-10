@@ -34,29 +34,31 @@ export class SqliteMandateStore implements MandateStore {
     fftaIds?: readonly string[];
     force?: boolean;
   }): Promise<PendingMandate[]> {
-    const query = this.#database('competitions as c')
+    // An admin's edits win: the mandate read is the link they gave, for the dates they set.
+    const database = this.#database;
+    const effective = (column: string) => database.raw('coalesce(??, ??)', [`o.${column}`, `c.${column}`]);
+    const query = database('competitions as c')
+      .leftJoin('competition_overrides as o', 'o.ffta_id', 'c.ffta_id')
       .leftJoin('competition_mandates as m', 'm.ffta_id', 'c.ffta_id')
-      .whereNotNull('c.mandate_url')
-      .where('c.end_date', '>=', today)
+      .whereRaw('coalesce(o.mandate_url, c.mandate_url) is not null')
+      .where(effective('end_date'), '>=', today)
       .whereNull('c.missing_since')
-      .whereNot('c.status', 'cancelled')
+      .whereRaw("coalesce(o.status, c.status) <> 'cancelled'")
       .modify((pending) => {
         if (force) return;
         pending.where((needed) =>
           needed
             .whereNull('m.ffta_id')
-            .orWhereRaw('m.mandate_url <> c.mandate_url')
+            .orWhereRaw('m.mandate_url <> coalesce(o.mandate_url, c.mandate_url)')
             .orWhere((retry) => retry.whereIn('m.status', ['failed', 'invalid']).where('m.attempts', '<', maxAttempts)),
         );
       })
-      .orderBy('c.start_date')
+      .orderBy(effective('start_date'))
       .select(
         'c.ffta_id',
-        'c.mandate_url',
-        'c.title',
-        'c.town',
-        'c.start_date',
-        'c.end_date',
+        ...['mandate_url', 'title', 'town', 'start_date', 'end_date'].map((column) =>
+          database.raw('coalesce(??, ??) as ??', [`o.${column}`, `c.${column}`, column]),
+        ),
         'm.mandate_url as previous_url',
         'm.sha256 as previous_sha256',
         'm.status as previous_status',

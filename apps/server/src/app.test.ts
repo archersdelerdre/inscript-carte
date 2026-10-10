@@ -4,6 +4,7 @@ import type {
   AdminCompetitionRegistrationsResponse,
   AdminSessionResponse,
   CompetitionDto,
+  CompetitionEditResponse,
   GrantAdminResponse,
   ListAdminCompetitionsResponse,
   ListAdminMembersResponse,
@@ -1255,6 +1256,76 @@ describe('FFTA scraper runs', () => {
       expect((await start(body)).status).toBe(400);
     }
     expect(launched).toEqual([]);
+  });
+});
+
+describe('competition edits', () => {
+  const overridesPath = `/api/admin/competitions/${SALLE}/overrides`;
+  const publicSalle = async () => {
+    // Our own API, typed by its contract.
+    const body = (await (await call('/api/competitions')).json()) as { competitions: CompetitionDto[] };
+    return body.competitions.find((competition) => competition.id === SALLE);
+  };
+
+  test('an edit wins over the FFTA value everywhere, even after the scraper writes again, until it is put back', async () => {
+    await makeAdmin(ADULT);
+    const cookie = await adminSignIn();
+    const put = (body: object) => call(overridesPath, { method: 'PUT', cookie, body });
+
+    expect(
+      (
+        await put({
+          title: 'Concours corrigé',
+          position: { latitude: 47.3, longitude: -1.5 },
+          departures: [mandateDeparture('Matin')],
+        })
+      ).status,
+    ).toBe(204);
+    // The next scraper run rewrites the competition row: the edit stays.
+    await database('competitions').where({ ffta_id: SALLE }).update({ title: 'Titre FFTA', latitude: 1, longitude: 1 });
+    expect(await publicSalle()).toMatchObject({
+      title: 'Concours corrigé',
+      position: { latitude: 47.3, longitude: -1.5 },
+      departures: [{ label: 'Matin' }],
+    });
+
+    const edit = (await (await call(overridesPath, { cookie })).json()) as CompetitionEditResponse;
+    expect(edit.competition.ffta).toMatchObject({ title: 'Titre FFTA', position: { latitude: 1, longitude: 1 } });
+    expect(Object.keys(edit.competition.overrides).toSorted()).toEqual(['departures', 'position', 'title']);
+    expect(edit.competition.updatedByName).toBe('DUPONT JEANNE');
+
+    // Leaving a field out puts the FFTA value back.
+    expect((await put({ title: 'Concours corrigé' })).status).toBe(204);
+    expect(await publicSalle()).toMatchObject({ title: 'Concours corrigé', position: { latitude: 1, longitude: 1 } });
+    expect((await put({})).status).toBe(204);
+    expect((await publicSalle())?.title).toBe('Titre FFTA');
+  });
+
+  test('a wrong edit changes nothing; members cannot edit', async () => {
+    await makeAdmin(ADULT);
+    const cookie = await adminSignIn();
+    const put = (body: object) => call(overridesPath, { method: 'PUT', cookie, body });
+    // SALLE runs on 2027-01-09: an end before it, a départ on another day, a removed mandate, an unknown field.
+    expect((await put({ endDate: '2027-01-08' })).status).toBe(400);
+    expect((await put({ departures: [{ ...mandateDeparture('Matin'), date: '2027-01-10' }] })).status).toBe(400);
+    expect((await put({ mandateUrl: null })).status).toBe(400);
+    expect((await put({ organizer: 'X' })).status).toBe(400);
+    expect((await publicSalle())?.endDate).toBe('2027-01-09');
+
+    const member = await signIn(YOUTH);
+    expect((await call(overridesPath, { method: 'PUT', cookie: member, body: { title: 'X' } })).status).toBe(401);
+    expect((await call('/api/admin/competitions/nope/overrides', { cookie })).status).toBe(404);
+  });
+
+  test('a mandate link the FFTA did not have opens the late-mandate window from the day it was given', async () => {
+    await makeAdmin(ADULT);
+    const cookie = await adminSignIn();
+    // Today is 2026-10-06; SALLE starts 2027-01-09: early, so 14 days before.
+    await call(overridesPath, { method: 'PUT', cookie, body: { mandateUrl: 'https://extranet.ffta.fr/m.pdf' } });
+    expect(await publicSalle()).toMatchObject({
+      mandateUrl: 'https://extranet.ffta.fr/m.pdf',
+      clubRegistrationDeadline: '2026-12-26',
+    });
   });
 });
 

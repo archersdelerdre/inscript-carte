@@ -1,4 +1,5 @@
 export * from './api.ts';
+export * from './competition.ts';
 export * from './departments.ts';
 export * from './discipline.ts';
 export * from './ffta-category.ts';

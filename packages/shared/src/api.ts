@@ -1,3 +1,4 @@
+import type { CompetitionStatus } from './competition.ts';
 import type { Discipline } from './discipline.ts';
 import type { AgeCategory } from './ffta-category.ts';
 import type { MandateDeparture, MandatePrice } from './mandate.ts';
@@ -18,6 +19,8 @@ export const API_ROUTES = {
   adminCompetitionOverview: '/api/admin/competition-overview',
   adminCompetitionRegistrations: '/api/admin/competitions/:competitionId/registrations',
   adminCompetitionExport: '/api/admin/competitions/:competitionId/export',
+  /** GET: the FFTA values, the admin's edits and the FFTA details. PUT: replaces every edit. */
+  adminCompetitionOverrides: '/api/admin/competitions/:competitionId/overrides',
   adminRegistration: '/api/admin/registrations/:registrationId',
   adminPaymentReference: '/api/admin/payment-references/:paymentReference',
   adminMemberImport: '/api/admin/members/import',
@@ -278,12 +281,71 @@ export type CompetitionOverviewDto = {
   /** Club archers with an active départ: their registrations can be opened. */
   clubArcherCount: number;
   problems: CompetitionProblem[];
+  /** An admin changed at least one field. */
+  isEdited: boolean;
 };
 
 export type CompetitionOverviewResponse = {
   /** Upcoming (not finished), soonest first. */
   competitions: CompetitionOverviewDto[];
 };
+
+/**
+ * What an admin can change on a competition. An edited field replaces the FFTA value, even after a later FFTA change,
+ * until the admin puts it back. Départs and prices replace the mandate reading.
+ */
+export type CompetitionFields = {
+  title: string;
+  startDate: string;
+  endDate: string;
+  discipline: Discipline;
+  status: CompetitionStatus;
+  hasParaTir: boolean;
+  hasFoamTargets: boolean;
+  mandateUrl: string | null;
+  town: string;
+  departmentCode: string;
+  position: GeoPosition | null;
+  departures: MandateDeparture[] | null;
+  prices: MandatePrice[] | null;
+};
+
+/** Read on the FFTA detail page, for reference; never edited. */
+export type FftaDetailsDto = {
+  organizerClub: string | null;
+  organizerEmail: string | null;
+  organizerPhone: string | null;
+  organizerWebsite: string | null;
+  championship: string | null;
+  hasDuels: boolean | null;
+  regionalCommittee: string | null;
+  departmentalCommittee: string | null;
+  venue: string | null;
+  streetLines: string[];
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+};
+
+export type CompetitionEditDto = {
+  id: string;
+  /** What the FFTA says; départs and prices from the checked mandate reading (`null` when none). */
+  ffta: CompetitionFields;
+  /** Only the fields an admin changed. */
+  overrides: Partial<CompetitionFields>;
+  details: FftaDetailsDto;
+  /** The last admin who saved edits, and when (ISO date and time); `null` when never edited. */
+  updatedByName: string | null;
+  updatedAt: string | null;
+};
+
+export type CompetitionEditResponse = { competition: CompetitionEditDto };
+
+/**
+ * Replaces every edit of the competition: a field left out goes back to the FFTA value. `mandateUrl` and `position`
+ * cannot be edited to `null` (no "no mandate", no "no place"); `departures` / `prices` given as `[]` mean none.
+ */
+export type CompetitionOverridesRequest = Partial<CompetitionFields>;
 
 /** One row per départ, with everything the secretary needs. Never the birth date. */
 export type AdminRegistrationDto = {

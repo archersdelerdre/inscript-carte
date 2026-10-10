@@ -1,4 +1,4 @@
-import type { Discipline, MandateData } from '@inscript-carte/shared';
+import type { Discipline, MandateData, MandateDeparture, MandatePrice } from '@inscript-carte/shared';
 import type { Knex } from 'knex';
 
 import type { CompetitionRepository } from '../../domain/competition-repository.ts';
@@ -23,26 +23,26 @@ type CompetitionRow = {
   missing_since: string | null;
   /** `competition_mandates.data` of a `parsed` reading. */
   mandate_data: string | null;
+  /** An admin's départs / prices (JSON): they replace the reading. */
+  edited_departures: string | null;
+  edited_prices: string | null;
 };
 
-const COLUMNS = [
-  'c.ffta_id',
-  'c.title',
-  'c.discipline',
-  'c.status',
-  'c.has_para_tir',
-  'c.has_foam_targets',
-  'c.start_date',
-  'c.end_date',
-  'c.organizer_club',
-  'c.town',
-  'c.department_code',
-  'c.latitude',
-  'c.longitude',
-  'c.mandate_url',
-  'c.mandate_added_on',
-  'c.missing_since',
-  'm.data as mandate_data',
+/** An admin's edit wins over the FFTA value: `competition_overrides` holds `NULL` for every field left alone. */
+const EDITABLE = [
+  'title',
+  'discipline',
+  'status',
+  'has_para_tir',
+  'has_foam_targets',
+  'start_date',
+  'end_date',
+  'town',
+  'department_code',
+  'latitude',
+  'longitude',
+  'mandate_url',
+  'mandate_added_on',
 ];
 
 export class SqliteCompetitionRepository implements CompetitionRepository {
@@ -62,19 +62,36 @@ export class SqliteCompetitionRepository implements CompetitionRepository {
     return row ? toCompetition(row) : null;
   }
 
-  /** Only a reading that passed the checks, and only for the mandate link the competition has now. */
+  /** Only a reading that passed the checks, and only for the mandate link the competition has now (edited or not). */
   #query() {
-    return this.#database('competitions as c')
+    const database = this.#database;
+    return database('competitions as c')
+      .leftJoin('competition_overrides as o', 'o.ffta_id', 'c.ffta_id')
       .leftJoin('competition_mandates as m', (join) =>
-        join.on('m.ffta_id', 'c.ffta_id').andOn('m.mandate_url', 'c.mandate_url').andOnVal('m.status', 'parsed'),
+        join
+          .on('m.ffta_id', 'c.ffta_id')
+          .andOn('m.mandate_url', database.raw('coalesce(o.mandate_url, c.mandate_url)'))
+          .andOnVal('m.status', 'parsed'),
       )
-      .select(COLUMNS);
+      .select(
+        'c.ffta_id',
+        'c.organizer_club',
+        'c.missing_since',
+        'm.data as mandate_data',
+        'o.departures as edited_departures',
+        'o.prices as edited_prices',
+        ...EDITABLE.map((column) => database.raw('coalesce(??, ??) as ??', [`o.${column}`, `c.${column}`, column])),
+      );
   }
 }
 
 function toCompetition(row: CompetitionRow): Competition {
-  // Stored only after `checkMandateData`.
+  // Stored only after `checkMandateData` / `checkOverrides`.
   const mandate = row.mandate_data ? (JSON.parse(row.mandate_data) as MandateData) : null;
+  const departures: MandateDeparture[] | undefined = row.edited_departures
+    ? JSON.parse(row.edited_departures)
+    : mandate?.departures;
+  const prices: MandatePrice[] | undefined = row.edited_prices ? JSON.parse(row.edited_prices) : mandate?.prices;
   return {
     id: row.ffta_id,
     title: row.title,
@@ -91,8 +108,8 @@ function toCompetition(row: CompetitionRow): Competition {
       row.latitude === null || row.longitude === null ? null : { latitude: row.latitude, longitude: row.longitude },
     mandateUrl: row.mandate_url,
     mandateAddedOn: row.mandate_added_on,
-    departures: mandate?.departures.length ? mandate.departures : null,
-    prices: mandate?.prices.length ? mandate.prices : null,
+    departures: departures?.length ? departures : null,
+    prices: prices?.length ? prices : null,
     missingSince: row.missing_since,
   };
 }

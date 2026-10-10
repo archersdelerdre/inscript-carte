@@ -90,7 +90,14 @@ Inner layers never import outer ones. The domain may import types and rules from
 ## Database
 
 - Tables: `competitions` (PK `ffta_id`), `archers` (PK `licence_number`), `registrations` (one row per départ),
-  `sessions`, `admins`, `admin_sessions`, `member_imports`, `scraper_runs`, `competition_mandates`.
+  `sessions`, `admins`, `admin_sessions`, `member_imports`, `scraper_runs`, `competition_mandates`,
+  `competition_overrides`.
+- **Admin edits** (`competition_overrides`, migration `0010`): one row per edited competition, one column per editable
+  field, `NULL` = the FFTA value. Decided: an edit **always wins**, even after a later FFTA change, until an admin puts
+  the FFTA value back. The scraper never writes there. `SqliteCompetitionRepository` merges them
+  (`coalesce(o.x, c.x)`), so every reader sees the edited competition; the mandate reader reads the edited link and
+  dates. Edited départs / prices replace the mandate reading. A mandate link the FFTA did not have gets its own
+  `mandate_added_on` (the club deadline's late-mandate rule).
 - Value lists are `CHECK` constraints. SQLite cannot change one: the migration copies the table (see `0008`). One
   active registration per (competition, archer, départ): a partial unique index that ignores `cancelled`.
 - **Any schema change is a new migration**, listed in `migrations/index.ts` (explicit, so it survives `bun build`).
@@ -175,13 +182,18 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   filters (the club usually sends only paid départs); never "Plus de place" or "Annulée". One line per archer and
   bow; Montant from the mandate prices (`pricing.ts`: youth = every Uxx category); empty when no price fits.
 - Below the competition title: "Mandat (PDF)" and « Lu dans le mandat » (départs and prices read).
-- Concours (`competitions-page.tsx`, `AdminCompetitionOverview`): every upcoming competition, hidden ones included.
-  Decided: problems show as short badges, the details only when the row is opened. Problems (`problemsOf`): no place,
-  gone from the FFTA list, mandate not read / failed / refused (a reading of an older link does not count), read
-  without départs or prices. An opened row offers "Mettre à jour ce concours" (one-competition run) and « Voir les
-  inscriptions » when club archers are registered. Decided: **the same filters as the public page**, the very same
-  `CompetitionFilterBar` / `matchesFilters` / `inArea` (area not remembered, all of France at start), plus a problems
-  filter (all / with a problem / hidden from the public).
+- Concours (`competitions-page.tsx`, `AdminCompetitionOverview`): every upcoming competition, hidden ones included,
+  rendered 100 rows at a time (a sentinel loads more on scroll; phones are slow with ~1 800 rows). Decided: problems
+  show as short badges (plus « Modifié » when edited). Problems (`problemsOf`): no place, gone from the FFTA list,
+  mandate not read / failed / refused (a reading of an older link does not count), read without départs or prices.
+  Decided: **the same filters as the public page**, the very same `CompetitionFilterBar` / `matchesFilters` /
+  `inArea` (area not remembered, all of France at start), plus a problems filter.
+- Clicking a row opens a large modal (`competition-edit-dialog.tsx`, `CompetitionEdits`, route
+  `/api/admin/competitions/:id/overrides`): problems and actions, then title, dates, discipline, status, para-tir,
+  cibles mousses, mandate link, town, département, position (click on a lazy-loaded map), départs and prices, then the
+  FFTA details read only. A field that differs from the FFTA shows « Modifié », the FFTA value and « Revenir à la
+  valeur FFTA ». Saving replaces every edit with the fields that differ (`checkOverrides`). Closing with unsaved
+  changes asks first.
 - Licenciés: table with search and active/left filter, a "⋯" menu per row (deactivate, admin rights), import dialog.
 
 ## FFTA scraper (`infrastructure/ffta/`, `application/sync-ffta-calendar.ts`)
@@ -257,11 +269,6 @@ Material Design baseline, without overdoing it:
 `notice-membre.html` (members, must stay **2 A4 pages**) and `notice-admin.html` (admins, in detail), shared
 `notice.css`, formal French, captures on made-up data. To rebuild a PDF: `bunx --bun serve -l 3995 docs/notice`,
 print the page to A4 PDF with backgrounds, check the page count. Update them when a screen they describe changes.
-
-## Not done yet
-
-- Fixing a competition's place by hand from the admin panel (« Concours » only shows « Lieu introuvable »); the result
-  should live in the database instead of `known-places.ts`.
 
 ## Decided not to do
 

@@ -1,6 +1,7 @@
 import {
   API_ROUTES,
   type AdminCompetitionRegistrationsResponse,
+  type CompetitionEditResponse,
   type CompetitionOverviewResponse,
   type AdminSessionResponse,
   type GrantAdminResponse,
@@ -20,6 +21,7 @@ import type { AdminAuthentication } from '../../application/admin-authentication
 import type { AdminCompetitionOverview } from '../../application/admin-competition-overview.ts';
 import type { AdminRegistrations, UpdateResult } from '../../application/admin-registrations.ts';
 import type { ClubMembers } from '../../application/club-members.ts';
+import type { CompetitionEdits } from '../../application/competition-edits.ts';
 import type { ScraperRuns } from '../../application/scraper-runs.ts';
 import type { Archer, Responsible } from '../../domain/archer.ts';
 import type { Competition } from '../../domain/competition.ts';
@@ -30,6 +32,7 @@ import {
   toAdminCompetitionDto,
   toAdminMemberDto,
   toAdminRegistrationDto,
+  toCompetitionEditDto,
   toCompetitionOverviewDto,
   toScraperRunDto,
 } from './presenters.ts';
@@ -48,6 +51,7 @@ export type AdminHttpDependencies = {
   adminAccounts: AdminAccounts;
   adminRegistrations: AdminRegistrations;
   adminCompetitionOverview: AdminCompetitionOverview;
+  competitionEdits: CompetitionEdits;
   clubMembers: ClubMembers;
   scraperRuns: ScraperRuns;
   readMemberExport: (bytes: Buffer) => Promise<Archer[]>;
@@ -64,6 +68,7 @@ export function createAdminRoutes({
   adminAccounts,
   adminRegistrations,
   adminCompetitionOverview,
+  competitionEdits,
   clubMembers,
   scraperRuns,
   readMemberExport,
@@ -186,6 +191,21 @@ export function createAdminRoutes({
         return Response.json({
           competitions: competitions.map(toCompetitionOverviewDto),
         } satisfies CompetitionOverviewResponse);
+      }),
+    },
+
+    [API_ROUTES.adminCompetitionOverrides]: {
+      GET: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminCompetitionOverrides>) => {
+        const editable = await competitionEdits.editable(request.params.competitionId);
+        if (!editable) return error('not_found', 404);
+        return Response.json({
+          competition: toCompetitionEditDto(request.params.competitionId, editable),
+        } satisfies CompetitionEditResponse);
+      }),
+      PUT: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminCompetitionOverrides>, admin) => {
+        const result = await competitionEdits.save(admin, request.params.competitionId, await readJson(request));
+        if (result.ok) return new Response(null, { status: 204 });
+        return error(result.reason, result.reason === 'not_found' ? 404 : 400);
       }),
     },
 

@@ -3,6 +3,7 @@ import type {
   AdminMemberDto,
   AdminRegistrationDto,
   CompetitionDto,
+  CompetitionEditDto,
   CompetitionOverviewDto,
   MyRegistrationDto,
   ScraperRunDto,
@@ -16,6 +17,7 @@ import type { MyRegistration } from '../../application/club-registrations.ts';
 import type { UpcomingCompetition } from '../../application/list-upcoming-competitions.ts';
 import type { ScraperRun } from '../../application/ports/scraper-run-store.ts';
 import { birthYear, type Archer } from '../../domain/archer.ts';
+import type { EditableCompetition } from '../../domain/competition-override-repository.ts';
 import { clubRegistrationDeadline, departureLabel, type Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 
@@ -106,6 +108,7 @@ export function toCompetitionOverviewDto({
   competition,
   clubArcherCount,
   problems,
+  isEdited,
 }: CompetitionOverview): CompetitionOverviewDto {
   return {
     id: competition.id,
@@ -122,7 +125,15 @@ export function toCompetitionOverviewDto({
     mandateUrl: competition.mandateUrl,
     clubArcherCount,
     problems,
+    isEdited,
   };
+}
+
+export function toCompetitionEditDto(
+  id: string,
+  { ffta, overrides, details, updatedByName, updatedAt }: EditableCompetition,
+): CompetitionEditDto {
+  return { id, ffta, overrides, details, updatedByName, updatedAt };
 }
 
 export function toAdminRegistrationDto(

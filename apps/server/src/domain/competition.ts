@@ -1,5 +1,6 @@
 import {
   DEFAULT_DEPARTURE_COUNT,
+  type CompetitionStatus,
   type Discipline,
   type MandateDeparture,
   type MandatePrice,
@@ -14,7 +15,7 @@ const USUAL_DAYS_BEFORE_START = 14;
 /** ...but archers always get this many days after a mandate that comes late. */
 const DAYS_AFTER_MANDATE = 2;
 
-export type CompetitionStatus = 'scheduled' | 'postponed' | 'cancelled';
+export type { CompetitionStatus };
 
 export type Competition = {
   readonly id: string;
