@@ -127,6 +127,7 @@ h3 {
   break-after: avoid;
 }
 tr,
+table,
 li,
 .warn,
 .tip {
