@@ -5,6 +5,7 @@ import {
   type CompetitionDto,
   type Discipline,
 } from '@inscript-carte/shared';
+import { cn } from 'cn';
 import { MapPinIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 
@@ -55,7 +56,13 @@ export const NO_FILTERS: CompetitionFilters = {
   town: '',
 };
 
-export function matchesFilters(competition: CompetitionDto, filters: CompetitionFilters): boolean {
+/** What the filters read: the public list and the admins' « Concours » table both have it. */
+export type FilterableCompetition = Pick<
+  CompetitionDto,
+  'discipline' | 'hasParaTir' | 'startDate' | 'endDate' | 'clubArcherCount' | 'hasFoamTargets' | 'town'
+>;
+
+export function matchesFilters(competition: FilterableCompetition, filters: CompetitionFilters): boolean {
   if (filters.discipline === PARA_TIR && !competition.hasParaTir) return false;
   if (filters.discipline !== ALL && filters.discipline !== PARA_TIR && competition.discipline !== filters.discipline)
     return false;
@@ -93,6 +100,8 @@ type Props = {
   /** `false` while no competition says whether it uses foam targets (the scraper will add it). */
   foamTargetsKnown: boolean;
   resultCount: number;
+  /** Replaces the frame made for the side panel (a bottom border and padding). */
+  className?: string;
 };
 
 /**
@@ -108,6 +117,7 @@ export function CompetitionFilterBar({
   towns,
   foamTargetsKnown,
   resultCount,
+  className,
 }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   // The field shows each key at once; the list and the map (heavier) follow once typing pauses.
@@ -163,7 +173,7 @@ export function CompetitionFilterBar({
   const isDepartment = department !== ALL_FRANCE && DEPARTMENT_NAMES[department] !== undefined;
 
   return (
-    <div className='flex flex-col gap-2 border-b p-3'>
+    <div className={cn('flex flex-col gap-2 border-b p-3', className)}>
       <div className='flex items-center gap-2'>
         <Button
           variant='outline'

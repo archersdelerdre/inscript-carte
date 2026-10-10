@@ -8,7 +8,7 @@ import { TargetLogo } from '@/components/target-logo';
 import { Button } from '@/components/ui/button';
 import { RegistrationActionsProvider, useRegistrationActions } from '@/registrations/registration-actions';
 
-import { ALL_FRANCE, areaDepartments, areaName, isOfferedArea } from './competitions/areas';
+import { ALL_FRANCE, areaName, inArea, isOfferedArea } from './competitions/areas';
 import {
   CompetitionFilterBar,
   type CompetitionFilters,
@@ -47,12 +47,7 @@ export function App() {
 
   const department = chooseArea(storedDepartment, departmentCodes);
 
-  const inDepartment = useMemo(() => {
-    const departments = areaDepartments(department);
-    return departments
-      ? competitions.filter((competition) => departments.has(competition.departmentCode))
-      : competitions;
-  }, [competitions, department]);
+  const inDepartment = useMemo(() => inArea(competitions, department), [competitions, department]);
   const framedPositions = useMemo(
     () => (department === ALL_FRANCE ? [] : inDepartment.map((competition) => competition.position)),
     [department, inDepartment],

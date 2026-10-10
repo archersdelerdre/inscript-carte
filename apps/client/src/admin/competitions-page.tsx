@@ -8,16 +8,22 @@ import {
   type StartScraperRunResponse,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { ChevronRightIcon, ExternalLinkIcon, FileTextIcon, RefreshCwIcon, SearchIcon, UsersIcon } from 'lucide-react';
+import { ChevronRightIcon, ExternalLinkIcon, FileTextIcon, RefreshCwIcon, UsersIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { ALL_FRANCE, inArea } from '@/competitions/areas';
+import {
+  CompetitionFilterBar,
+  type CompetitionFilters,
+  matchesFilters,
+  NO_FILTERS,
+} from '@/competitions/competition-filters';
+import { townSuggestions } from '@/competitions/town-search';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { formatDay } from '@/lib/dates';
-import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 
 type ProblemFilter = 'all' | 'problems' | 'hidden';
@@ -95,8 +101,10 @@ export function CompetitionsPage({ onOpenRegistrations, onOpenScraper, onSession
   const [competitions, setCompetitions] = useState<CompetitionOverviewDto[] | null>(null);
   const [scraperAvailable, setScraperAvailable] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<ProblemFilter>('all');
+  /** The same filters as the public page, plus the problems. Not remembered: admins start from all of France. */
+  const [area, setArea] = useState(ALL_FRANCE);
+  const [filters, setFilters] = useState<CompetitionFilters>(NO_FILTERS);
+  const [problemFilter, setProblemFilter] = useState<ProblemFilter>('all');
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -114,21 +122,28 @@ export function CompetitionsPage({ onOpenRegistrations, onOpenScraper, onSession
     });
   }, [onSessionExpired]);
 
+  const all = useMemo(() => competitions ?? [], [competitions]);
+  const departmentCodes = useMemo(
+    () => [...new Set(all.map((competition) => competition.departmentCode))].toSorted(),
+    [all],
+  );
+  const inSelectedArea = useMemo(() => inArea(all, area), [all, area]);
+  const towns = useMemo(() => townSuggestions(inSelectedArea), [inSelectedArea]);
+  const foamTargetsKnown = useMemo(() => all.some((competition) => competition.hasFoamTargets), [all]);
   const shown = useMemo(
     () =>
-      (competitions ?? []).filter(
+      inSelectedArea.filter(
         (competition) =>
-          (filter === 'all' || (filter === 'problems' ? competition.problems.length > 0 : isHidden(competition))) &&
-          matchesSearch(
-            query,
-            `${competition.title} ${competition.town} ${competition.departmentCode} ${competition.id}`,
-          ),
+          matchesFilters(competition, filters) &&
+          (problemFilter === 'all' ||
+            (problemFilter === 'problems' ? competition.problems.length > 0 : isHidden(competition))),
       ),
-    [competitions, filter, query],
+    [inSelectedArea, filters, problemFilter],
   );
 
   return (
-    <div className='grid gap-4 p-4'>
+    // Centered and not wider than this: long lines across a big screen are hard to follow.
+    <div className='mx-auto grid w-full max-w-7xl gap-4 p-4'>
       <header className='grid gap-1'>
         <h1 className='text-xl font-semibold tracking-tight'>Concours</h1>
         <p className='text-muted-foreground'>
@@ -137,18 +152,19 @@ export function CompetitionsPage({ onOpenRegistrations, onOpenScraper, onSession
         </p>
       </header>
 
-      <div className='flex flex-wrap items-center gap-3'>
-        <div className='relative min-w-64 flex-1'>
-          <SearchIcon className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2' />
-          <Input
-            aria-label='Chercher un concours'
-            placeholder='Nom, ville, département ou numéro'
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className='pl-10'
-          />
-        </div>
-        <Select value={filter} onValueChange={(value) => setFilter(value as ProblemFilter)}>
+      <div className='flex flex-wrap items-start gap-3'>
+        <CompetitionFilterBar
+          className='max-w-xl min-w-80 flex-1 border-0 p-0'
+          department={area}
+          departmentCodes={departmentCodes}
+          onDepartmentChange={setArea}
+          filters={filters}
+          onFiltersChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
+          towns={towns}
+          foamTargetsKnown={foamTargetsKnown}
+          resultCount={shown.length}
+        />
+        <Select value={problemFilter} onValueChange={(value) => setProblemFilter(value as ProblemFilter)}>
           <SelectTrigger aria-label='Problèmes' className='min-w-64'>
             <SelectValue />
           </SelectTrigger>

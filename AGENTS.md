@@ -179,7 +179,9 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   Decided: problems show as short badges, the details only when the row is opened. Problems (`problemsOf`): no place,
   gone from the FFTA list, mandate not read / failed / refused (a reading of an older link does not count), read
   without départs or prices. An opened row offers "Mettre à jour ce concours" (one-competition run) and « Voir les
-  inscriptions » when club archers are registered.
+  inscriptions » when club archers are registered. Decided: **the same filters as the public page**, the very same
+  `CompetitionFilterBar` / `matchesFilters` / `inArea` (area not remembered, all of France at start), plus a problems
+  filter (all / with a problem / hidden from the public).
 - Licenciés: table with search and active/left filter, a "⋯" menu per row (deactivate, admin rights), import dialog.
 
 ## FFTA scraper (`infrastructure/ffta/`, `application/sync-ffta-calendar.ts`)

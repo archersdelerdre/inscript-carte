@@ -19,7 +19,9 @@ function townName(fftaTown: string): string {
 }
 
 /** One suggestion per town and département, spelling variants ("NANTES", "Nantes") merged. */
-export function townSuggestions(competitions: CompetitionDto[]): TownSuggestion[] {
+export function townSuggestions(
+  competitions: readonly Pick<CompetitionDto, 'town' | 'departmentCode'>[],
+): TownSuggestion[] {
   const byKey = new Map<string, TownSuggestion>();
   for (const competition of competitions) {
     const name = townName(competition.town);

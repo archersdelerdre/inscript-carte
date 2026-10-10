@@ -112,6 +112,7 @@ export function toCompetitionOverviewDto({
     title: competition.title,
     discipline: competition.discipline,
     hasParaTir: competition.hasParaTir,
+    hasFoamTargets: competition.hasFoamTargets,
     startDate: competition.startDate,
     endDate: competition.endDate,
     town: competition.town,

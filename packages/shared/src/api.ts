@@ -267,6 +267,7 @@ export type CompetitionOverviewDto = {
   title: string;
   discipline: Discipline;
   hasParaTir: boolean;
+  hasFoamTargets: boolean;
   startDate: string;
   endDate: string;
   town: string;

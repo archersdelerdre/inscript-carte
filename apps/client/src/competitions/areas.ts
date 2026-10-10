@@ -18,9 +18,15 @@ function regionOf(area: string): Region | undefined {
 }
 
 /** The départements the area keeps; `null` for all of France. */
-export function areaDepartments(area: string): ReadonlySet<string> | null {
+function areaDepartments(area: string): ReadonlySet<string> | null {
   if (area === ALL_FRANCE) return null;
   return new Set(regionOf(area)?.departments ?? [area]);
+}
+
+/** The competitions of the area; the same list when it is all of France. */
+export function inArea<T extends { departmentCode: string }>(competitions: T[], area: string): T[] {
+  const departments = areaDepartments(area);
+  return departments ? competitions.filter((competition) => departments.has(competition.departmentCode)) : competitions;
 }
 
 export function areaName(area: string): string {
