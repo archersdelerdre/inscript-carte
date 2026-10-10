@@ -256,6 +256,14 @@ print the page to A4 PDF with backgrounds, check the page count. Update them whe
 - The count of competitions that cannot be located, shown in the admin panel, with a way to fix them (results in the
   database instead of `known-places.ts`).
 
+## Decided not to do
+
+- Backups: handled outside the repo.
+- Privacy page, data retention: the club's job; only its own members are stored, and the club owns that data.
+- Registering a member on their behalf from the panel: the secretary signs in as the member when needed.
+- Email or other notifications: a secondary app must not bother people.
+- Reloading after a stale chunk (`vite:preloadError`) following a deploy: too little traffic to matter.
+
 ## Traps already hit
 
 - Never remove a migration production has applied: Knex then refuses to start. Undo it there first with the image
