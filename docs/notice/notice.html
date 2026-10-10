@@ -1,0 +1,119 @@
+<!doctype html>
+<!--
+  Notice d'utilisation pour les membres du club (2 pages A4). Captures faites sur des données inventées.
+  Pour refaire le PDF : ouvrir ce fichier dans un navigateur, Imprimer, « Enregistrer en PDF », A4, arrière-plans activés.
+-->
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Notice d'utilisation</title>
+    <style>
+      @page { size: A4; margin: 14mm 15mm; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #1c1c1c; font-size: 11.5pt; line-height: 1.45; margin: 0; }
+      h1 { font-size: 20pt; margin: 0 0 2mm; }
+      .sub { color: #555; margin: 0 0 5mm; }
+      h2 { font-size: 14pt; color: #c8102e; margin: 4mm 0 1.5mm; border-bottom: 2px solid #c8102e; padding-bottom: 1mm; }
+      h3 { font-size: 11.5pt; margin: 4mm 0 1mm; }
+      p { margin: 0 0 2mm; }
+      ol, ul { margin: 0 0 2mm; padding-left: 5.5mm; }
+      li { margin-bottom: 1mm; }
+      b.btn { background: #c8102e; color: white; border-radius: 4px; padding: 0 5px; font-weight: 600; white-space: nowrap; }
+      b.lnk { color: #c8102e; white-space: nowrap; }
+      .row { display: flex; gap: 6mm; align-items: flex-start; }
+      .row .text { flex: 1; }
+      .shot { border: 1px solid #ddd; border-radius: 6px; }
+      .tip { background: #fff4e5; border-left: 4px solid #e8a33d; padding: 2mm 3mm; border-radius: 3px; margin: 2mm 0; }
+      .warn { background: #fdecee; border-left: 4px solid #c8102e; padding: 2mm 3mm; border-radius: 3px; margin: 2mm 0; font-weight: 600; }
+      .rib { border: 1px solid #ccc; border-radius: 6px; padding: 2mm 4mm; margin: 2mm 0; }
+      .rib div { display: flex; gap: 3mm; }
+      .rib span:first-child { color: #555; width: 18mm; }
+      .rib span:last-child { font-family: Menlo, 'Courier New', monospace; font-weight: 600; letter-spacing: 0.3px; }
+      table { border-collapse: collapse; width: 100%; margin: 1mm 0 2mm; font-size: 10.5pt; }
+      td { padding: 0.7mm 2mm; border-bottom: 1px solid #eee; vertical-align: top; }
+      td:first-child { font-weight: 600; white-space: nowrap; width: 46mm; }
+      .page { page-break-after: always; }
+      .admin { font-size: 10.5pt; line-height: 1.32; }
+      .admin h3 { font-size: 11pt; margin: 2.5mm 0 0.5mm; }
+      .admin li { margin-bottom: 0.3mm; }
+      .foot { color: #777; font-size: 9.5pt; margin-top: 3mm; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Notice d'utilisation</h1>
+      <p class="sub">Les concours FFTA à venir sur une carte, et l'inscription par le club des Archers de l'Erdre.</p>
+
+      <h2>1. Trouver un concours</h2>
+      <ul>
+        <li>La <b>carte</b> et la <b>liste</b> montrent les concours à venir. Sur téléphone, le bouton en bas passe de l'une à l'autre.</li>
+        <li>Choisissez votre <b>département</b> (ou votre région) en haut : le site s'en souvient. <b>Filtres</b> permet de choisir la discipline, les dates…</li>
+        <li><b class="lnk">Voir sur la carte</b> montre où se trouve le concours.</li>
+      </ul>
+
+      <h2>2. S'inscrire</h2>
+      <div class="row">
+        <div class="text">
+          <ol>
+            <li>Sur la fiche du concours, touchez <b class="btn">S'inscrire</b>.</li>
+            <li>La première fois, connectez-vous avec votre <b>numéro de licence</b> et votre <b>date de naissance</b>. C'est tout : pas de mot de passe, et l'appareil s'en souvient.</li>
+            <li>Choisissez votre ou vos <b>départs</b>, votre <b>arc</b>, le <b>mode de paiement</b>. Le trispot et le covoiturage sont à cocher si besoin.</li>
+            <li>Touchez <b class="btn">Envoyer mon inscription</b>.</li>
+          </ol>
+          <div class="tip">On s'inscrit <b>par le club</b>, jusqu'à la date écrite sur la fiche («&nbsp;Inscription par le club jusqu'au…&nbsp;»), environ 15 jours avant le concours.</div>
+          <p>Quand les horaires ne sont pas encore connus, le site propose les départs 1 à 4. Un départ qui n'existe pas pourra être annulé par le club.</p>
+          <img class="shot" src="carte.png" style="width: 74mm; margin-top: 1mm" />
+        </div>
+        <img class="shot" src="formulaire.png" style="width: 60mm" />
+      </div>
+    </div>
+
+    <div class="page">
+      <h2>3. Payer</h2>
+      <p>Après l'inscription, le site affiche une <b>référence</b> (par exemple R-0012). Réglez au club avant la date indiquée, en espèces, par chèque à l'ordre des Archers de l'Erdre ou par virement, en donnant cette référence.</p>
+      <div class="warn">Le club n'envoie pas l'inscription à l'organisateur tant qu'elle n'est pas payée.</div>
+      <p><b>Par virement</b>, mettez la référence (R-…) dans le libellé du virement :</p>
+      <div class="rib">
+        <div><span>Titulaire</span><span>Les Archers de l'Erdre</span></div>
+        <div><span>IBAN</span><span>FR76 1470 6000 3386 7675 9900 007</span></div>
+        <div><span>BIC</span><span>AGRIFRPP847</span></div>
+      </div>
+
+      <h2>4. Suivre ses inscriptions : « Mon suivi »</h2>
+      <p>Le bouton <b>Mon suivi</b>, en haut, montre toutes vos inscriptions et où elles en sont :</p>
+      <table>
+        <tr><td>Reçue</td><td>Le club a bien reçu votre demande.</td></tr>
+        <tr><td>Transmise à l'organisateur</td><td>Le club l'a envoyée au club organisateur.</td></tr>
+        <tr><td>Validée</td><td>L'organisateur a confirmé votre place.</td></tr>
+        <tr><td>Plus de place</td><td>Le concours était complet pour ce départ.</td></tr>
+        <tr><td>Annulée</td><td>Le départ a été annulé.</td></tr>
+      </table>
+      <p>Tant que l'inscription est « Reçue » et que la date limite n'est pas passée, vous pouvez la retirer avec <b>Retirer ce départ</b>. Après, demandez au club.</p>
+      <p><b class="lnk">Voir les inscrits</b>, sur la fiche d'un concours, montre les archers du club déjà inscrits.</p>
+
+      <div class="admin">
+        <h2>Pour les administrateurs</h2>
+        <p>Connectez-vous comme un archer, puis <b>Administration</b> en haut, avec votre mot de passe personnel.</p>
+        <h3>Inscriptions</h3>
+        <ul>
+          <li>À gauche, les concours qui ont des inscrits. À droite, les archers, un départ par ligne.</li>
+          <li>Pour chaque départ, changez le <b>statut</b> (Reçue → Transmise → Validée…) et cochez <b>Payé</b> à la réception du paiement. <b>Tout marquer comme payé</b> le fait pour une référence entière.</li>
+          <li>Le bloc <b>Lu dans le mandat</b> rappelle les départs et les tarifs du concours.</li>
+          <li><b>Fichier Excel pour l'organisateur</b> prépare la liste à envoyer, avec les montants. Choisissez «&nbsp;Payés&nbsp;» dans le filtre de paiement pour n'y mettre que les départs réglés. <b>Vérifiez les tarifs</b> avant l'envoi : ils sont lus automatiquement dans le mandat.</li>
+        </ul>
+        <h3>Licenciés</h3>
+        <ul>
+          <li><b>Importer</b> : déposez le fichier des licenciés exporté de l'extranet FFTA, pour mettre la liste à jour.</li>
+          <li>Le bouton « … » au bout d'une ligne permet de <b>désactiver</b> un licencié ou de le <b>nommer admin</b>.</li>
+        </ul>
+        <h3>Calendrier FFTA</h3>
+        <ul>
+          <li>Le calendrier se met à jour <b>tout seul chaque nuit</b>.</li>
+          <li>Si un concours est faux ou manquant, utilisez <b>Mettre à jour ce concours</b> (quelques secondes).</li>
+          <li>« Mettre à jour tout le calendrier » : seulement en cas de vrai besoin.</li>
+        </ul>
+        <p class="foot">Une question ou un problème ? Écrivez à secretariat@archersdelerdre.info ou parlez-en à un administrateur du club.</p>
+      </div>
+    </div>
+  </body>
+</html>
