@@ -88,10 +88,16 @@ function Place({ competition, onShowOnMap }: { competition: CompetitionDto; onSh
     <div className='flex min-w-0 items-center gap-2'>
       <MapPinIcon className='text-muted-foreground size-[1.125rem] shrink-0' />
       <span className='truncate'>{competition.town}</span>
-      {/* Negative margins keep the 40 px tap target without making the line taller. */}
-      <Button variant='link' className='-my-2 shrink-0 px-2' onClick={onShowOnMap}>
+      {/* Negative margins keep the 40 px tap target without making the line taller. On phones the icon alone, so
+          long town names stay readable (asked 2026-10-10); the words stay for screen readers and as a tooltip. */}
+      <Button
+        variant='link'
+        className='-my-2 size-10 shrink-0 px-0 sm:w-auto sm:px-2'
+        onClick={onShowOnMap}
+        title='Voir sur la carte'
+      >
         <LocateFixedIcon />
-        Voir sur la carte
+        <span className='sr-only sm:not-sr-only'>Voir sur la carte</span>
       </Button>
     </div>
   );

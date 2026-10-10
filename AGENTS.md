@@ -441,7 +441,8 @@ prices, foam targets) is stored; the app uses the foam targets flag, the départ
   not, 2026-10-08).
 - Cards: date block in the discipline color, title, badges ("Para-tir" light blue, "Cibles mousses" lime, "Reportée"
   amber), town line with
-  **"Voir sur la carte"**, discipline · club, club deadline, links "Mandat (PDF)" (red) and "Détail FFTA" (grey).
+  **"Voir sur la carte"** (icon only on phones, below Tailwind's `sm`, so long town names stay readable; asked
+  2026-10-10), discipline · club, club deadline, links "Mandat (PDF)" (red) and "Détail FFTA" (grey).
 - **Bottom right of the card: "Voir les inscrits" and "S'inscrire"** ("Voir les inscrits" is disabled and ghost when
   `clubArcherCount` is 0: hiding it left an odd space; "S'inscrire" only before the club deadline; no buttons at all
   when the deadline is past and nobody is registered). Each
