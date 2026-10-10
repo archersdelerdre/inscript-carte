@@ -180,7 +180,8 @@ Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_require
   after the greffe; the mandates give none). The description lists each départ with « fin vers 12 h (estimée) »; the
   `.ics` holds every day, Google gets one menu line per day (« samedi 14 »). Times are local
   ("floating"). Otherwise one whole-day event over the competition's days. "Mon suivi" gets the mandate's départ
-  in `MyRegistrationDto.mandateDeparture`. In "Mon suivi" the button sits under a line, apart from the départs.
+  in `MyRegistrationDto.mandateDeparture`. In "Mon suivi" the button sits under a line, apart from the départs, and
+  is hidden once the competition's last day is over (Paris time, user's request 2026-10-10).
 
 ## Admin panel (`/admin`, `apps/client/src/admin/`)
 

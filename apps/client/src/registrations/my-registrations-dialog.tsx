@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { api, type ApiResult } from '@/lib/api';
-import { formatDateRange, formatDay } from '@/lib/dates';
+import { formatDateRange, formatDay, todayInParis } from '@/lib/dates';
 
 import { AddToCalendarButton } from './add-to-calendar-button';
 import { competitionEvents } from './calendar';
@@ -65,6 +65,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
     showResult(await api<ListMyRegistrationsResponse>(API_ROUTES.myRegistrations));
   }
 
+  const today = todayInParis();
   // Grouped by hand: `Map.groupBy` is missing from browsers older than 2024, still common on family tablets.
   const byCompetition = new Map<string, MyRegistrationDto[]>();
   for (const registration of registrations ?? []) {
@@ -162,19 +163,21 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                   </li>
                 ))}
               </ul>
-              {/* For the whole competition, set apart from the départs' own buttons. */}
-              <div className='mt-2 border-t pt-3'>
-                <AddToCalendarButton
-                  uid={`${first.competitionId}-${first.paymentReference}@inscript-carte`}
-                  events={competitionEvents({
-                    title: first.competitionTitle,
-                    town: first.town,
-                    startDate: first.startDate,
-                    endDate: first.endDate,
-                    departures: rows.map((row) => ({ number: row.departure, mandate: row.mandateDeparture })),
-                  })}
-                />
-              </div>
+              {/* For the whole competition, set apart from the départs' own buttons. Not once it is over. */}
+              {first.endDate >= today && (
+                <div className='mt-2 border-t pt-3'>
+                  <AddToCalendarButton
+                    uid={`${first.competitionId}-${first.paymentReference}@inscript-carte`}
+                    events={competitionEvents({
+                      title: first.competitionTitle,
+                      town: first.town,
+                      startDate: first.startDate,
+                      endDate: first.endDate,
+                      departures: rows.map((row) => ({ number: row.departure, mandate: row.mandateDeparture })),
+                    })}
+                  />
+                </div>
+              )}
             </section>
           );
         })}
