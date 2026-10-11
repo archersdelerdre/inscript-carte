@@ -14,4 +14,6 @@ export const config = {
   openRouterApiKey: Bun.env.OPENROUTER_API_KEY || null,
   /** The LLM reading the mandates (OpenRouter model id); the user chose GLM 5.3 Flash (2026-10-09). */
   mandateModel: Bun.env.MANDATE_MODEL ?? 'z-ai/glm-5.3-flash',
+  /** Reads a mandate when `mandateModel` times out: no long reasoning (the user's choice, 2026-10-11). */
+  mandateFallbackModel: Bun.env.MANDATE_FALLBACK_MODEL ?? 'google/gemini-3.1-flash-lite',
 };

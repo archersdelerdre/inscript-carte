@@ -23,6 +23,7 @@ const competition = { title: '(inconnu)', town: '(inconnue)', startDate, endDate
 const { answer, model, costUsd } = await new OpenRouterMandateExtractor(
   config.openRouterApiKey,
   config.mandateModel,
+  config.mandateFallbackModel,
 ).extract(document, competition);
 const check = checkMandateData(answer, competition);
 console.log(JSON.stringify(check.ok ? check.data : { refused: check.problems, answer }, null, 2));

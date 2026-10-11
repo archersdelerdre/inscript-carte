@@ -33,7 +33,7 @@ const clock = new SystemClock();
 const database = createDatabase(config.databasePath);
 const readMandates = new ReadMandates(
   new PdfMandateFetcher(),
-  new OpenRouterMandateExtractor(config.openRouterApiKey, config.mandateModel),
+  new OpenRouterMandateExtractor(config.openRouterApiKey, config.mandateModel, config.mandateFallbackModel),
   new SqliteMandateStore(database),
   clock,
 );

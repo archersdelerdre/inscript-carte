@@ -1,4 +1,5 @@
 import { OpenRouter } from '@openrouter/sdk';
+import { RequestTimeoutError } from '@openrouter/sdk/models/errors';
 
 import type {
   MandateAnswer,
@@ -16,6 +17,8 @@ const MAX_ANSWER_TOKENS = 32_000;
 /** The PDF's own text helps with numbers, but a few pages are enough. */
 const MAX_TEXT_CHARACTERS = 20_000;
 const TIMEOUT_MS = 120_000;
+/** The fallback model does not reason long: a minute is plenty for a 600-token answer. */
+const FALLBACK_TIMEOUT_MS = 60_000;
 /** Tokens per second (p50, the user's choice): at 75, a reading of 6 000 tokens ends in about 80 s. */
 const MIN_THROUGHPUT = 75;
 
@@ -43,17 +46,44 @@ rhythms : tous les rythmes de tir que le mandat écrit, c'est-à-dire l'ordre de
 
 evidence : pour departures, prices, foamTargets et rhythm (les rythmes), les mots exacts du mandat qui le disent (une courte citation), ou null.`;
 
-/** GLM 5.3 Flash through OpenRouter, the user's choice (2026-10-09): it reads images, cheaply. */
+/**
+ * GLM 5.3 Flash through OpenRouter, the user's choice (2026-10-09): it reads images, cheaply. Its reasoning cannot be
+ * turned off and sometimes runs past the timeout: the mandate is then read by a model that does not reason (Gemini
+ * 3.1 Flash-Lite, close on document benchmarks, about 4× the price; the user's choice, 2026-10-11).
+ */
 export class OpenRouterMandateExtractor implements MandateExtractor {
   readonly #client: OpenRouter;
   readonly #model: string;
+  readonly #fallbackModel: string;
 
-  constructor(apiKey: string, model: string) {
+  constructor(apiKey: string, model: string, fallbackModel: string) {
     this.#client = new OpenRouter({ apiKey });
     this.#model = model;
+    this.#fallbackModel = fallbackModel;
   }
 
   async extract(document: MandateDocument, context: MandateContext): Promise<MandateAnswer> {
+    try {
+      // Low (the user's choice, 2026-10-11; was medium, whose long reasonings hit the timeout). Not off: some GLM 5.3
+      // Flash providers refuse it ("Reasoning is mandatory for this endpoint").
+      return await this.#read(document, context, this.#model, 'low', TIMEOUT_MS);
+    } catch (error) {
+      // Before the headers, the SDK throws its RequestTimeoutError. Once they arrived, reading the body throws the bare
+      // DOMException "The operation timed out." (the one seen in the runs of 2026-10-11).
+      const timedOut =
+        error instanceof RequestTimeoutError || (error instanceof DOMException && error.name === 'TimeoutError');
+      if (!timedOut) throw error;
+      return this.#read(document, context, this.#fallbackModel, 'minimal', FALLBACK_TIMEOUT_MS);
+    }
+  }
+
+  async #read(
+    document: MandateDocument,
+    context: MandateContext,
+    model: string,
+    effort: 'low' | 'minimal',
+    timeoutMs: number,
+  ): Promise<MandateAnswer> {
     const about = `Concours « ${context.title} » à ${context.town}, du ${context.startDate} au ${context.endDate}.`;
     const text = document.text
       ? `Texte du PDF :\n${document.text.slice(0, MAX_TEXT_CHARACTERS)}`
@@ -61,12 +91,10 @@ export class OpenRouterMandateExtractor implements MandateExtractor {
     const result = await this.#client.chat.send(
       {
         chatRequest: {
-          model: this.#model,
+          model,
           temperature: 0,
           maxTokens: MAX_ANSWER_TOKENS,
-          // Low (the user's choice, 2026-10-11; was medium, whose long reasonings hit the 120 s timeout). Not off:
-          // some GLM 5.3 Flash providers refuse it ("Reasoning is mandatory for this endpoint").
-          reasoning: { effort: 'low' },
+          reasoning: { effort },
           // Mandates hold the organizers' names and phones: only providers that keep nothing, and that honour the schema.
           // The cheapest provider among those fast enough (p50 ≥ 75 tokens/s); slower ones only as a fallback. OpenRouter
           // has no "price per speed" sort, this is its way to ask for both (the user's choice, 2026-10-11).
@@ -95,7 +123,16 @@ export class OpenRouterMandateExtractor implements MandateExtractor {
           ],
         },
       },
-      { timeoutMs: TIMEOUT_MS },
+      {
+        timeoutMs,
+        // The SDK's default, except that a timeout is not sent again (it was, for up to an hour): it goes to the
+        // fallback model instead. 5xx answers are still tried again.
+        retries: {
+          strategy: 'backoff',
+          backoff: { initialInterval: 500, maxInterval: 60_000, exponent: 1.5, maxElapsedTime: 3_600_000 },
+          retryConnectionErrors: false,
+        },
+      },
     );
     if (!('choices' in result)) throw new Error('réponse inattendue (flux)');
     const [choice] = result.choices;

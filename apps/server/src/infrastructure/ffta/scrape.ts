@@ -117,7 +117,7 @@ try {
     const mandates = config.openRouterApiKey
       ? new ReadMandates(
           new PdfMandateFetcher(),
-          new OpenRouterMandateExtractor(config.openRouterApiKey, config.mandateModel),
+          new OpenRouterMandateExtractor(config.openRouterApiKey, config.mandateModel, config.mandateFallbackModel),
           mandateStore,
           clock,
         )

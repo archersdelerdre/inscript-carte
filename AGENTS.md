@@ -241,7 +241,9 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   - LLM via `@openrouter/sdk`: `MANDATE_MODEL` (default `z-ai/glm-5.3-flash`), temperature 0, reasoning `low` (was
     `medium` until 2026-10-11: long reasonings hit the 120 s timeout), `dataCollection: 'deny'`, providers sorted by
     price among those at 75 tokens/s or more (`preferredMinThroughput`; OpenRouter has no price-per-speed sort), JSON
-    schema from zod. Prompt in French in `openrouter-mandate-extractor.ts`.
+    schema from zod. Prompt in French in `openrouter-mandate-extractor.ts`. Decided (2026-10-11): when GLM times out
+    (120 s), the same request goes to `MANDATE_FALLBACK_MODEL` (default `google/gemini-3.1-flash-lite`, reasoning
+    `minimal`, 60 s), which reads documents almost as well, does not reason long, and costs about 4× more.
   - `checkMandateData` checks the answer (≤ 12 départs, 0–150 €). A mandate often covers two FFTA entries of one
     weekend: départs on other days are dropped. Refused answers are kept as `invalid`, never used. Errors never fail
     the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
