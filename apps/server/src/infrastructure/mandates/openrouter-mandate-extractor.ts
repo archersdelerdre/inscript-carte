@@ -9,10 +9,10 @@ import type {
 import { mandateAnswerJsonSchema } from '../../domain/mandate.ts';
 
 /**
- * The answer is about 600 tokens, but the reasoning counts in this limit too: enough room so a long thought never
- * cuts the JSON. A run that reaches it is a model gone astray (about $0.008 at most).
+ * The answer is about 600 tokens, but the reasoning counts in this limit too. 32 000 (the user's choice,
+ * 2026-10-11): at 16 000, about 7 % of the readings were cut; a run that reaches it costs about $0.016.
  */
-const MAX_ANSWER_TOKENS = 16_000;
+const MAX_ANSWER_TOKENS = 32_000;
 /** The PDF's own text helps with numbers, but a few pages are enough. */
 const MAX_TEXT_CHARACTERS = 20_000;
 const TIMEOUT_MS = 120_000;
