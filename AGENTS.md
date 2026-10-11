@@ -299,6 +299,12 @@ Material Design baseline, without overdoing it:
   the town name as `title`.
 - No 2024+ browser APIs in the client (`Map.groupBy`…): members use older tablets.
 
+## New contributors
+
+Club members new to development build their ideas with the skill `.claude/skills/nouvelle-idee/SKILL.md` (tools,
+fork, made-up demo data, `bun run dev`, checks, pull request). It speaks French to them; code stays English. Update it
+when the setup, scripts or ports change.
+
 ## User guides (`docs/notice/`)
 
 `notice-membre.html` (members, must stay **2 A4 pages**) and `notice-admin.html` (admins, in detail), shared
