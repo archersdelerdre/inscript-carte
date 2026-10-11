@@ -83,6 +83,7 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
   const [created, setCreated] = useState<RegistrationCreatedResponse | null>(null);
 
   const isExterieur = competition.discipline === 'exterieur';
+  const clubPays = archer.clubPaysRegistrations;
   const category = categoryLabel(ageCategory(archer.birthYear, competition.startDate), archer.sex);
   const options = departureOptions(competition);
   const fromMandate = competition.departures !== null;
@@ -108,10 +109,9 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
     const missing = [
       departures.length === 0 && 'le ou les départs',
       isExterieur && !distance && 'les distances',
-      !paymentMethod && 'le mode de paiement',
+      !clubPays && !paymentMethod && 'le mode de paiement',
     ].filter(Boolean);
-    // `!paymentMethod` is already in `missing`; repeated so TypeScript knows it is set below.
-    if (missing.length > 0 || !paymentMethod) return setMessage(`Merci d'indiquer : ${missing.join(', ')}.`);
+    if (missing.length > 0) return setMessage(`Merci d'indiquer : ${missing.join(', ')}.`);
 
     setSending(true);
     const request: RegistrationRequest = {
@@ -120,7 +120,7 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
       carpool,
       distance: isExterieur && distance ? distance : null,
       contact: contact.trim() || null,
-      paymentMethod,
+      paymentMethod: clubPays || !paymentMethod ? null : paymentMethod,
     };
     const result = await api<RegistrationCreatedResponse>(
       apiPath(API_ROUTES.competitionRegistrations, { competitionId: competition.id }),
@@ -133,7 +133,7 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
     }
     localStorage.setItem(STORAGE.bowType, bowType);
     localStorage.setItem(STORAGE.contact, contact.trim());
-    localStorage.setItem(STORAGE.paymentMethod, paymentMethod);
+    if (!clubPays && paymentMethod) localStorage.setItem(STORAGE.paymentMethod, paymentMethod);
     setCreated(result.data);
     onRegistered();
   }
@@ -157,11 +157,15 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
                 {created.departures.length > 1 ? 'Inscriptions enregistrées' : 'Inscription enregistrée'} (
                 {departuresPhrase(created.departures)}).
               </p>
-              <p>
-                À régler au club avant le {formatDay(created.paymentDeadline)}
-                {paymentMethod && `, ${PAYMENT_METHOD_PHRASES[paymentMethod]}`}, en indiquant la référence{' '}
-                <strong>{created.paymentReference}</strong>.
-              </p>
+              {created.paymentStatus === 'nothing_due' ? (
+                <p>Le club prend en charge cette inscription : vous n'avez rien à régler.</p>
+              ) : (
+                <p>
+                  À régler au club avant le {formatDay(created.paymentDeadline)}
+                  {paymentMethod && `, ${PAYMENT_METHOD_PHRASES[paymentMethod]}`}, en indiquant la référence{' '}
+                  <strong>{created.paymentReference}</strong>.
+                </p>
+              )}
               <p>Vous retrouverez cette inscription et sa référence dans « Mon suivi ».</p>
             </div>
             <DialogFooter>
@@ -320,21 +324,23 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
               Je suis intéressé(e) par un covoiturage depuis le club
             </Label>
 
-            <div className='grid gap-2'>
-              <Label htmlFor='payment-method'>Mode de paiement</Label>
-              <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
-                <SelectTrigger id='payment-method' className='w-full'>
-                  <SelectValue placeholder='Choisir…' />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_METHODS.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {PAYMENT_METHOD_LABELS[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!clubPays && (
+              <div className='grid gap-2'>
+                <Label htmlFor='payment-method'>Mode de paiement</Label>
+                <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
+                  <SelectTrigger id='payment-method' className='w-full'>
+                    <SelectValue placeholder='Choisir…' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {PAYMENT_METHOD_LABELS[value]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className='grid gap-2'>
               <Label htmlFor='contact'>

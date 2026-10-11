@@ -1,4 +1,4 @@
-import type { Archer } from './archer.ts';
+import type { Archer, ExportedMember } from './archer.ts';
 
 export type MemberListSummary = {
   readonly added: number;
@@ -8,7 +8,7 @@ export type MemberListSummary = {
 
 export type MemberListSync = {
   /** New and changed members. */
-  readonly toSave: readonly Archer[];
+  readonly toSave: readonly ExportedMember[];
   readonly memberCount: number;
   readonly summary: MemberListSummary;
 };
@@ -17,7 +17,7 @@ export type MemberListSync = {
  * Adds the new members of an FFTA export and updates the others, their state ("Etat") included. Members missing from
  * the file are not touched (the user decided it).
  */
-export function planMemberListSync(current: readonly Archer[], exported: readonly Archer[]): MemberListSync {
+export function planMemberListSync(current: readonly Archer[], exported: readonly ExportedMember[]): MemberListSync {
   const existing = new Map(current.map((archer) => [archer.licenceNumber, archer]));
   let added = 0;
   const toSave = exported.filter((archer) => {
@@ -59,5 +59,7 @@ export interface MemberListRepository {
   /** Every member, those who left included. */
   all(): Promise<Archer[]>;
   /** `false` when no member has this licence number. */
-  setActive(licenceNumber: string, isActive: boolean): Promise<boolean>;
+  update(licenceNumber: string, changes: MemberChanges): Promise<boolean>;
 }
+
+export type MemberChanges = Partial<Pick<Archer, 'isActive' | 'clubPaysRegistrations'>>;

@@ -25,6 +25,7 @@ export type RegistrationDetails = {
   readonly fullName: string;
   readonly sex: Sex;
   readonly updatedByName: string | null;
+  readonly clubPaysRegistrations: boolean;
 };
 
 export type RegistrationCount = {

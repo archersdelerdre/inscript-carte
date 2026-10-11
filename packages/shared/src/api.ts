@@ -126,6 +126,8 @@ export type SignedInArcher = {
   birthYear: number;
   /** Shows the "Administration" button; the admin page still asks for the admin password. */
   isAdmin: boolean;
+  /** The club pays their registrations: the form asks no payment method. */
+  clubPaysRegistrations: boolean;
 };
 
 export type SessionResponse = {
@@ -146,7 +148,8 @@ export type RegistrationRequest = {
   /** Required for "Extérieur" competitions, `null` otherwise. */
   distance: Distance | null;
   contact: string | null;
-  paymentMethod: PaymentMethod;
+  /** `null` only when the club pays the archer's registrations. */
+  paymentMethod: PaymentMethod | null;
 };
 
 export type RegistrationCreatedResponse = {
@@ -156,6 +159,8 @@ export type RegistrationCreatedResponse = {
   paymentReference: string;
   /** The club deadline: pay before it. */
   paymentDeadline: string;
+  /** "nothing_due" when the club pays. */
+  paymentStatus: PaymentStatus;
 };
 
 export type CompetitionRegistrantDto = {
@@ -379,6 +384,8 @@ export type AdminRegistrationDto = {
   createdAt: string;
   /** The admin who changed the row last; `null` if no admin changed it. */
   updatedByName: string | null;
+  /** The club pays this archer's registrations (why the départs say "Rien à payer"). */
+  clubPaysRegistrations: boolean;
 };
 
 export type AdminCompetitionRegistrationsResponse = {
@@ -410,6 +417,7 @@ export type AdminMemberDto = {
   /** `false` for members missing from the last FFTA export: they can no longer sign in. */
   isActive: boolean;
   isAdmin: boolean;
+  clubPaysRegistrations: boolean;
 };
 
 export type ListAdminMembersResponse = {
@@ -417,10 +425,8 @@ export type ListAdminMembersResponse = {
   members: AdminMemberDto[];
 };
 
-export type UpdateMemberRequest = {
-  /** Until the next FFTA import, which sets it again from the file. */
-  isActive: boolean;
-};
+/** At least one field. `isActive` holds until the next FFTA import; `clubPaysRegistrations` is never touched by it. */
+export type UpdateMemberRequest = { isActive?: boolean; clubPaysRegistrations?: boolean };
 
 export type GrantAdminResponse = {
   /** Shown once to the admin who granted the rights; the new admin must replace it at first sign-in. */

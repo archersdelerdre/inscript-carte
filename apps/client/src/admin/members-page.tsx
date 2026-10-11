@@ -22,6 +22,7 @@ import {
   UploadIcon,
   UserCheckIcon,
   UserXIcon,
+  WalletIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -86,7 +87,7 @@ type Props = {
   onSessionExpired: () => void;
 };
 
-type MemberAction = 'deactivate' | 'reactivate' | 'grant' | 'revoke';
+type MemberAction = 'deactivate' | 'reactivate' | 'clubPays' | 'clubStopsPaying' | 'grant' | 'revoke';
 
 /** Every club member in a table, with their actions, and the update of the list from the FFTA extranet export. */
 export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
@@ -132,7 +133,9 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
     } else {
       result = await api(apiPath(API_ROUTES.adminMember, { licenceNumber }), {
         method: 'PATCH',
-        body: { isActive: action === 'reactivate' } satisfies UpdateMemberRequest,
+        body: (action === 'deactivate' || action === 'reactivate'
+          ? { isActive: action === 'reactivate' }
+          : { clubPaysRegistrations: action === 'clubPays' }) satisfies UpdateMemberRequest,
       });
     }
     if (!result.ok && result.error === 'admin_sign_in_required') return onSessionExpired();
@@ -233,6 +236,9 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
                     <td className='px-3 py-2'>
                       <span className='font-medium'>{member.fullName}</span>
                       {member.isAdmin && <Badge className='ml-2 bg-sky-100 text-sky-900'>Admin</Badge>}
+                      {member.clubPaysRegistrations && (
+                        <Badge className='ml-2 bg-green-100 text-green-900'>Payé par le club</Badge>
+                      )}
                     </td>
                     <td className='px-3 py-2 whitespace-nowrap tabular-nums'>{member.licenceNumber}</td>
                     <td className='px-3 py-2 whitespace-nowrap'>{categoryLabel(member.category, member.sex)}</td>
@@ -255,6 +261,19 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
                             >
                               {member.isActive ? <UserXIcon /> : <UserCheckIcon />}
                               {member.isActive ? 'Désactiver' : 'Réactiver'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                setPending({
+                                  action: member.clubPaysRegistrations ? 'clubStopsPaying' : 'clubPays',
+                                  member,
+                                })
+                              }
+                            >
+                              <WalletIcon />
+                              {member.clubPaysRegistrations
+                                ? 'Le club ne paie plus ses inscriptions'
+                                : 'Le club paie ses inscriptions'}
                             </DropdownMenuItem>
                             {member.isAdmin ? (
                               <DropdownMenuItem
@@ -336,6 +355,18 @@ function confirmation(action: MemberAction, member: AdminMemberDto): { title: st
         title: `Réactiver ${member.fullName} ?`,
         text: `${They} pourra de nouveau se connecter et s’inscrire. ${nextImport}`,
         button: 'Oui, réactiver',
+      };
+    case 'clubPays':
+      return {
+        title: `Faire payer les inscriptions de ${member.fullName} par le club ?`,
+        text: `${They} n’aura rien à régler au club pour ses prochaines inscriptions : elles seront enregistrées en « Rien à payer ». Les inscriptions déjà faites ne changent pas.`,
+        button: 'Oui, le club paie',
+      };
+    case 'clubStopsPaying':
+      return {
+        title: `Ne plus faire payer les inscriptions de ${member.fullName} par le club ?`,
+        text: `${They} devra de nouveau régler ses prochaines inscriptions au club. Les inscriptions déjà faites ne changent pas.`,
+        button: 'Oui, arrêter',
       };
     case 'grant':
       return {

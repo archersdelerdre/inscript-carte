@@ -148,6 +148,9 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                         référence <strong>{registration.paymentReference}</strong>
                       </p>
                     )}
+                    {registration.paymentStatus === 'nothing_due' && registration.status !== 'full' && (
+                      <p className='text-muted-foreground text-sm'>Rien à régler au club pour ce départ.</p>
+                    )}
                     {registration.paymentStatus === 'to_refund' && (
                       <p className='text-sm'>Le club va vous rembourser ce départ.</p>
                     )}

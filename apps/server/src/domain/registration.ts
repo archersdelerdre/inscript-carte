@@ -46,7 +46,8 @@ export type NewRegistration = {
   readonly carpool: boolean;
   readonly distance: Distance | null;
   readonly contact: string | null;
-  readonly paymentMethod: PaymentMethod;
+  readonly paymentMethod: PaymentMethod | null;
+  readonly paymentStatus: PaymentStatus;
 };
 
 /** The club takes requests until its deadline, included. */

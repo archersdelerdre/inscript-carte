@@ -94,7 +94,7 @@
         </tr>
         <tr>
           <td>Rien à payer</td>
-          <td>Départ complet ou annulé, jamais payé.</td>
+          <td>Départ complet ou annulé, jamais payé, ou départ d'un licencié dont le club paie les inscriptions.</td>
         </tr>
         <tr>
           <td>À rembourser</td>
@@ -108,7 +108,8 @@
       <p style="margin-top: 3mm; break-inside: avoid">
         Le paiement suit le statut : un départ qui passe en « Plus de place » ou « Annulée » devient « Rien à payer »
         s'il n'était pas payé, « À rembourser » s'il l'était. Remis dans un autre statut, il revient à « En attente de
-        paiement » ou à « Payé ». Le menu permet toujours de choisir un autre état à la main.
+        paiement » ou à « Payé ». Pour un licencié dont le club paie les inscriptions, il reste « Rien à payer ». Le menu
+        permet toujours de choisir un autre état à la main.
       </p>
       <h3>Actions sur toute une fiche</h3>
       <ul>
@@ -216,6 +217,12 @@
         <li>
           Un licencié absent du fichier n'est <b>pas</b> désactivé automatiquement : utilisez le menu « … » en fin de
           ligne, <b>Désactiver</b>. Un licencié désactivé ne peut plus se connecter ; <b>Réactiver</b> le rétablit.
+        </li>
+        <li>
+          <b>Le club paie ses inscriptions</b> (même menu) : ce licencié n'a plus de mode de paiement à choisir, et ses
+          prochains départs sont enregistrés en « Rien à payer ». Ses inscriptions déjà faites ne changent pas. La
+          mention <b>Payé par le club</b> s'affiche à côté de son nom, ici et sur ses inscriptions. La mise à jour de la
+          liste FFTA n'y touche pas ; <b>Le club ne paie plus ses inscriptions</b> l'arrête.
         </li>
         <li>
           <b>Nommer admin</b> affiche un mot de passe provisoire <b>une seule fois</b> : copiez-le et remettez-le à la

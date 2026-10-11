@@ -7,6 +7,7 @@ import {
   type BowType,
   type DepartureChoice,
   type Distance,
+  type PaymentStatus,
   type Sex,
 } from '@inscript-carte/shared';
 
@@ -31,7 +32,14 @@ export type RegistrationForm = {
 };
 
 export type RegisterResult =
-  | { ok: true; departures: number[]; category: AgeCategory; paymentReference: string; paymentDeadline: string }
+  | {
+      ok: true;
+      departures: number[];
+      category: AgeCategory;
+      paymentReference: string;
+      paymentDeadline: string;
+      paymentStatus: PaymentStatus;
+    }
   | { ok: false; reason: 'not_found' | 'invalid_request' | 'registration_closed' | 'already_registered' };
 
 export type RegistrantGroup = {
@@ -65,7 +73,7 @@ export class ClubRegistrations {
     if (!isClubRegistrationOpen(competition, this.#clock.today())) return { ok: false, reason: 'registration_closed' };
 
     const departures = parseDepartures(form.departures, departureCount(competition));
-    const paymentMethod = PAYMENT_METHODS.find((value) => value === form.paymentMethod);
+    const paymentMethod = PAYMENT_METHODS.find((value) => value === form.paymentMethod) ?? null;
     // Distances only exist for "Extérieur" competitions, where they are required.
     const distance = DISTANCES.find((value) => value === form.distance) ?? null;
     const distanceValid = competition.discipline === 'exterieur' ? distance !== null : form.distance === null;
@@ -74,7 +82,8 @@ export class ClubRegistrations {
       !departures ||
       typeof form.trispot !== 'boolean' ||
       typeof form.carpool !== 'boolean' ||
-      !paymentMethod ||
+      // Required, except when the club pays: then the form sends `null`.
+      (paymentMethod === null && !(archer.clubPaysRegistrations && form.paymentMethod === null)) ||
       !distanceValid ||
       (form.contact !== null && contact === null) ||
       (contact !== null && contact.length > MAX_CONTACT_LENGTH)
@@ -88,6 +97,7 @@ export class ClubRegistrations {
     }
 
     const category = ageCategory(birthYear(archer), competition.startDate);
+    const paymentStatus = archer.clubPaysRegistrations ? 'nothing_due' : 'to_pay';
     const result = await this.#registrations.add({
       competitionId: competition.id,
       archerLicenceNumber: archer.licenceNumber,
@@ -98,6 +108,7 @@ export class ClubRegistrations {
       distance: distance satisfies Distance | null,
       contact: contact || null,
       paymentMethod,
+      paymentStatus,
     });
     if (!result.ok) return result;
     return {
@@ -106,6 +117,7 @@ export class ClubRegistrations {
       category,
       paymentReference: result.paymentReference,
       paymentDeadline: clubRegistrationDeadline(competition),
+      paymentStatus,
     };
   }
 

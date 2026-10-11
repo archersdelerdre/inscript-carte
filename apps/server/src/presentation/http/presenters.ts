@@ -50,6 +50,7 @@ export function toSignedInArcher(archer: Archer, isAdmin: boolean): SignedInArch
     sex: archer.sex,
     birthYear: birthYear(archer),
     isAdmin,
+    clubPaysRegistrations: archer.clubPaysRegistrations,
   };
 }
 
@@ -140,7 +141,7 @@ export function toCompetitionEditDto(
 }
 
 export function toAdminRegistrationDto(
-  { registration, fullName, sex, updatedByName }: RegistrationDetails,
+  { registration, fullName, sex, updatedByName, clubPaysRegistrations }: RegistrationDetails,
   competition: Competition,
 ): AdminRegistrationDto {
   return {
@@ -163,6 +164,7 @@ export function toAdminRegistrationDto(
     clubNote: registration.clubNote,
     createdAt: registration.createdAt,
     updatedByName,
+    clubPaysRegistrations,
   };
 }
 
@@ -175,6 +177,7 @@ export function toAdminMemberDto({ archer, category, isAdmin }: ClubMember): Adm
     category,
     isActive: archer.isActive,
     isAdmin,
+    clubPaysRegistrations: archer.clubPaysRegistrations,
   };
 }
 

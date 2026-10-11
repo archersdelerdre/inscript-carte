@@ -148,7 +148,8 @@ export class AdminRegistrations {
     if (update.status && !canChangeStatus(registration.status, update.status)) {
       return { ok: false, reason: 'status_change_not_allowed' };
     }
-    const change = changeOf(registration, update, this.#clock.today());
+    const archer = await this.#archers.findByLicenceNumber(registration.archerLicenceNumber);
+    const change = changeOf(registration, update, this.#clock.today(), archer?.clubPaysRegistrations ?? false);
     await this.#registrations.save([change], admin.licenceNumber);
     return { ok: true };
   }
@@ -164,9 +165,12 @@ export class AdminRegistrations {
     const registrations = await this.#registrations.forPaymentReference(paymentReference);
     if (registrations.length === 0) return { ok: false, reason: 'not_found' };
     const today = this.#clock.today();
+    // One reference belongs to one archer.
+    const archer = await this.#archers.findByLicenceNumber(registrations[0]!.archerLicenceNumber);
+    const clubPays = archer?.clubPaysRegistrations ?? false;
     const changes = registrations.flatMap((registration) => {
       const rowUpdate = forReferenceRow(registration, update);
-      return rowUpdate ? [changeOf(registration, rowUpdate, today)] : [];
+      return rowUpdate ? [changeOf(registration, rowUpdate, today, clubPays)] : [];
     });
     if (changes.length > 0) await this.#registrations.save(changes, admin.licenceNumber);
     return { ok: true };
@@ -241,14 +245,19 @@ function parseUpdate(form: RegistrationUpdateForm, allowNote: boolean): Registra
  * The new values of one row; the status change was checked before. Cancelling adds a line to the note. A status
  * change without a payment choice moves the payment along (`paymentForStatus`).
  */
-function changeOf(registration: Registration, update: RegistrationUpdate, today: CalendarDate): RegistrationChange {
+function changeOf(
+  registration: Registration,
+  update: RegistrationUpdate,
+  today: CalendarDate,
+  clubPays: boolean,
+): RegistrationChange {
   const status = update.status ?? registration.status;
   const note = update.clubNote === undefined ? registration.clubNote : update.clubNote;
   const cancels = status === 'cancelled' && registration.status !== 'cancelled';
   return {
     id: registration.id,
     status,
-    paymentStatus: update.paymentStatus ?? paymentForStatus(status, registration.paymentStatus),
+    paymentStatus: update.paymentStatus ?? paymentForStatus(status, registration.paymentStatus, clubPays),
     clubNote: cancels ? [note, `Annulée par le club le ${toFrenchDate(today)}`].filter(Boolean).join('\n') : note,
     ...(cancels ? { cancelledAt: today } : {}),
   };

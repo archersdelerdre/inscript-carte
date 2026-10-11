@@ -138,6 +138,7 @@ describe('sign-in', () => {
         sex: 'female',
         birthYear: 1980,
         isAdmin: false,
+        clubPaysRegistrations: false,
       },
     });
 
@@ -201,6 +202,7 @@ describe('registration', () => {
       category: 'S2',
       paymentReference: 'R-0001',
       paymentDeadline: '2027-01-02',
+      paymentStatus: 'to_pay',
     });
 
     const second = await call(`/api/competitions/${SALLE}/registrations`, {
@@ -454,6 +456,32 @@ describe('registration', () => {
       },
       { fullName: 'DUPONT JEANNE', category: 'S2', sex: 'female', bowType: 'poulies', departures: [2], carpool: false },
     ]);
+  });
+
+  test('when the club pays, no payment method is asked and the départs have nothing to pay', async () => {
+    await database('archers').where({ licence_number: YOUTH.licenceNumber }).update({ club_pays_registrations: true });
+    const youth = await signIn(YOUTH);
+    const session = (await (await call('/api/session', { cookie: youth })).json()) as SessionResponse;
+    expect(session.archer.clubPaysRegistrations).toBe(true);
+
+    const created = await call(`/api/competitions/${SALLE}/registrations`, {
+      method: 'POST',
+      cookie: youth,
+      body: form({ paymentMethod: null }),
+    });
+    expect(created.status).toBe(201);
+    expect(((await created.json()) as RegistrationCreatedResponse).paymentStatus).toBe('nothing_due');
+    const mine = (await (await call('/api/me/registrations', { cookie: youth })).json()) as ListMyRegistrationsResponse;
+    expect(mine.registrations.map(({ paymentStatus, paymentMethod }) => [paymentStatus, paymentMethod])).toEqual([
+      ['nothing_due', null],
+    ]);
+
+    const adult = await call(`/api/competitions/${SALLE}/registrations`, {
+      method: 'POST',
+      cookie: await signIn(ADULT),
+      body: form({ paymentMethod: null }),
+    });
+    expect([adult.status, await adult.json()]).toEqual([400, { error: 'invalid_request' }]);
   });
 });
 
@@ -731,6 +759,7 @@ describe('admin registrations', () => {
       clubNote: null,
       createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/),
       updatedByName: null,
+      clubPaysRegistrations: false,
     });
   });
 
@@ -876,6 +905,29 @@ describe('admin registrations', () => {
     // Back to « Reçue »: what is due is due again.
     await patch(first!.id, { status: 'received' });
     expect(await payments()).toEqual(['to_pay', 'refunded', 'to_pay']);
+  });
+
+  test('back from « Plus de place », a départ the club pays still has nothing to pay', async () => {
+    await database('archers').where({ licence_number: YOUTH.licenceNumber }).update({ club_pays_registrations: true });
+    await registerBoth();
+    const payments = async () => (await adminRegistrations(cookie)).map(({ paymentStatus }) => paymentStatus);
+    expect(await payments()).toEqual(['nothing_due', 'nothing_due', 'to_pay']);
+
+    for (const reference of ['R-0001', 'R-0002']) {
+      await call(`/api/admin/payment-references/${reference}`, { method: 'PATCH', cookie, body: { status: 'full' } });
+      await call(`/api/admin/payment-references/${reference}`, {
+        method: 'PATCH',
+        cookie,
+        body: { status: 'received' },
+      });
+    }
+    expect(await payments()).toEqual(['nothing_due', 'nothing_due', 'to_pay']);
+
+    const [first] = await adminRegistrations(cookie);
+    const patch = (body: object) => call(`/api/admin/registrations/${first!.id}`, { method: 'PATCH', cookie, body });
+    await patch({ status: 'full' });
+    await patch({ status: 'confirmed' });
+    expect(await payments()).toEqual(['nothing_due', 'nothing_due', 'to_pay']);
   });
 
   test('« Tout marquer remboursé » refunds the départs to refund, cancelled ones included, and nothing else', async () => {
@@ -1063,6 +1115,7 @@ describe('member list', () => {
         category: 'S2',
         isActive: false,
         isAdmin: false,
+        clubPaysRegistrations: false,
       },
       {
         licenceNumber: ADULT.licenceNumber,
@@ -1071,6 +1124,7 @@ describe('member list', () => {
         category: 'S2',
         isActive: true,
         isAdmin: true,
+        clubPaysRegistrations: false,
       },
       {
         licenceNumber: YOUTH.licenceNumber,
@@ -1079,6 +1133,7 @@ describe('member list', () => {
         category: 'U18',
         isActive: true,
         isAdmin: false,
+        clubPaysRegistrations: false,
       },
     ]);
   });
@@ -1146,6 +1201,13 @@ describe('member actions', () => {
   });
 
   const grant = (licence: string) => call(`/api/admin/members/${licence}/admin`, { method: 'POST', cookie });
+  const patchMember = (licence: string, body: unknown) =>
+    call(`/api/admin/members/${licence}`, { method: 'PATCH', cookie, body });
+  const flagOf = async (licence: string) => {
+    const response = await call('/api/admin/members', { cookie });
+    const { members } = (await response.json()) as ListAdminMembersResponse;
+    return members.find(({ licenceNumber }) => licenceNumber === licence)?.clubPaysRegistrations;
+  };
 
   test('a new admin gets a generated password and must replace it before using the panel', async () => {
     const granted = await grant(YOUTH.licenceNumber);
@@ -1201,19 +1263,32 @@ describe('member actions', () => {
   });
 
   test('an admin deactivates or reactivates a member by hand, but not themselves', async () => {
-    const patch = (licence: string, body: unknown) =>
-      call(`/api/admin/members/${licence}`, { method: 'PATCH', cookie, body });
-
-    expect((await patch(YOUTH.licenceNumber, { isActive: false })).status).toBe(204);
+    expect((await patchMember(YOUTH.licenceNumber, { isActive: false })).status).toBe(204);
     expect((await call('/api/session', { method: 'POST', body: YOUTH })).status).toBe(401);
-    expect((await patch(YOUTH.licenceNumber, { isActive: true })).status).toBe(204);
+    expect((await patchMember(YOUTH.licenceNumber, { isActive: true })).status).toBe(204);
     expect((await call('/api/session', { method: 'POST', body: YOUTH })).status).toBe(200);
 
-    expect(await (await patch(ADULT.licenceNumber, { isActive: false })).json()).toEqual({
+    expect(await (await patchMember(ADULT.licenceNumber, { isActive: false })).json()).toEqual({
       error: 'cannot_change_self',
     });
-    expect((await patch(YOUTH.licenceNumber, { isActive: 'no' })).status).toBe(400);
-    expect((await patch('9999999Z', { isActive: false })).status).toBe(404);
+    expect((await patchMember(YOUTH.licenceNumber, { isActive: 'no' })).status).toBe(400);
+    expect((await patchMember('9999999Z', { isActive: false })).status).toBe(404);
+  });
+
+  test('an admin says the club pays a member’s registrations, but not their own', async () => {
+    expect((await patchMember(YOUTH.licenceNumber, { clubPaysRegistrations: true })).status).toBe(204);
+    expect(await flagOf(YOUTH.licenceNumber)).toBe(true);
+    expect((await patchMember(YOUTH.licenceNumber, { clubPaysRegistrations: false })).status).toBe(204);
+    expect(await flagOf(YOUTH.licenceNumber)).toBe(false);
+
+    expect((await patchMember(YOUTH.licenceNumber, {})).status).toBe(400);
+    expect((await patchMember(YOUTH.licenceNumber, { clubPaysRegistrations: 'oui' })).status).toBe(400);
+    expect((await patchMember(YOUTH.licenceNumber, { isActive: false, clubPaysRegistrations: 'oui' })).status).toBe(
+      400,
+    );
+    expect(await (await patchMember(ADULT.licenceNumber, { clubPaysRegistrations: true })).json()).toEqual({
+      error: 'cannot_change_self',
+    });
   });
 });
 

@@ -1,9 +1,10 @@
 import { ageCategory, type AgeCategory } from '@inscript-carte/shared';
 
 import type { AdminRepository } from '../domain/admin-repository.ts';
-import { birthYear, type Archer } from '../domain/archer.ts';
+import { birthYear, type Archer, type ExportedMember } from '../domain/archer.ts';
 import {
   planMemberListSync,
+  type MemberChanges,
   type MemberImport,
   type MemberListRepository,
   type MemberListSummary,
@@ -15,7 +16,7 @@ export type MemberListStatus = { lastImport: MemberImport | null; activeMemberCo
 /** A member as the admin page lists them. */
 export type ClubMember = { archer: Archer; category: AgeCategory; isAdmin: boolean };
 
-export type SetActiveResult = { ok: true } | { ok: false; reason: 'not_found' | 'cannot_change_self' };
+export type UpdateMemberResult = { ok: true } | { ok: false; reason: 'not_found' | 'cannot_change_self' };
 
 /** The club member list: imported from the FFTA export (admin page or command line), listed for admins. */
 export class ClubMembers {
@@ -30,7 +31,7 @@ export class ClubMembers {
   }
 
   /** `importedBy`: licence number of the admin, `null` from the command line. */
-  async import(exported: readonly Archer[], importedBy: string | null): Promise<MemberListSummary> {
+  async import(exported: readonly ExportedMember[], importedBy: string | null): Promise<MemberListSummary> {
     return this.#members.sync((current) => planMemberListSync(current, exported), importedBy);
   }
 
@@ -57,11 +58,12 @@ export class ClubMembers {
   }
 
   /**
-   * By hand, for example a member who left before the next FFTA export. The next import sets the state from the file
-   * again. An admin cannot deactivate themselves: they would lose the panel at once.
+   * By hand: the state, for example a member who left before the next FFTA export (the next import sets it from the
+   * file again), and whether the club pays their registrations (never touched by imports). An admin cannot change
+   * themselves: deactivating would lose them the panel at once.
    */
-  async setActive(by: Archer, licenceNumber: string, isActive: boolean): Promise<SetActiveResult> {
+  async update(by: Archer, licenceNumber: string, changes: MemberChanges): Promise<UpdateMemberResult> {
     if (licenceNumber === by.licenceNumber) return { ok: false, reason: 'cannot_change_self' };
-    return (await this.#members.setActive(licenceNumber, isActive)) ? { ok: true } : { ok: false, reason: 'not_found' };
+    return (await this.#members.update(licenceNumber, changes)) ? { ok: true } : { ok: false, reason: 'not_found' };
   }
 }

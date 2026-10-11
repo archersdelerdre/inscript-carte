@@ -10,6 +10,7 @@ type ArcherRow = {
   sex: Sex;
   birth_date: string;
   is_active: 0 | 1;
+  club_pays_registrations: 0 | 1;
 };
 
 export class SqliteArcherRepository implements ArcherRepository {
@@ -28,6 +29,7 @@ export class SqliteArcherRepository implements ArcherRepository {
           sex: row.sex,
           birthDate: row.birth_date,
           isActive: row.is_active === 1,
+          clubPaysRegistrations: row.club_pays_registrations === 1,
         }
       : null;
   }

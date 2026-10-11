@@ -23,7 +23,7 @@ import type { AdminRegistrations, UpdateResult } from '../../application/admin-r
 import type { ClubMembers } from '../../application/club-members.ts';
 import type { CompetitionEdits } from '../../application/competition-edits.ts';
 import type { ScraperRuns } from '../../application/scraper-runs.ts';
-import type { Archer, Responsible } from '../../domain/archer.ts';
+import type { Archer, ExportedMember, Responsible } from '../../domain/archer.ts';
 import type { Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 import { MemberExportError } from '../../infrastructure/members/ffta-member-export.ts';
@@ -44,6 +44,8 @@ const ADMIN_COOKIE_PATH = '/api/admin';
 /** The FFTA export of 108 members is about 20 KB. */
 const MAX_MEMBER_EXPORT_BYTES = 5 * 1024 * 1024;
 
+const isBooleanOrMissing = (value: unknown) => value === undefined || typeof value === 'boolean';
+
 export type AdminHttpDependencies = {
   /** The member session: the first step of the admin sign-in. */
   signedInArcher: (request: BunRequest) => Promise<Archer | null>;
@@ -54,7 +56,7 @@ export type AdminHttpDependencies = {
   competitionEdits: CompetitionEdits;
   clubMembers: ClubMembers;
   scraperRuns: ScraperRuns;
-  readMemberExport: (bytes: Buffer) => Promise<Archer[]>;
+  readMemberExport: (bytes: Buffer) => Promise<ExportedMember[]>;
   organizerSpreadsheet: (
     competition: Competition,
     registrations: readonly RegistrationDetails[],
@@ -281,8 +283,19 @@ export function createAdminRoutes({
     [API_ROUTES.adminMember]: {
       PATCH: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminMember>, admin) => {
         const body = await readJson(request);
-        if (typeof body?.isActive !== 'boolean') return error('invalid_request', 400);
-        const result = await clubMembers.setActive(admin, request.params.licenceNumber, body.isActive);
+        const { isActive, clubPaysRegistrations } = body ?? {};
+        const changes = {
+          ...(typeof isActive === 'boolean' && { isActive }),
+          ...(typeof clubPaysRegistrations === 'boolean' && { clubPaysRegistrations }),
+        };
+        if (
+          !isBooleanOrMissing(isActive) ||
+          !isBooleanOrMissing(clubPaysRegistrations) ||
+          !Object.keys(changes).length
+        ) {
+          return error('invalid_request', 400);
+        }
+        const result = await clubMembers.update(admin, request.params.licenceNumber, changes);
         return result.ok ? new Response(null, { status: 204 }) : error(result.reason, STATUS_BY_REASON[result.reason]);
       }),
     },
@@ -318,7 +331,7 @@ export function createAdminRoutes({
           });
         }
 
-        let archers: Archer[];
+        let archers: ExportedMember[];
         try {
           archers = await readMemberExport(Buffer.from(await file.arrayBuffer()));
         } catch (cause) {

@@ -413,13 +413,15 @@ function ReferenceCard({
   const paymentMethods = [
     ...new Set(group.rows.flatMap((row) => (row.paymentMethod ? [PAYMENT_METHOD_LABELS[row.paymentMethod]] : []))),
   ];
-  // Nothing left to do for this archer: every départ is paid and answered by the organizer (Validée or Plus de place),
-  // cancelled ones aside, and nothing is left to refund. Their card starts closed. It does not close by itself after a
-  // change, so the admin keeps seeing what they just did.
+  // Nothing left to do for this archer: every départ is paid (or has nothing to pay) and answered by the organizer
+  // (Validée or Plus de place), cancelled ones aside, and nothing is left to refund. Their card starts closed. It does
+  // not close by itself after a change, so the admin keeps seeing what they just did.
   const finished =
     toRefund === 0 &&
     group.activeRows.every(
-      (row) => row.status === 'full' || (row.status === 'confirmed' && row.paymentStatus === 'paid'),
+      (row) =>
+        row.status === 'full' ||
+        (row.status === 'confirmed' && (row.paymentStatus === 'paid' || row.paymentStatus === 'nothing_due')),
     );
   const [open, setOpen] = useState(!finished);
   const expanded = open || forceOpen;
@@ -463,6 +465,7 @@ function ReferenceCard({
                   Covoiturage
                 </Badge>
               )}
+              {first.clubPaysRegistrations && <Badge className='bg-green-100 text-green-900'>Payé par le club</Badge>}
             </span>
             <span className='text-muted-foreground text-sm'>
               Réf. <strong className='text-foreground'>{group.paymentReference}</strong>

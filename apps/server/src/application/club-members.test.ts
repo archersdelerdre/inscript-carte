@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Knex } from 'knex';
 
-import type { Archer } from '../domain/archer.ts';
+import type { ExportedMember } from '../domain/archer.ts';
 import { createDatabase } from '../infrastructure/database/connection.ts';
 import { SqliteAdminRepository } from '../infrastructure/database/sqlite-admin-repository.ts';
 import { SqliteMemberListRepository } from '../infrastructure/database/sqlite-member-list-repository.ts';
@@ -22,7 +22,7 @@ beforeEach(async () => {
 
 afterEach(() => database.destroy());
 
-const archer = (licenceNumber: string, overrides: Partial<Archer> = {}): Archer => ({
+const archer = (licenceNumber: string, overrides: Partial<ExportedMember> = {}): ExportedMember => ({
   licenceNumber,
   fullName: `ARCHER ${licenceNumber}`,
   sex: 'female',
@@ -57,6 +57,21 @@ test('follows the state ("Etat") written in the export', async () => {
 
   expect(result).toEqual({ added: 0, updated: 1, unchanged: 1 });
   expect(await activeLicences()).toEqual(['0000001A', '0000002B']);
+});
+
+test('keeps the "club pays" flag through imports; new members start without it', async () => {
+  await memberList.import([archer('0000001A')], null);
+  await database('archers').where({ licence_number: '0000001A' }).update({ club_pays_registrations: true });
+
+  await memberList.import([archer('0000001A', { fullName: 'NEW NAME' }), archer('0000002B')], null);
+
+  const flags = await database('archers')
+    .orderBy('licence_number')
+    .select('licence_number', 'full_name', 'club_pays_registrations');
+  expect(flags).toEqual([
+    { licence_number: '0000001A', full_name: 'NEW NAME', club_pays_registrations: 1 },
+    { licence_number: '0000002B', full_name: 'ARCHER 0000002B', club_pays_registrations: 0 },
+  ]);
 });
 
 test('remembers the last import and who made it', async () => {

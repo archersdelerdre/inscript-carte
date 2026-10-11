@@ -1,7 +1,7 @@
 import type { MemberExportProblem, Sex } from '@inscript-carte/shared';
 import { readSheet } from 'read-excel-file/node';
 
-import type { Archer } from '../../domain/archer.ts';
+import type { ExportedMember } from '../../domain/archer.ts';
 
 const LICENCE_NUMBER = /^\d{7}[A-Z]$/;
 /** "M DUPONT JEAN" / "Me DUPONT JEANNE": the export puts the civility before the name. */
@@ -23,7 +23,7 @@ export class MemberExportError extends Error {
 }
 
 /** Reads the club member list exported from the FFTA extranet (first sheet of the .xlsx file, a path or its bytes). */
-export async function readMemberExport(input: string | Buffer): Promise<Archer[]> {
+export async function readMemberExport(input: string | Buffer): Promise<ExportedMember[]> {
   let rows: (readonly unknown[])[];
   try {
     rows = await readSheet(input);
@@ -38,7 +38,7 @@ export async function readMemberExport(input: string | Buffer): Promise<Archer[]
  * Fails on the first unexpected value, with its line number, rather than importing a half-wrong member list.
  * Rows are `unknown`: every value is checked here (the library types date cells as `typeof Date`, not `Date`).
  */
-export function parseMemberRows(rows: readonly (readonly unknown[])[]): Archer[] {
+export function parseMemberRows(rows: readonly (readonly unknown[])[]): ExportedMember[] {
   const [header, ...lines] = rows;
   if (!header) throw new MemberExportError('empty', 'The member export is empty.');
 
@@ -58,7 +58,7 @@ export function parseMemberRows(rows: readonly (readonly unknown[])[]): Archer[]
     status: column('Etat'),
   };
 
-  const archers: Archer[] = [];
+  const archers: ExportedMember[] = [];
   const seen = new Set<string>();
   lines.forEach((row, index) => {
     if (row.every((cell) => cell === null)) return;

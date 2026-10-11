@@ -6,6 +6,7 @@ import type {
   MemberListRepository,
   MemberListSummary,
   MemberListSync,
+  MemberChanges,
 } from '../../domain/member-list.ts';
 
 type ArcherRow = {
@@ -14,6 +15,7 @@ type ArcherRow = {
   sex: Archer['sex'];
   birth_date: string;
   is_active: 0 | 1;
+  club_pays_registrations: 0 | 1;
 };
 
 /** SQLite limits the number of values in one statement. */
@@ -91,10 +93,14 @@ export class SqliteMemberListRepository implements MemberListRepository {
     return readArchers(this.#database);
   }
 
-  async setActive(licenceNumber: string, isActive: boolean): Promise<boolean> {
+  async update(licenceNumber: string, changes: MemberChanges): Promise<boolean> {
     const changed = await this.#database('archers')
       .where({ licence_number: licenceNumber })
-      .update({ is_active: isActive, updated_at: this.#database.fn.now() });
+      .update({
+        ...(changes.isActive !== undefined && { is_active: changes.isActive }),
+        ...(changes.clubPaysRegistrations !== undefined && { club_pays_registrations: changes.clubPaysRegistrations }),
+        updated_at: this.#database.fn.now(),
+      });
     return changed > 0;
   }
 }
@@ -106,6 +112,7 @@ async function readArchers(database: Knex | Knex.Transaction): Promise<Archer[]>
     'sex',
     'birth_date',
     'is_active',
+    'club_pays_registrations',
   );
   return rows.map((row) => ({
     licenceNumber: row.licence_number,
@@ -113,5 +120,6 @@ async function readArchers(database: Knex | Knex.Transaction): Promise<Archer[]>
     sex: row.sex,
     birthDate: row.birth_date,
     isActive: row.is_active === 1,
+    clubPaysRegistrations: row.club_pays_registrations === 1,
   }));
 }

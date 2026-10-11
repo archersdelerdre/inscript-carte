@@ -10,7 +10,12 @@ export type Archer = {
   readonly birthDate: CalendarDate;
   /** Only active members can sign in and register. */
   readonly isActive: boolean;
+  /** The club pays their registrations: new départs start as "nothing_due", no payment method asked. */
+  readonly clubPaysRegistrations: boolean;
 };
+
+/** What the FFTA export knows: it never carries the club's own flags. */
+export type ExportedMember = Omit<Archer, 'clubPaysRegistrations'>;
 
 /** Stored only for the organizer's Excel file ("Responsable"), never shown in the app. */
 export type ArcherContact = {

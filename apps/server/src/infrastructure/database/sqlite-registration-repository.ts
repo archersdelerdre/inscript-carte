@@ -113,6 +113,7 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
             distance: registration.distance,
             contact: registration.contact,
             payment_method: registration.paymentMethod,
+            payment_status: registration.paymentStatus,
             payment_reference: paymentReference,
           })),
         );
@@ -176,18 +177,29 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
   }
 
   async detailsForCompetition(competitionId: string): Promise<RegistrationDetails[]> {
-    const rows: (RegistrationRow & { full_name: string; sex: Sex; updated_by_name: string | null })[] =
-      await this.#database('registrations')
-        .join('archers', 'archers.licence_number', 'registrations.archer_licence_number')
-        .leftJoin('archers as editors', 'editors.licence_number', 'registrations.updated_by')
-        .where({ competition_ffta_id: competitionId })
-        .orderBy(['registrations.payment_reference', 'registrations.departure'])
-        .select('registrations.*', 'archers.full_name', 'archers.sex', 'editors.full_name as updated_by_name');
+    const rows: (RegistrationRow & {
+      full_name: string;
+      sex: Sex;
+      updated_by_name: string | null;
+      club_pays_registrations: 0 | 1;
+    })[] = await this.#database('registrations')
+      .join('archers', 'archers.licence_number', 'registrations.archer_licence_number')
+      .leftJoin('archers as editors', 'editors.licence_number', 'registrations.updated_by')
+      .where({ competition_ffta_id: competitionId })
+      .orderBy(['registrations.payment_reference', 'registrations.departure'])
+      .select(
+        'registrations.*',
+        'archers.full_name',
+        'archers.sex',
+        'archers.club_pays_registrations',
+        'editors.full_name as updated_by_name',
+      );
     return rows.map((row) => ({
       registration: toRegistration(row),
       fullName: row.full_name,
       sex: row.sex,
       updatedByName: row.updated_by_name,
+      clubPaysRegistrations: row.club_pays_registrations === 1,
     }));
   }
 

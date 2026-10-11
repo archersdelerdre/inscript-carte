@@ -133,7 +133,11 @@ Inner layers never import outer ones. The domain may import types and rules from
 - Form: the mandate's départs when a checked reading of the current mandate link has some (the server refuses a
   number beyond them), else départs 1 to 4 with a warning. Bow per départ (one menu by default, « Un arc différent
   selon le départ ? » with 2+ départs), distances for Extérieur only, trispot, covoiturage, payment method (required,
-  remembered on the device), optional contact.
+  remembered on the device; not asked when the club pays), optional contact.
+- **Club pays** (`archers.club_pays_registrations`, asked by Loïc 2026-10-11; a flag per member, not a category, since
+  a youth may shoot in an older one): set from the "⋯" menu, never touched by the import (`ExportedMember` has no such
+  field). Decided: the form sends `paymentMethod: null`, new départs start as « Rien à payer », and un-ending a départ
+  keeps « Rien à payer ». Existing départs do not change when the flag changes. Badge « Payé par le club ».
 - Covoiturage is one answer per archer and competition: each request sets it on all their active départs there.
 - **One payment reference per archer and competition** (`R-0001`, club-wide counter): later départs reuse it, even if
   the first ones were withdrawn.
@@ -165,7 +169,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   confirmation; cancelling adds "Annulée par le club le …" to the note. Each admin change writes `updated_by`.
 - Payment, stored, a menu: En attente de paiement (`to_pay`), Payé, Rien à payer, À rembourser, Remboursé. A status
   change without a payment choice moves it (`paymentForStatus`): ending (full / cancelled) turns unpaid into « Rien à
-  payer » and paid into « À rembourser »; un-ending reverses it; « Remboursé » stays.
+  payer » and paid into « À rembourser »; un-ending reverses it (except « Rien à payer » when the club pays);
+  « Remboursé » stays.
 - Bulk actions on a reference only replace their source state (`REFERENCE_PAYMENT_FROM`): « Tout marquer comme payé »
   (En attente → Payé), « Tout remettre en attente » (Payé → En attente), « Tout marquer comme remboursé » (À
   rembourser → Remboursé, shown with 2+ to refund). Cancelled rows keep their status but their payment can change.
@@ -181,9 +186,9 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   départs en cours » hides those whose départs are all cancelled (unless a refund is due); also « quelque chose à
   faire », one per status or payment state, and « Tous ». Then one card per payment reference, one line per départ
   (status menu, payment menu, note).
-  Decided: a card starts closed only when nothing is left to do (every active départ full, or validated and paid,
-  nothing to refund); it never closes by itself. Search (name, licence, reference; accents ignored) and filters
-  (status, payment).
+  Decided: a card starts closed only when nothing is left to do (every active départ full, or validated and paid or
+  with nothing to pay, nothing to refund); it never closes by itself. Search (name, licence, reference; accents ignored)
+  and filters (status, payment).
 - **Excel file for the organizer** (`organizer-spreadsheet.ts`, layout of FFTA mandate grids): follows the panel's
   filters (the club usually sends only paid départs); never "Plus de place" or "Annulée". One line per archer and
   bow; Montant from the mandate prices (`pricing.ts`); empty when no price fits.
@@ -207,7 +212,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   FFTA details read only. A field that differs from the FFTA shows « Modifié », the FFTA value and « Revenir à la
   valeur FFTA ». Saving replaces every edit with the fields that differ (`checkOverrides`). Closing with unsaved
   changes asks first.
-- Licenciés: table with search and active/left filter, a "⋯" menu per row (deactivate, admin rights), import dialog.
+- Licenciés: table with search and active/left filter, a "⋯" menu per row (deactivate, club pays, admin rights), import
+  dialog.
 
 ## FFTA scraper (`infrastructure/ffta/`, `application/sync-ffta-calendar.ts`)
 

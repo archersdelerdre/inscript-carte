@@ -57,12 +57,13 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 /**
  * The payment that goes with a new status, when the club does not choose one itself: a départ that ends ("Plus de
  * place", "Annulée") has nothing to pay, or must be refunded when it was paid; one put back the other way round.
+ * `clubPays`: the club pays this archer, so an un-ended départ stays `nothing_due`.
  */
-export function paymentForStatus(status: RegistrationStatus, payment: PaymentStatus): PaymentStatus {
+export function paymentForStatus(status: RegistrationStatus, payment: PaymentStatus, clubPays: boolean): PaymentStatus {
   const ended = status === 'full' || status === 'cancelled';
   if (ended && payment === 'to_pay') return 'nothing_due';
   if (ended && payment === 'paid') return 'to_refund';
-  if (!ended && payment === 'nothing_due') return 'to_pay';
+  if (!ended && payment === 'nothing_due') return clubPays ? 'nothing_due' : 'to_pay';
   if (!ended && payment === 'to_refund') return 'paid';
   return payment;
 }
