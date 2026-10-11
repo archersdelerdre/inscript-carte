@@ -16,14 +16,17 @@ export type Rhythm = (typeof RHYTHMS)[number];
 export const RHYTHM_ANSWERS = [...RHYTHMS, 'not_mentioned'] as const;
 export type RhythmAnswer = (typeof RHYTHM_ANSWERS)[number];
 
-/** Inside only AB or AB/CD, outside only ABC or AB/CD (the user's rule, 2026-10-11); the others are not restricted. */
+/**
+ * The user's rule (2026-10-11), applied by the code, never asked to the LLM: indoors only AB or AB/CD, outdoors only
+ * ABC or AB/CD. Other disciplines are not shot on targets in turns: no rhythm at all.
+ */
 const RHYTHMS_BY_DISCIPLINE: Partial<Record<Discipline, readonly Rhythm[]>> = {
   salle: ['AB', 'AB/CD'],
   exterieur: ['ABC', 'AB/CD'],
 };
 
 export function allowedRhythms(discipline: Discipline): readonly Rhythm[] {
-  return RHYTHMS_BY_DISCIPLINE[discipline] ?? RHYTHMS;
+  return RHYTHMS_BY_DISCIPLINE[discipline] ?? [];
 }
 
 export type MandateDeparture = {

@@ -1,4 +1,5 @@
 import {
+  allowedRhythms,
   DEPARTMENT_NAMES,
   DISCIPLINE_LABELS,
   DISCIPLINES,
@@ -78,6 +79,11 @@ export function matchesFilters(competition: FilterableCompetition, filters: Comp
   if (filters.foamTargets && !competition.hasFoamTargets) return false;
   if (filters.rhythm !== ALL && competition.rhythm !== filters.rhythm) return false;
   return matchesSearch(filters.town, competition.town);
+}
+
+/** Every rhythm while no discipline (or only Para-tir) is chosen; else the chosen discipline's, none off targets. */
+function rhythmsFor(discipline: DisciplineFilter): readonly Rhythm[] {
+  return discipline === ALL || discipline === PARA_TIR ? RHYTHMS : allowedRhythms(discipline);
 }
 
 function dateRangeLabel(from: string, to: string): string {
@@ -283,7 +289,12 @@ export function CompetitionFilterBar({
             <Label htmlFor='filter-discipline'>Discipline</Label>
             <Select
               value={filters.discipline}
-              onValueChange={(value) => change({ discipline: value as DisciplineFilter })}
+              onValueChange={(value) => {
+                const discipline = value as DisciplineFilter;
+                // A rhythm the new discipline cannot have would hide every competition.
+                const keepsRhythm = filters.rhythm === ALL || rhythmsFor(discipline).includes(filters.rhythm);
+                change(keepsRhythm ? { discipline } : { discipline, rhythm: ALL });
+              }}
             >
               <SelectTrigger id='filter-discipline' className='w-full'>
                 <SelectValue />
@@ -360,27 +371,32 @@ export function CompetitionFilterBar({
             )}
           </div>
 
-          <div className='grid gap-2'>
-            <Label htmlFor='filter-rhythm'>Rythme</Label>
-            <Select value={filters.rhythm} onValueChange={(value) => change({ rhythm: value as typeof ALL | Rhythm })}>
-              <SelectTrigger id='filter-rhythm' className='w-full'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Tous les rythmes</SelectItem>
-                {RHYTHMS.map((rhythm) => (
-                  <SelectItem key={rhythm} value={rhythm}>
-                    {rhythm}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {filters.rhythm !== ALL && (
-              <p className='text-muted-foreground text-sm'>
-                Les concours dont le mandat ne précise pas le rythme ne sont pas affichés.
-              </p>
-            )}
-          </div>
+          {rhythmsFor(filters.discipline).length > 0 && (
+            <div className='grid gap-2'>
+              <Label htmlFor='filter-rhythm'>Rythme</Label>
+              <Select
+                value={filters.rhythm}
+                onValueChange={(value) => change({ rhythm: value as typeof ALL | Rhythm })}
+              >
+                <SelectTrigger id='filter-rhythm' className='w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>Tous les rythmes</SelectItem>
+                  {rhythmsFor(filters.discipline).map((rhythm) => (
+                    <SelectItem key={rhythm} value={rhythm}>
+                      {rhythm}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {filters.rhythm !== ALL && (
+                <p className='text-muted-foreground text-sm'>
+                  Les concours dont le mandat ne précise pas le rythme ne sont pas affichés.
+                </p>
+              )}
+            </div>
+          )}
 
           <DialogFooter>
             <Button variant='ghost' onClick={clearFilters}>

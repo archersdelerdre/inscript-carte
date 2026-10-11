@@ -7,8 +7,6 @@ import {
   DISCIPLINES,
   DISCIPLINE_LABELS,
   MANDATE_AUDIENCES,
-  RHYTHMS,
-  type Discipline,
   type Rhythm,
   type CompetitionEditDto,
   type CompetitionEditResponse,
@@ -318,7 +316,12 @@ function CompetitionForm({
           <Field label='Discipline' htmlFor='edit-discipline'>
             <Select
               value={form.discipline}
-              onValueChange={(value) => patch({ discipline: value as FormState['discipline'] })}
+              onValueChange={(value) => {
+                const discipline = value as FormState['discipline'];
+                // A rhythm the new discipline cannot have goes back to the reading's (which is then ignored too).
+                const keepsRhythm = !form.rhythm || allowedRhythms(discipline).includes(form.rhythm);
+                patch(keepsRhythm ? { discipline } : { discipline, rhythm: null });
+              }}
             >
               <SelectTrigger id='edit-discipline' className='w-full'>
                 <SelectValue />
@@ -375,27 +378,29 @@ function CompetitionForm({
           </div>
         </div>
 
-        <Field label='Rythme' htmlFor='edit-rhythm' error={errors.rhythm}>
-          <Select
-            value={form.rhythm ?? NO_RHYTHM}
-            onValueChange={(value) => patch({ rhythm: value === NO_RHYTHM ? null : (value as Rhythm) })}
-          >
-            <SelectTrigger id='edit-rhythm' className='w-full sm:w-64'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {/* An edit cannot remove the rhythm the mandate gives, only change it. */}
-              {ffta.rhythm === null && <SelectItem value={NO_RHYTHM}>Non précisé</SelectItem>}
-              {/* The discipline's rhythms, plus the current one while it no longer fits (the error says so). */}
-              {rhythmChoices(form.discipline, form.rhythm).map((rhythm) => (
-                <SelectItem key={rhythm} value={rhythm}>
-                  {rhythm}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {note('rhythm')}
-        </Field>
+        {/* Only target competitions (Salle, Extérieur) are shot in turns. */}
+        {allowedRhythms(form.discipline).length > 0 && (
+          <Field label='Rythme' htmlFor='edit-rhythm' error={errors.rhythm}>
+            <Select
+              value={form.rhythm ?? NO_RHYTHM}
+              onValueChange={(value) => patch({ rhythm: value === NO_RHYTHM ? null : (value as Rhythm) })}
+            >
+              <SelectTrigger id='edit-rhythm' className='w-full sm:w-64'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* An edit cannot remove the rhythm the mandate gives, only change it. */}
+                {ffta.rhythm === null && <SelectItem value={NO_RHYTHM}>Non précisé</SelectItem>}
+                {allowedRhythms(form.discipline).map((rhythm) => (
+                  <SelectItem key={rhythm} value={rhythm}>
+                    {rhythm}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {note('rhythm')}
+          </Field>
+        )}
 
         <Field label='Lien du mandat' htmlFor='edit-mandate' error={errors.mandateUrl}>
           <Input
@@ -483,11 +488,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 const NO_RHYTHM = 'none';
-
-function rhythmChoices(discipline: Discipline, current: Rhythm | null): Rhythm[] {
-  const allowed = allowedRhythms(discipline);
-  return RHYTHMS.filter((rhythm) => allowed.includes(rhythm) || rhythm === current);
-}
 
 function Field({
   label,

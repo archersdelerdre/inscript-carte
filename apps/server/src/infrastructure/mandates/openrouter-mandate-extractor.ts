@@ -37,7 +37,7 @@ prices : les tarifs d'inscription par archer.
 
 foamTargets : "yes" seulement si le mandat dit que les cibles ou les buttes sont en mousse ; "no" s'il dit qu'elles sont en paille ou dans une autre matière ; "not_mentioned" sinon (le plus souvent). Un blason "trispot" n'est pas une cible en mousse.
 
-rhythm : le rythme de tir, c'est-à-dire l'ordre de passage des archers sur une cible : "AB" (deux par deux), "ABC" (trois par trois) ou "AB/CD" (quatre archers par cible, en deux vagues : AB puis CD). On le trouve souvent écrit "rythme AB/CD", "tir en AB-CD", "ABC" ou "2 vagues". En salle, seuls "AB" et "AB/CD" existent ; en extérieur, seuls "ABC" et "AB/CD". "not_mentioned" si le mandat ne le dit pas, ou s'il donne des rythmes différents selon les départs.
+rhythm : le rythme de tir tel que le mandat l'écrit, c'est-à-dire l'ordre de passage des archers sur une cible : "AB" (deux par deux), "ABC" (trois par trois) ou "AB/CD" (quatre archers par cible, en deux vagues : AB puis CD). On le trouve souvent écrit "rythme AB/CD", "tir en AB-CD", "ABC" ou "2 vagues". "not_mentioned" si le mandat ne le dit pas, ou s'il donne des rythmes différents selon les départs.
 
 evidence : pour departures, prices, foamTargets et rhythm, les mots exacts du mandat qui le disent (une courte citation), ou null.`;
 

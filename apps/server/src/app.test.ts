@@ -1355,6 +1355,13 @@ describe('competition edits', () => {
     const put = (body: object) => call(overridesPath, { method: 'PUT', cookie, body });
     expect((await put({ rhythm: 'ABC' })).status).toBe(400);
     expect((await put({ rhythm: 'ABC', discipline: 'exterieur' })).status).toBe(204);
+    // Off targets, no rhythm at all: an edit refused, a reading ignored.
+    expect((await put({ rhythm: 'AB/CD', discipline: 'campagne' })).status).toBe(400);
+    await put({ discipline: 'campagne' });
+    await database('competition_mandates')
+      .where({ ffta_id: SALLE })
+      .update(reading({ rhythm: 'AB/CD' }));
+    expect((await publicSalle())?.rhythm).toBeNull();
     await put({ rhythm: 'AB/CD' });
     expect((await publicSalle())?.rhythm).toBe('AB/CD');
   });
