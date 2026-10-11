@@ -18,6 +18,7 @@ import {
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { lazy, type ReactNode, Suspense, useEffect, useMemo, useState } from 'react';
 
+import { RhythmDot } from '@/competitions/rhythms';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -393,6 +394,7 @@ function CompetitionForm({
                 {ffta.rhythm === null && <SelectItem value={NO_RHYTHM}>Non précisé</SelectItem>}
                 {allowedRhythms(form.discipline).map((rhythm) => (
                   <SelectItem key={rhythm} value={rhythm}>
+                    <RhythmDot rhythm={rhythm} />
                     {rhythm}
                   </SelectItem>
                 ))}

@@ -239,9 +239,10 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     ABC or AB/CD, **none off targets**, `allowedRhythms`), else none. The edit modal and the filter offer only the
     allowed ones and hide the field off targets; `checkOverrides` refuses the others. Readings made before the rhythm
     was asked have none; edits in
-    `competition_overrides.rhythm` (migration `0011`). Decided: shown **exactly like « Cibles mousses »** (lime badge
-    « Rythme AB/CD » on the card, a line in « Lu dans le mandat »), and a « Rythme » filter that leaves out
-    competitions whose rhythm is not known.
+    `competition_overrides.rhythm` (migration `0011`). Decided: shown **like « Cibles mousses »** (a badge « Rythme
+    AB/CD » on the card, a line in « Lu dans le mandat »), and a « Rythme » filter that leaves out competitions whose
+    rhythm is not known. Each badge has its own color (user's request): sky Para-tir, lime Cibles mousses, amber
+    Reportée, indigo AB, pink ABC, teal AB/CD (`competitions/rhythms.tsx`; the same dot in both « Rythme » menus).
 
 ## Places and geocoding
 

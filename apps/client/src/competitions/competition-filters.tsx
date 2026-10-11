@@ -31,6 +31,7 @@ import { matchesSearch } from '@/lib/search';
 
 import { ALL_FRANCE, areaName, groupDepartments, regionArea } from './areas';
 import { DISCIPLINE_COLORS } from './disciplines';
+import { RhythmDot } from './rhythms';
 import { TownSearch, type TownSuggestion } from './town-search';
 
 const ALL = 'all';
@@ -385,6 +386,7 @@ export function CompetitionFilterBar({
                   <SelectItem value={ALL}>Tous les rythmes</SelectItem>
                   {rhythmsFor(filters.discipline).map((rhythm) => (
                     <SelectItem key={rhythm} value={rhythm}>
+                      <RhythmDot rhythm={rhythm} />
                       {rhythm}
                     </SelectItem>
                   ))}
