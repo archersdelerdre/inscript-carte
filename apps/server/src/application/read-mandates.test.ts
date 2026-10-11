@@ -13,8 +13,8 @@ const clock = { today: () => TODAY, now: () => new Date(`${TODAY}T03:00:00Z`) };
 const goodAnswer = (foamTargets = 'not_mentioned') => ({
   departures: [{ date: '2026-11-14', label: 'Samedi matin', registrationOpens: '08:00', shootingStarts: '09:00' }],
   prices: [
-    { audience: 'adult', departures: 1, amountEuros: 9 },
-    { audience: 'adult', departures: 2, amountEuros: 16 },
+    { categories: ['S1', 'S2', 'S3'], departures: 1, amountEuros: 9 },
+    { categories: ['S1', 'S2', 'S3'], departures: 2, amountEuros: 16 },
   ],
   foamTargets,
   rhythm: 'ABC',
@@ -144,7 +144,9 @@ test('a mandate that keeps failing is tried a few times, then waits for a new li
 test('an answer the checks refuse is kept as it came, never as data, and the foam flag is left alone', async () => {
   await database('competitions').insert(competition('1', { has_foam_targets: true }));
   files = { [urlOf('1')]: 'hash-1' };
-  answers = { 'hash-1': { ...goodAnswer(), prices: [{ audience: 'adult', departures: 1, amountEuros: 900 }] } };
+  answers = {
+    'hash-1': { ...goodAnswer(), prices: [{ categories: ['S1', 'S2', 'S3'], departures: 1, amountEuros: 900 }] },
+  };
 
   expect(await read()).toMatchObject({ invalid: 1 });
   const row = await mandateRow('1');
@@ -188,7 +190,9 @@ test('an admin can have a mandate read again, same file included; a failed re-re
       ...options,
       onProblem: (_, problem) => problems.push(problem),
     });
-  answers = { 'hash-1': { ...goodAnswer(), prices: [{ audience: 'adult', departures: 1, amountEuros: 900 }] } };
+  answers = {
+    'hash-1': { ...goodAnswer(), prices: [{ categories: ['S1', 'S2', 'S3'], departures: 1, amountEuros: 900 }] },
+  };
   expect(await again({ force: true })).toMatchObject({ invalid: 1 });
   files = { [urlOf('1')]: new Error('the FFTA server answers 500') };
   expect(await again({ force: true })).toMatchObject({ failed: 1 });

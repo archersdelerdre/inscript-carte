@@ -22,7 +22,7 @@ const competition = (overrides: Partial<Competition> = {}): Competition => ({
   mandateUrl: LINK,
   mandateAddedOn: null,
   departures: [{ date: null, label: 'Matin', registrationOpens: null, shootingStarts: null }],
-  prices: [{ audience: 'all', departures: 1, amountEuros: 10 }],
+  prices: [{ categories: ['S1'], departures: 1, amountEuros: 10 }],
   missingSince: null,
   ...overrides,
 });

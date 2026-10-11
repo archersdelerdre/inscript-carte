@@ -1,16 +1,18 @@
-import type { AdminCompetitionDto, MandateAudience, MandatePrice } from '@inscript-carte/shared';
+import { AGE_CATEGORIES, categoriesLabel, type AdminCompetitionDto, type MandatePrice } from '@inscript-carte/shared';
 
 import { departureOptions } from '@/registrations/departures';
 
-/** "Jeunes": every Uxx category, as in the Excel file's amounts; U11 apart only when the mandate prices them apart. */
-function audiences(prices: MandatePrice[]): { audience: MandateAudience; label: string }[] {
-  const u11Apart = prices.some((price) => price.audience === 'u11');
-  return [
-    { audience: 'adult', label: 'Adultes' },
-    { audience: 'youth', label: u11Apart ? 'Jeunes (U13 à U21)' : 'Jeunes (U11 à U21)' },
-    { audience: 'u11', label: 'U11' },
-    { audience: 'all', label: 'Tous' },
-  ];
+/** One line per list of categories, the widest first ("Tous", "Jeunes", then "U11"): as the mandates write them. */
+function priceGroups(prices: MandatePrice[]): { key: string; label: string; prices: MandatePrice[] }[] {
+  // By hand: `Map.groupBy` is missing from older tablets.
+  const groups = new Map<string, MandatePrice[]>();
+  for (const price of prices) {
+    const key = AGE_CATEGORIES.filter((category) => price.categories.includes(category)).join();
+    groups.set(key, [...(groups.get(key) ?? []), price]);
+  }
+  return [...groups]
+    .map(([key, list]) => ({ key, label: categoriesLabel(list[0]!.categories), prices: list }))
+    .toSorted((a, b) => b.prices[0]!.categories.length - a.prices[0]!.categories.length);
 }
 
 const wholeEuros = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -67,16 +69,11 @@ export function MandateSummary({ competition }: { competition: AdminCompetitionD
         <p className='font-medium'>Tarifs</p>
         {prices ? (
           <ul className='grid gap-0.5 text-sm'>
-            {audiences(prices).map(({ audience, label }) => {
-              const own = prices.filter((price) => price.audience === audience);
-              return (
-                own.length > 0 && (
-                  <li key={audience}>
-                    <span className='text-muted-foreground'>{label} :</span> {priceList(own)}
-                  </li>
-                )
-              );
-            })}
+            {priceGroups(prices).map(({ key, label, prices: own }) => (
+              <li key={key}>
+                <span className='text-muted-foreground'>{label} :</span> {priceList(own)}
+              </li>
+            ))}
           </ul>
         ) : (
           <p className='text-muted-foreground text-sm'>Le mandat ne donne pas de tarif lisible.</p>

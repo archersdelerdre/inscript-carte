@@ -1,23 +1,18 @@
 import {
+  AGE_CATEGORIES,
   allowedRhythms,
+  categoriesLabel,
   COMPETITION_STATUS_LABELS,
   DEPARTMENT_NAMES,
   DISCIPLINE_LABELS,
+  hasPriceConflict,
+  type AgeCategory,
   type CompetitionFields,
   type CompetitionOverridesRequest,
   type GeoPosition,
-  type MandateAudience,
 } from '@inscript-carte/shared';
 
 import { formatDateRange, formatDay } from '@/lib/dates';
-
-/** U11 pay the « Jeunes » price unless the mandate gives them their own. */
-export const AUDIENCE_LABELS: Record<MandateAudience, string> = {
-  adult: 'Adultes',
-  youth: 'Jeunes',
-  u11: 'U11 (tarif à part)',
-  all: 'Tous',
-};
 
 export const MAX_DEPARTURES = 12;
 
@@ -30,7 +25,7 @@ export type DepartureRow = {
   shootingStarts: string;
 };
 
-export type PriceRow = { key: number; audience: MandateAudience; departures: string; amount: string };
+export type PriceRow = { key: number; categories: AgeCategory[]; departures: string; amount: string };
 
 export type FormState = Omit<CompetitionFields, 'mandateUrl' | 'departures' | 'prices'> & {
   mandateUrl: string;
@@ -57,7 +52,7 @@ export function fieldsToForm(fields: CompetitionFields): FormState {
     })),
     prices: (fields.prices ?? []).map((price) => ({
       key: nextRowKey(),
-      audience: price.audience,
+      categories: price.categories,
       departures: String(price.departures),
       amount: String(price.amountEuros),
     })),
@@ -89,7 +84,7 @@ export function normalize(fields: CompetitionFields): CompetitionFields {
       : null,
     prices: fields.prices?.length
       ? fields.prices.map((price) => ({
-          audience: price.audience,
+          categories: AGE_CATEGORIES.filter((category) => price.categories.includes(category)),
           departures: price.departures,
           amountEuros: price.amountEuros,
         }))
@@ -108,7 +103,7 @@ export function formToFields(form: FormState): CompetitionFields {
       shootingStarts: row.shootingStarts,
     })),
     prices: form.prices.map((row) => ({
-      audience: row.audience,
+      categories: row.categories,
       departures: row.departures.trim() === '' ? Number.NaN : Number(row.departures),
       amountEuros: row.amount.trim() === '' ? Number.NaN : Number(row.amount),
     })),
@@ -208,22 +203,17 @@ export function validate(form: FormState, edited: readonly FieldKey[]): FormErro
 
   if (has('prices')) {
     const rows = fields.prices ?? [];
-    const amounts = new Map<string, number>();
-    let duplicate = false;
-    for (const row of rows) {
-      const key = `${row.audience}:${row.departures}`;
-      const known = amounts.get(key);
-      if (known !== undefined && known !== row.amountEuros) duplicate = true;
-      amounts.set(key, row.amountEuros);
-    }
-    if (
+    if (rows.some((row) => row.categories.length === 0)) {
+      errors.prices = 'Chaque tarif doit s’appliquer à au moins une catégorie.';
+    } else if (
       rows.some((row) => !Number.isInteger(row.departures) || row.departures < 1 || row.departures > MAX_DEPARTURES)
     ) {
       errors.prices = `Le nombre de départs d’un tarif doit être compris entre 1 et ${MAX_DEPARTURES}.`;
     } else if (rows.some((row) => !(row.amountEuros >= 0 && row.amountEuros <= 150))) {
       errors.prices = 'Le montant d’un tarif doit être compris entre 0 et 150 €.';
-    } else if (duplicate) {
-      errors.prices = 'Un même public et un même nombre de départs ne peuvent pas avoir deux montants différents.';
+    } else if (hasPriceConflict(rows)) {
+      errors.prices =
+        'Deux tarifs pour les mêmes catégories et le même nombre de départs ont des montants différents : gardez-en un.';
     }
   }
   return errors;
@@ -289,7 +279,7 @@ export function describeFfta(key: FieldKey | 'dates', ffta: CompetitionFields): 
       return ffta.prices
         .map(
           (price) =>
-            `${AUDIENCE_LABELS[price.audience]}, ${price.departures} ${price.departures > 1 ? 'départs' : 'départ'} : ${euros.format(price.amountEuros)}`,
+            `${categoriesLabel(price.categories)}, ${price.departures} ${price.departures > 1 ? 'départs' : 'départ'} : ${euros.format(price.amountEuros)}`,
         )
         .join(' ; ');
   }

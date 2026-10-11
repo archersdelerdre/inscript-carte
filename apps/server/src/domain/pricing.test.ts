@@ -1,19 +1,23 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { MandatePrice } from '@inscript-carte/shared';
+import type { AgeCategory, MandatePrice } from '@inscript-carte/shared';
 
 import { registrationPrice } from './pricing.ts';
 
+const YOUTH: AgeCategory[] = ['U11', 'U13', 'U15', 'U18', 'U21'];
+const ADULTS: AgeCategory[] = ['S1', 'S2', 'S3'];
+const ALL: AgeCategory[] = [...YOUTH, ...ADULTS];
+
 /** La Haye-Fouassière, 2026-10-25, as GLM read it. */
 const DEGRESSIVE: MandatePrice[] = [
-  { audience: 'adult', departures: 1, amountEuros: 9 },
-  { audience: 'adult', departures: 2, amountEuros: 16 },
-  { audience: 'youth', departures: 1, amountEuros: 6.5 },
-  { audience: 'youth', departures: 2, amountEuros: 10 },
+  { categories: ADULTS, departures: 1, amountEuros: 9 },
+  { categories: ADULTS, departures: 2, amountEuros: 16 },
+  { categories: YOUTH, departures: 1, amountEuros: 6.5 },
+  { categories: YOUTH, departures: 2, amountEuros: 10 },
 ];
 
 describe('registrationPrice', () => {
-  test('takes the price for that number of départs, youth for every Uxx category', () => {
+  test('takes the price naming the archer’s category, for that number of départs', () => {
     expect(registrationPrice(DEGRESSIVE, 'S1', 1)).toBe(9);
     expect(registrationPrice(DEGRESSIVE, 'S3', 2)).toBe(16);
     expect(registrationPrice(DEGRESSIVE, 'U11', 1)).toBe(6.5);
@@ -25,30 +29,32 @@ describe('registrationPrice', () => {
     expect(registrationPrice(DEGRESSIVE, 'U15', 4)).toBe(20);
   });
 
-  test('uses the price for everyone when the archer’s audience has none', () => {
-    const everyone: MandatePrice[] = [
-      { audience: 'all', departures: 1, amountEuros: 8 },
-      { audience: 'youth', departures: 1, amountEuros: 5 },
-    ];
-    expect(registrationPrice(everyone, 'S1', 2)).toBe(16);
-    expect(registrationPrice(everyone, 'U18', 2)).toBe(10);
-  });
-
-  test('U11 pay their own price when the mandate gives one, else the youth price', () => {
+  test('the most specific price wins when several name the category', () => {
     // Montureux-et-Prantigny, 2026-10-11: « U11 + Promotion 6 € / 8 €, Jeunes 8 € / 10 €, Adultes 10 € / 14 € ».
     const withU11: MandatePrice[] = [
       ...DEGRESSIVE,
-      { audience: 'u11', departures: 1, amountEuros: 6 },
-      { audience: 'u11', departures: 2, amountEuros: 8 },
+      { categories: ['U11'], departures: 1, amountEuros: 6 },
+      { categories: ['U11'], departures: 2, amountEuros: 8 },
+      { categories: ALL, departures: 1, amountEuros: 12 },
     ];
     expect(registrationPrice(withU11, 'U11', 2)).toBe(8);
     expect(registrationPrice(withU11, 'U13', 2)).toBe(10);
-    expect(registrationPrice(DEGRESSIVE, 'U11', 2)).toBe(10);
+    expect(registrationPrice(withU11, 'S1', 1)).toBe(9);
+  });
+
+  test('a price for everyone serves the categories nothing more specific names', () => {
+    const everyone: MandatePrice[] = [
+      { categories: ALL, departures: 1, amountEuros: 8 },
+      { categories: ['U13', 'U15'], departures: 1, amountEuros: 5 },
+    ];
+    expect(registrationPrice(everyone, 'S1', 2)).toBe(16);
+    expect(registrationPrice(everyone, 'U15', 2)).toBe(10);
+    expect(registrationPrice(everyone, 'U18', 1)).toBe(8);
   });
 
   test('never guesses: no prices, or nothing that fits, gives no amount', () => {
     expect(registrationPrice(null, 'S1', 1)).toBeNull();
-    expect(registrationPrice([{ audience: 'adult', departures: 2, amountEuros: 16 }], 'S1', 1)).toBeNull();
-    expect(registrationPrice([{ audience: 'youth', departures: 1, amountEuros: 5 }], 'S1', 1)).toBeNull();
+    expect(registrationPrice([{ categories: ADULTS, departures: 2, amountEuros: 16 }], 'S1', 1)).toBeNull();
+    expect(registrationPrice([{ categories: YOUTH, departures: 1, amountEuros: 5 }], 'S1', 1)).toBeNull();
   });
 });

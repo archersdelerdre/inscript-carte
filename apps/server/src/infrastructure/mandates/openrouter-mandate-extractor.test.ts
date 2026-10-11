@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { answerJson } from './openrouter-mandate-extractor.ts';
 
 test('reads the JSON of an answer, even wrapped in a code fence or a sentence', () => {
-  const json = { departures: [], prices: [{ audience: 'all', departures: 1, amountEuros: 10 }] };
+  const json = { departures: [], prices: [{ categories: ['S1'], departures: 1, amountEuros: 10 }] };
   expect(answerJson(JSON.stringify(json))).toEqual(json);
   expect(answerJson('```json\n' + JSON.stringify(json, null, 2) + '\n```')).toEqual(json);
   expect(answerJson(`Voici les informations du mandat : ${JSON.stringify(json)} Bonne journée.`)).toEqual(json);

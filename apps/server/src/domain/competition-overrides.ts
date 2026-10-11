@@ -1,9 +1,10 @@
 import {
+  AGE_CATEGORIES,
   allowedRhythms,
   COMPETITION_STATUSES,
   DEPARTMENT_NAMES,
   DISCIPLINES,
-  MANDATE_AUDIENCES,
+  hasPriceConflict,
   RHYTHMS,
   type CompetitionFields,
 } from '@inscript-carte/shared';
@@ -52,12 +53,12 @@ const Overrides = z.strictObject({
   prices: z
     .array(
       z.strictObject({
-        audience: z.enum(MANDATE_AUDIENCES),
+        categories: z.array(z.enum(AGE_CATEGORIES)).min(1).max(AGE_CATEGORIES.length),
         departures: z.int().min(1).max(MAX_DEPARTURES),
         amountEuros: z.number().min(0).max(MAX_PRICE_EUROS),
       }),
     )
-    .max(MAX_DEPARTURES * MANDATE_AUDIENCES.length)
+    .max(MAX_DEPARTURES * AGE_CATEGORIES.length)
     .optional(),
 });
 
@@ -81,11 +82,6 @@ export function checkOverrides(raw: unknown, ffta: CompetitionFields): Competiti
   if (overrides.rhythm && !allowedRhythms(overrides.discipline ?? ffta.discipline).includes(overrides.rhythm)) {
     return null;
   }
-  const amounts = new Map<string, number>();
-  for (const { audience, departures, amountEuros } of overrides.prices ?? []) {
-    const key = `${audience}|${departures}`;
-    if ((amounts.get(key) ?? amountEuros) !== amountEuros) return null;
-    amounts.set(key, amountEuros);
-  }
+  if (overrides.prices && hasPriceConflict(overrides.prices)) return null;
   return overrides;
 }

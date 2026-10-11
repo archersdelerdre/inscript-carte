@@ -1,7 +1,8 @@
 import {
+  AGE_CATEGORIES,
   allowedRhythms,
   FOAM_TARGETS_ANSWERS,
-  MANDATE_AUDIENCES,
+  hasPriceConflict,
   RHYTHM_ANSWERS,
   type Discipline,
   type MandateData,
@@ -42,12 +43,12 @@ export const MandateAnswer = z.strictObject({
   prices: z
     .array(
       z.strictObject({
-        audience: z.enum(MANDATE_AUDIENCES),
+        categories: z.array(z.enum(AGE_CATEGORIES)).min(1).max(AGE_CATEGORIES.length),
         departures: z.int().min(1).max(MAX_DEPARTURES),
         amountEuros: z.number().min(0).max(MAX_PRICE_EUROS),
       }),
     )
-    .max(MAX_DEPARTURES * MANDATE_AUDIENCES.length),
+    .max(MAX_DEPARTURES * AGE_CATEGORIES.length),
   foamTargets: z.enum(FOAM_TARGETS_ANSWERS),
   rhythm: z.enum(RHYTHM_ANSWERS),
   evidence: z.strictObject({ departures: quote, prices: quote, foamTargets: quote, rhythm: quote }),
@@ -72,7 +73,8 @@ export type MandateCheck = { ok: true; data: MandateData } | { ok: false; proble
  * refused (kept, to be looked at) rather than half-stored. A wrong price is worse than no price.
  *
  * One mandate often covers a weekend that the FFTA lists as two competitions (Saturday, Sunday): the départs of the
- * other days are left out, not refused. A price given twice with the same amount is kept once.
+ * other days are left out, not refused. A price given twice is kept once. A category named by two prices pays the
+ * most specific one (`pricesFor`); only two equally specific prices with different amounts are a contradiction.
  */
 export function checkMandateData(
   raw: unknown,
@@ -92,16 +94,16 @@ export function checkMandateData(
     return { ok: false, problems: ['Aucun départ du mandat ne tombe un jour du concours.'] };
   }
 
-  const problems: string[] = [];
   const prices = new Map<string, MandateData['prices'][number]>();
-  parsed.data.prices.forEach((price, index) => {
-    const key = `${price.audience}|${price.departures}`;
-    const known = prices.get(key);
-    if (known && known.amountEuros !== price.amountEuros) {
-      problems.push(`Tarif ${index + 1} : deux montants différents pour le même cas.`);
-    }
-    if (!known) prices.set(key, price);
-  });
-  if (problems.length > 0) return { ok: false, problems };
+  for (const price of parsed.data.prices) {
+    const categories = AGE_CATEGORIES.filter((category) => price.categories.includes(category));
+    prices.set(`${categories.join()}|${price.departures}|${price.amountEuros}`, { ...price, categories });
+  }
+  if (hasPriceConflict([...prices.values()])) {
+    return {
+      ok: false,
+      problems: ['Deux tarifs aussi précis l’un que l’autre donnent deux montants pour un même cas.'],
+    };
+  }
   return { ok: true, data: { ...parsed.data, departures: onItsDays, prices: [...prices.values()] } };
 }

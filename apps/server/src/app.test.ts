@@ -958,8 +958,8 @@ describe('admin registrations', () => {
       data: JSON.stringify({
         departures: [],
         prices: [
-          { audience: 'adult', departures: 1, amountEuros: 9 },
-          { audience: 'youth', departures: 1, amountEuros: 6.5 },
+          { categories: ['S1', 'S2', 'S3'], departures: 1, amountEuros: 9 },
+          { categories: ['U11', 'U13', 'U15', 'U18', 'U21'], departures: 1, amountEuros: 6.5 },
         ],
         foamTargets: 'not_mentioned',
         evidence: { departures: null, prices: null, foamTargets: null },

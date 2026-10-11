@@ -1,13 +1,7 @@
 import type { Discipline } from './discipline.ts';
+import { AGE_CATEGORIES, type AgeCategory } from './ffta-category.ts';
 
 /** What the FFTA mandate (the organizer's PDF) says, as read by an LLM and checked by the server. */
-
-export const MANDATE_AUDIENCES = ['adult', 'youth', 'u11', 'all'] as const;
-/**
- * `all`: one price for everyone. `u11`: only when the mandate gives U11 their own price ("U11 + Promotion 6 €,
- * Jeunes 8 €"); otherwise U11 pay the `youth` price.
- */
-export type MandateAudience = (typeof MANDATE_AUDIENCES)[number];
 
 export const FOAM_TARGETS_ANSWERS = ['yes', 'no', 'not_mentioned'] as const;
 /** Most mandates never say: `not_mentioned` is never read as "no". */
@@ -42,8 +36,53 @@ export type MandateDeparture = {
   shootingStarts: string | null;
 };
 
-/** The total price for `departures` départs, for that audience: "2 tirs 16 €" is `{ departures: 2, amountEuros: 16 }`. */
-export type MandatePrice = { audience: MandateAudience; departures: number; amountEuros: number };
+/**
+ * The total price for `departures` départs, for the FFTA categories it names: "Jeunes : 2 tirs 10 €" is
+ * `{ categories: ['U11', 'U13', 'U15', 'U18', 'U21'], departures: 2, amountEuros: 10 }`.
+ */
+export type MandatePrice = { categories: AgeCategory[]; departures: number; amountEuros: number };
+
+/**
+ * The prices an archer of that category pays, one per number of départs: when several name the category ("Jeunes"
+ * and "U11"), the one naming the fewest categories wins, the most specific.
+ */
+export function pricesFor(prices: readonly MandatePrice[], category: AgeCategory): MandatePrice[] {
+  const best = new Map<number, MandatePrice>();
+  for (const price of prices) {
+    if (!price.categories.includes(category)) continue;
+    const known = best.get(price.departures);
+    if (!known || price.categories.length < known.categories.length) best.set(price.departures, price);
+  }
+  return [...best.values()];
+}
+
+/** Two equally specific prices give one category two amounts for the same départs: nobody can tell which is right. */
+export function hasPriceConflict(prices: readonly MandatePrice[]): boolean {
+  return AGE_CATEGORIES.some((category) =>
+    pricesFor(prices, category).some((chosen) =>
+      prices.some(
+        (other) =>
+          other.categories.includes(category) &&
+          other.departures === chosen.departures &&
+          other.categories.length === chosen.categories.length &&
+          other.amountEuros !== chosen.amountEuros,
+      ),
+    ),
+  );
+}
+
+const YOUTH: readonly AgeCategory[] = ['U11', 'U13', 'U15', 'U18', 'U21'];
+
+/** "Tous", "Adultes", "Jeunes (U13 à U21)", "U11", "U15, S3": who a price is for, in the mandates' words. */
+export function categoriesLabel(categories: readonly AgeCategory[]): string {
+  const sorted = AGE_CATEGORIES.filter((category) => categories.includes(category));
+  if (sorted.length === AGE_CATEGORIES.length) return 'Tous';
+  if (sorted.join() === 'S1,S2,S3') return 'Adultes';
+  const first = YOUTH.indexOf(sorted[0]!);
+  const youthRun =
+    first >= 0 && sorted.length > 1 && sorted.every((category, index) => YOUTH[first + index] === category);
+  return youthRun ? `Jeunes (${sorted[0]} à ${sorted.at(-1)})` : sorted.join(', ');
+}
 
 export type MandateData = {
   departures: MandateDeparture[];

@@ -1,4 +1,5 @@
 import {
+  AGE_CATEGORIES,
   allowedRhythms,
   API_ROUTES,
   apiPath,
@@ -6,7 +7,7 @@ import {
   COMPETITION_STATUS_LABELS,
   DISCIPLINES,
   DISCIPLINE_LABELS,
-  MANDATE_AUDIENCES,
+  categoriesLabel,
   type Rhythm,
   type CompetitionEditDto,
   type CompetitionEditResponse,
@@ -46,7 +47,6 @@ import { formatDateTime } from '@/lib/dates';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 
 import {
-  AUDIENCE_LABELS,
   buildRequest,
   departmentOptions,
   describeFfta,
@@ -667,7 +667,7 @@ function DeparturesEditor({ form, patch, error }: EditorProps) {
 
 function PricesEditor({ form, patch, error }: EditorProps) {
   const rows = form.prices;
-  const columns = 'sm:grid-cols-[minmax(0,1fr)_9rem_9rem_auto]';
+  const columns = 'sm:grid-cols-[minmax(0,1fr)_8rem_8rem_auto]';
 
   function update(key: number, changes: Partial<FormState['prices'][number]>) {
     patch({ prices: rows.map((row) => (row.key === key ? { ...row, ...changes } : row)) });
@@ -681,33 +681,42 @@ function PricesEditor({ form, patch, error }: EditorProps) {
       ) : (
         <>
           <div className={`hidden gap-2 text-sm font-medium sm:grid ${columns}`} aria-hidden='true'>
-            <span>Public</span>
+            <span>Catégories</span>
             <span>Nombre de départs</span>
             <span>Montant (€)</span>
             <span className='w-10' />
           </div>
           {rows.map((row, index) => (
             <div key={row.key} className={`grid gap-2 rounded-lg border p-3 sm:border-0 sm:p-0 ${columns}`}>
-              <div className='grid gap-1'>
-                <Label htmlFor={`price-${row.key}-audience`} className='sm:sr-only'>
-                  Public du tarif {index + 1}
-                </Label>
-                <Select
-                  value={row.audience}
-                  onValueChange={(value) => update(row.key, { audience: value as typeof row.audience })}
-                >
-                  <SelectTrigger id={`price-${row.key}-audience`} className='w-full'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MANDATE_AUDIENCES.map((audience) => (
-                      <SelectItem key={audience} value={audience}>
-                        {AUDIENCE_LABELS[audience]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <fieldset className='grid gap-1'>
+                <legend className='mb-1 text-sm font-medium sm:sr-only'>Catégories du tarif {index + 1}</legend>
+                <div className='flex flex-wrap gap-1'>
+                  {AGE_CATEGORIES.map((category) => {
+                    const chosen = row.categories.includes(category);
+                    return (
+                      <Button
+                        key={category}
+                        type='button'
+                        variant={chosen ? 'default' : 'outline'}
+                        aria-pressed={chosen}
+                        className='min-w-12 px-2'
+                        onClick={() =>
+                          update(row.key, {
+                            categories: chosen
+                              ? row.categories.filter((other) => other !== category)
+                              : [...row.categories, category],
+                          })
+                        }
+                      >
+                        {category}
+                      </Button>
+                    );
+                  })}
+                </div>
+                {row.categories.length > 0 && (
+                  <p className='text-muted-foreground text-sm'>{categoriesLabel(row.categories)}</p>
+                )}
+              </fieldset>
               <div className='grid gap-1'>
                 <Label htmlFor={`price-${row.key}-departures`} className='sm:sr-only'>
                   Nombre de départs du tarif {index + 1}
@@ -755,7 +764,9 @@ function PricesEditor({ form, patch, error }: EditorProps) {
         <Button
           variant='outline'
           onClick={() =>
-            patch({ prices: [...rows, { key: nextRowKey(), audience: 'all', departures: '1', amount: '' }] })
+            patch({
+              prices: [...rows, { key: nextRowKey(), categories: [...AGE_CATEGORIES], departures: '1', amount: '' }],
+            })
           }
         >
           <PlusIcon />

@@ -4,7 +4,8 @@ import { checkMandateData, mandateAnswerJsonSchema } from './mandate.ts';
 
 const COMPETITION = { startDate: '2026-10-31', endDate: '2026-11-01' };
 
-const price = (amountEuros: number) => ({ audience: 'all' as const, departures: 1, amountEuros });
+const ALL = ['U11', 'U13', 'U15', 'U18', 'U21', 'S1', 'S2', 'S3'];
+const price = (amountEuros: number, categories: string[] = ALL) => ({ categories, departures: 1, amountEuros });
 
 const answer = (overrides: Record<string, unknown> = {}) => ({
   departures: [
@@ -12,8 +13,8 @@ const answer = (overrides: Record<string, unknown> = {}) => ({
     { date: '2026-11-01', label: 'Dimanche matin', registrationOpens: null, shootingStarts: '09:00' },
   ],
   prices: [
-    { audience: 'adult', departures: 1, amountEuros: 10 },
-    { audience: 'youth', departures: 1, amountEuros: 7 },
+    { categories: ['S1', 'S2', 'S3'], departures: 1, amountEuros: 10 },
+    { categories: ['U11', 'U13', 'U15', 'U18', 'U21'], departures: 1, amountEuros: 7 },
   ],
   foamTargets: 'not_mentioned',
   rhythm: 'AB/CD',
@@ -46,20 +47,27 @@ describe('checkMandateData', () => {
     });
   });
 
-  test('keeps a price given twice with the same amount once, refuses two different amounts', () => {
-    const same = checkMandateData(answer({ prices: [price(10), price(10)] }), COMPETITION);
-    expect(same.ok && same.data.prices).toEqual([price(10)]);
+  test('keeps a price given twice once, in the categories’ order; refuses two amounts for the same case', () => {
+    const same = checkMandateData(answer({ prices: [price(10, ['S3', 'S1']), price(10, ['S1', 'S3'])] }), COMPETITION);
+    expect(same.ok && same.data.prices).toEqual([{ categories: ['S1', 'S3'], departures: 1, amountEuros: 10 }]);
     expect(checkMandateData(answer({ prices: [price(10), price(12)] }), COMPETITION)).toEqual({
       ok: false,
-      problems: ['Tarif 2 : deux montants différents pour le même cas.'],
+      problems: ['Deux tarifs aussi précis l’un que l’autre donnent deux montants pour un même cas.'],
     });
+  });
+
+  test('a category in two prices is no contradiction: the most specific one applies', () => {
+    // « U11 + Promotion : 6 €, Jeunes : 8 € » (Montureux-et-Prantigny, 2026-10-11).
+    const prices = [price(6, ['U11']), price(8, ['U11', 'U13', 'U15', 'U18', 'U21'])];
+    expect(checkMandateData(answer({ prices }), COMPETITION).ok).toBe(true);
   });
 
   test('refuses out-of-range values and unknown answers', () => {
     for (const overrides of [
-      { prices: [{ audience: 'adult', departures: 1, amountEuros: 900 }] },
-      { prices: [{ audience: 'seniors', departures: 1, amountEuros: 9 }] },
-      { prices: [{ audience: 'adult', departures: 0, amountEuros: 9 }] },
+      { prices: [price(900)] },
+      { prices: [price(9, ['Seniors'])] },
+      { prices: [price(9, [])] },
+      { prices: [{ categories: ALL, departures: 0, amountEuros: 9 }] },
       { departures: [{ date: null, label: 'Matin', registrationOpens: '25:00', shootingStarts: null }] },
       { departures: [{ date: null, label: '  ', registrationOpens: null, shootingStarts: null }] },
       { foamTargets: 'maybe' },
