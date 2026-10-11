@@ -1,5 +1,5 @@
 ---
-name: nouvelle-idee
+name: build
 description: Guide pas à pas un membre du club, débutant en développement, qui veut construire son idée dans inscript-carte, de l'installation des outils jusqu'à la pull request. L'agent lance lui-même toutes les commandes. À utiliser quand quelqu'un dit vouloir ajouter, changer ou proposer quelque chose dans l'application.
 ---
 
@@ -90,9 +90,9 @@ toujours d'une branche neuve, basée sur la base à jour.
 2. Si `git status --porcelain` montre des changements non enregistrés sur la branche actuelle, ne les perds pas :
    enregistre-les sur cette branche (`git add -A` puis `git commit -m "Work in progress"`), en vérifiant d'abord qu'il
    n'y a ni `.sqlite`, ni `.env`, ni clé. Dis-lui que son travail précédent est gardé sur son ancienne branche.
-3. Choisis un nom court en anglais, sans accent, d'après l'idée : `idee/sort-members-by-category`. S'il existe déjà,
-   ajoute `-2`.
-4. `git switch -c idee/<nom> upstream/main` (avec le nom réel de la base).
+3. Choisis un nom court en anglais, sans accent, d'après ce qu'elle veut faire : `feature/sort-members-by-category`.
+   S'il existe déjà, ajoute `-2`.
+4. `git switch -c feature/<nom> upstream/main` (avec le nom réel de la base).
 
 Explique-lui en une phrase : « J'ai créé une copie de travail toute neuve pour ton idée, à partir de la dernière
 version du club. »
@@ -190,7 +190,7 @@ Message de commit **en anglais**, court : une ligne de titre, puis une ou deux l
 Demande-lui son accord, puis :
 
 ```bash
-git push -u origin idee/<nom>
+git push -u origin feature/<nom>
 gh pr create --repo archersdelerdre/inscript-carte --base main --title "<titre en anglais>" --body "<description>"
 ```
 
