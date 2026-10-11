@@ -3,7 +3,7 @@ import {
   allowedRhythms,
   FOAM_TARGETS_ANSWERS,
   hasPriceConflict,
-  RHYTHM_ANSWERS,
+  RHYTHMS,
   type Discipline,
   type MandateData,
   type Rhythm,
@@ -50,18 +50,23 @@ export const MandateAnswer = z.strictObject({
     )
     .max(MAX_DEPARTURES * AGE_CATEGORIES.length),
   foamTargets: z.enum(FOAM_TARGETS_ANSWERS),
-  rhythm: z.enum(RHYTHM_ANSWERS),
+  rhythms: z.array(z.enum(RHYTHMS)).max(RHYTHMS.length),
   evidence: z.strictObject({ departures: quote, prices: quote, foamTargets: quote, rhythm: quote }),
 }) satisfies z.ZodType<MandateData>;
 
 /**
- * The rhythm a stored reading gives: none when not mentioned, for readings made before it was asked, or when it does
- * not fit the discipline (an LLM's "ABC" for an indoor competition is a misreading).
+ * The rhythm a reading gives, by the user's rules (2026-10-11), never asked to the LLM: AB/CD as soon as the mandate
+ * names it ("AB/CD ou ABC selon le nombre d'archers"); an indoor "ABC" is AB; then one rhythm the discipline allows,
+ * else none (nothing written, readings made before the rhythm was asked, off targets).
  */
 export function rhythmOf(data: MandateData | null, discipline: Discipline): Rhythm | null {
-  const rhythm = data?.rhythm;
-  if (!rhythm || rhythm === 'not_mentioned' || !allowedRhythms(discipline).includes(rhythm)) return null;
-  return rhythm;
+  const allowed = allowedRhythms(discipline);
+  const written = new Set(
+    (data?.rhythms ?? []).map((rhythm) => (discipline === 'salle' && rhythm === 'ABC' ? 'AB' : rhythm)),
+  );
+  if (written.has('AB/CD') && allowed.includes('AB/CD')) return 'AB/CD';
+  const [only, ...others] = [...written].filter((rhythm) => allowed.includes(rhythm));
+  return only && others.length === 0 ? only : null;
 }
 
 export const mandateAnswerJsonSchema = z.toJSONSchema(MandateAnswer);

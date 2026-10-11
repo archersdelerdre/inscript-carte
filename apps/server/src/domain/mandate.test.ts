@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { checkMandateData, mandateAnswerJsonSchema } from './mandate.ts';
+import { checkMandateData, mandateAnswerJsonSchema, rhythmOf } from './mandate.ts';
 
 const COMPETITION = { startDate: '2026-10-31', endDate: '2026-11-01' };
 
@@ -17,7 +17,7 @@ const answer = (overrides: Record<string, unknown> = {}) => ({
     { categories: ['U11', 'U13', 'U15', 'U18', 'U21'], departures: 1, amountEuros: 7 },
   ],
   foamTargets: 'not_mentioned',
-  rhythm: 'AB/CD',
+  rhythms: ['AB/CD'],
   evidence: { departures: null, prices: 'jeunes 7€ - adultes 10€', foamTargets: null, rhythm: 'Rythme AB/CD' },
   ...overrides,
 });
@@ -71,7 +71,8 @@ describe('checkMandateData', () => {
       { departures: [{ date: null, label: 'Matin', registrationOpens: '25:00', shootingStarts: null }] },
       { departures: [{ date: null, label: '  ', registrationOpens: null, shootingStarts: null }] },
       { foamTargets: 'maybe' },
-      { rhythm: 'ABCD' },
+      { rhythms: ['ABCD'] },
+      { rhythms: 'AB/CD' },
       { extra: 'field' },
     ]) {
       expect(checkMandateData(answer(overrides), COMPETITION).ok).toBe(false);
@@ -82,8 +83,33 @@ describe('checkMandateData', () => {
   test('tells the LLM the same shape, with every field required and nothing else allowed', () => {
     expect(mandateAnswerJsonSchema).toMatchObject({
       type: 'object',
-      required: ['departures', 'prices', 'foamTargets', 'rhythm', 'evidence'],
+      required: ['departures', 'prices', 'foamTargets', 'rhythms', 'evidence'],
       additionalProperties: false,
     });
+  });
+});
+
+const reading = (rhythms?: string[]) => answer({ rhythms }) as never;
+
+describe('rhythmOf', () => {
+  test('AB/CD as soon as the mandate names it, among others or not', () => {
+    // « AB/CD ou ABC en fonction du nombre de tireurs » (Guérande, salle).
+    expect(rhythmOf(reading(['AB/CD', 'ABC']), 'salle')).toBe('AB/CD');
+    expect(rhythmOf(reading(['AB', 'AB/CD']), 'exterieur')).toBe('AB/CD');
+  });
+
+  test('indoors, an ABC is AB; outdoors it stays ABC; one rhythm the discipline allows, else none', () => {
+    expect(rhythmOf(reading(['ABC']), 'salle')).toBe('AB');
+    expect(rhythmOf(reading(['ABC', 'AB']), 'salle')).toBe('AB');
+    expect(rhythmOf(reading(['ABC']), 'exterieur')).toBe('ABC');
+    expect(rhythmOf(reading(['AB']), 'exterieur')).toBeNull();
+    expect(rhythmOf(reading(['AB', 'ABC']), 'exterieur')).toBe('ABC');
+  });
+
+  test('none when nothing is written, for readings made before, and off targets', () => {
+    expect(rhythmOf(reading([]), 'salle')).toBeNull();
+    expect(rhythmOf(reading(undefined), 'salle')).toBeNull();
+    expect(rhythmOf(null, 'salle')).toBeNull();
+    expect(rhythmOf(reading(['AB/CD']), 'campagne')).toBeNull();
   });
 });

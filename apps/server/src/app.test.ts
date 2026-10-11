@@ -1342,13 +1342,13 @@ describe('competition edits', () => {
     expect((await publicSalle())?.rhythm).toBeNull();
     await database('competition_mandates')
       .where({ ffta_id: SALLE })
-      .update(reading({ rhythm: 'AB' }));
+      .update(reading({ rhythms: ['AB'] }));
     expect((await publicSalle())?.rhythm).toBe('AB');
-    // SALLE is indoors: an "ABC" can only be a misreading.
+    // SALLE is indoors: an "ABC" is AB there.
     await database('competition_mandates')
       .where({ ffta_id: SALLE })
-      .update(reading({ rhythm: 'ABC' }));
-    expect((await publicSalle())?.rhythm).toBeNull();
+      .update(reading({ rhythms: ['ABC'] }));
+    expect((await publicSalle())?.rhythm).toBe('AB');
 
     await makeAdmin(ADULT);
     const cookie = await adminSignIn();
@@ -1360,7 +1360,7 @@ describe('competition edits', () => {
     await put({ discipline: 'campagne' });
     await database('competition_mandates')
       .where({ ffta_id: SALLE })
-      .update(reading({ rhythm: 'AB/CD' }));
+      .update(reading({ rhythms: ['AB/CD'] }));
     expect((await publicSalle())?.rhythm).toBeNull();
     await put({ rhythm: 'AB/CD' });
     expect((await publicSalle())?.rhythm).toBe('AB/CD');

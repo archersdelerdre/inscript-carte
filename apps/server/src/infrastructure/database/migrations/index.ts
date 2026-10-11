@@ -12,6 +12,7 @@ import * as mandateAddedOn from './0009-mandate-added-on.ts';
 import * as competitionOverrides from './0010-competition-overrides.ts';
 import * as rhythmOverride from './0011-rhythm-override.ts';
 import * as pricesByCategory from './0012-prices-by-category.ts';
+import * as rhythmList from './0013-rhythm-list.ts';
 
 /** Listed explicitly so migrations survive `bun build`. Append new ones at the end; never rename. */
 const migrations: Record<string, Knex.Migration> = {
@@ -27,6 +28,7 @@ const migrations: Record<string, Knex.Migration> = {
   '0010-competition-overrides': competitionOverrides,
   '0011-rhythm-override': rhythmOverride,
   '0012-prices-by-category': pricesByCategory,
+  '0013-rhythm-list': rhythmList,
 };
 
 export const migrationSource: Knex.MigrationSource<string> = {

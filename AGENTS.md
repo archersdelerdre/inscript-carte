@@ -232,12 +232,13 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   - `checkMandateData` checks the answer (≤ 12 départs, 0–150 €). A mandate often covers two FFTA entries of one
     weekend: départs on other days are dropped. Refused answers are kept as `invalid`, never used. Errors never fail
     the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
-  - **Rhythm** (asked 2026-10-11): one per competition, `AB` / `ABC` / `AB/CD`, else `not_mentioned` (also when the
-    départs differ). User's rule: indoors (Salle) only AB or AB/CD, outdoors (Extérieur) only ABC or AB/CD, **no
-    rhythm at all off targets** (`allowedRhythms`). Decided: the LLM only reports what the mandate writes; the rule is
-    applied by the code (`rhythmOf` ignores a reading that breaks it, the edit modal and the filter offer only the
-    allowed ones and hide the field off targets, `checkOverrides` refuses the others). Stored in the reading's data
-    (`rhythmOf`: readings made before have none); edits in
+  - **Rhythm** (asked 2026-10-11): one per competition, `AB` / `ABC` / `AB/CD`. Decided: the LLM only lists every
+    rhythm the mandate writes (`rhythms`, migration `0013` turned the old single answer into a list); the user's rules
+    are applied by the code (`rhythmOf`): **AB/CD as soon as it is named** ("AB/CD ou ABC selon le nombre
+    d'archers"); **indoors an ABC is AB**; then the one rhythm the discipline allows (indoors AB or AB/CD, outdoors
+    ABC or AB/CD, **none off targets**, `allowedRhythms`), else none. The edit modal and the filter offer only the
+    allowed ones and hide the field off targets; `checkOverrides` refuses the others. Readings made before the rhythm
+    was asked have none; edits in
     `competition_overrides.rhythm` (migration `0011`). Decided: shown **exactly like « Cibles mousses »** (lime badge
     « Rythme AB/CD » on the card, a line in « Lu dans le mandat »), and a « Rythme » filter that leaves out
     competitions whose rhythm is not known.

@@ -10,8 +10,6 @@ export type FoamTargetsAnswer = (typeof FOAM_TARGETS_ANSWERS)[number];
 /** How archers take turns at the target: by two (AB), by three (ABC), or four per target in two waves (AB/CD). */
 export const RHYTHMS = ['AB', 'ABC', 'AB/CD'] as const;
 export type Rhythm = (typeof RHYTHMS)[number];
-export const RHYTHM_ANSWERS = [...RHYTHMS, 'not_mentioned'] as const;
-export type RhythmAnswer = (typeof RHYTHM_ANSWERS)[number];
 
 /**
  * The user's rule (2026-10-11), applied by the code, never asked to the LLM: indoors only AB or AB/CD, outdoors only
@@ -88,8 +86,11 @@ export type MandateData = {
   departures: MandateDeparture[];
   prices: MandatePrice[];
   foamTargets: FoamTargetsAnswer;
-  /** Missing from readings made before the rhythm was asked. */
-  rhythm?: RhythmAnswer;
+  /**
+   * Every rhythm the mandate writes ("AB/CD ou ABC selon le nombre d'archers" gives both), `[]` when it says none.
+   * Missing from readings made before the rhythm was asked. `rhythmOf` turns it into one.
+   */
+  rhythms?: Rhythm[];
   /** The mandate's own words for each answer, so an admin can check it in a second. */
   evidence: { departures: string | null; prices: string | null; foamTargets: string | null; rhythm?: string | null };
 };

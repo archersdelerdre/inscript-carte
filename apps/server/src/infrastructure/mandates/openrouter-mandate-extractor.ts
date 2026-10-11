@@ -37,9 +37,9 @@ prices : les tarifs d'inscription par archer.
 
 foamTargets : "yes" seulement si le mandat dit que les cibles ou les buttes sont en mousse ; "no" s'il dit qu'elles sont en paille ou dans une autre matière ; "not_mentioned" sinon (le plus souvent). Un blason "trispot" n'est pas une cible en mousse.
 
-rhythm : le rythme de tir tel que le mandat l'écrit, c'est-à-dire l'ordre de passage des archers sur une cible : "AB" (deux par deux), "ABC" (trois par trois) ou "AB/CD" (quatre archers par cible, en deux vagues : AB puis CD). On le trouve souvent écrit "rythme AB/CD", "tir en AB-CD", "ABC" ou "2 vagues". "not_mentioned" si le mandat ne le dit pas, ou s'il donne des rythmes différents selon les départs.
+rhythms : tous les rythmes de tir que le mandat écrit, c'est-à-dire l'ordre de passage des archers sur une cible : "AB" (deux par deux), "ABC" (trois par trois) ou "AB/CD" (quatre archers par cible, en deux vagues : AB puis CD). On les trouve souvent écrits "rythme AB/CD", "tir en AB-CD", "ABC" ou "2 vagues". Donne-les tous, tels qu'écrits : "AB/CD ou ABC en fonction du nombre de tireurs" donne ["AB/CD", "ABC"]. Une liste vide si le mandat n'en dit rien.
 
-evidence : pour departures, prices, foamTargets et rhythm, les mots exacts du mandat qui le disent (une courte citation), ou null.`;
+evidence : pour departures, prices, foamTargets et rhythm (les rythmes), les mots exacts du mandat qui le disent (une courte citation), ou null.`;
 
 /** GLM 5.3 Flash through OpenRouter, the user's choice (2026-10-09): it reads images, cheaply. */
 export class OpenRouterMandateExtractor implements MandateExtractor {

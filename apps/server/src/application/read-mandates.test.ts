@@ -17,7 +17,7 @@ const goodAnswer = (foamTargets = 'not_mentioned') => ({
     { categories: ['S1', 'S2', 'S3'], departures: 2, amountEuros: 16 },
   ],
   foamTargets,
-  rhythm: 'ABC',
+  rhythms: ['ABC'],
   evidence: { departures: null, prices: '1 tir 9 €, 2 tirs 16 €', foamTargets: null, rhythm: 'en ABC' },
 });
 
