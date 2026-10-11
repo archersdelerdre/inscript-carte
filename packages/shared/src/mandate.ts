@@ -2,8 +2,11 @@ import type { Discipline } from './discipline.ts';
 
 /** What the FFTA mandate (the organizer's PDF) says, as read by an LLM and checked by the server. */
 
-export const MANDATE_AUDIENCES = ['adult', 'youth', 'all'] as const;
-/** `all`: the mandate gives one price for everyone. */
+export const MANDATE_AUDIENCES = ['adult', 'youth', 'u11', 'all'] as const;
+/**
+ * `all`: one price for everyone. `u11`: only when the mandate gives U11 their own price ("U11 + Promotion 6 €,
+ * Jeunes 8 €"); otherwise U11 pay the `youth` price.
+ */
 export type MandateAudience = (typeof MANDATE_AUDIENCES)[number];
 
 export const FOAM_TARGETS_ANSWERS = ['yes', 'no', 'not_mentioned'] as const;

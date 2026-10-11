@@ -181,7 +181,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   (status, payment).
 - **Excel file for the organizer** (`organizer-spreadsheet.ts`, layout of FFTA mandate grids): follows the panel's
   filters (the club usually sends only paid départs); never "Plus de place" or "Annulée". One line per archer and
-  bow; Montant from the mandate prices (`pricing.ts`: youth = every Uxx category); empty when no price fits.
+  bow; Montant from the mandate prices (`pricing.ts`: youth = every Uxx category; U11 pay a `u11` price when the
+  mandate gives them one apart, asked 2026-10-11, else youth; then "Tous"); empty when no price fits.
 - Below the competition title: "Mandat (PDF)" and « Lu dans le mandat » (départs and prices read).
 - Concours (`competitions-page.tsx`, `AdminCompetitionOverview`): every upcoming competition, hidden ones included,
   rendered 100 rows at a time (a sentinel loads more on scroll; phones are slow with ~1 800 rows). Decided: problems

@@ -32,7 +32,7 @@ departures : chaque départ (séance de tir) du concours, dans l'ordre. Un conco
 prices : les tarifs d'inscription par archer.
 - amountEuros : le prix TOTAL pour ce nombre de départs ("1 tir 9 €, 2 tirs 16 €" donne deux tarifs : 1 départ 9, 2 départs 16).
 - departures : le nombre de départs que ce prix couvre (1 si le prix est par départ).
-- audience : "youth" pour les jeunes (jeunes, poussins, benjamins, minimes, cadets, juniors, -18 ans…), "adult" pour les adultes (adultes, seniors, scratch), "all" si le prix est le même pour tous.
+- audience : "youth" pour les jeunes (jeunes, poussins, benjamins, minimes, cadets, juniors, -18 ans…), "adult" pour les adultes (adultes, seniors, scratch), "all" si le prix est le même pour tous. "u11" seulement si le mandat donne aux U11 (poussins, moins de 11 ans) un prix à part de celui des autres jeunes, même s'il les groupe avec une autre catégorie ("U11 + Promotion : 6 €, Jeunes : 8 €" donne un tarif "u11" à 6 et un tarif "youth" à 8).
 - Ignore les repas, buvettes, licences découverte, équipes et options : seulement l'inscription individuelle.
 
 foamTargets : "yes" seulement si le mandat dit que les cibles ou les buttes sont en mousse ; "no" s'il dit qu'elles sont en paille ou dans une autre matière ; "not_mentioned" sinon (le plus souvent). Un blason "trispot" n'est pas une cible en mousse.

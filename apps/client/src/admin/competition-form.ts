@@ -11,9 +11,11 @@ import {
 
 import { formatDateRange, formatDay } from '@/lib/dates';
 
+/** U11 pay the « Jeunes » price unless the mandate gives them their own. */
 export const AUDIENCE_LABELS: Record<MandateAudience, string> = {
   adult: 'Adultes',
-  youth: 'Jeunes (U11 à U21)',
+  youth: 'Jeunes',
+  u11: 'U11 (tarif à part)',
   all: 'Tous',
 };
 

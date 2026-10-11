@@ -34,6 +34,18 @@ describe('registrationPrice', () => {
     expect(registrationPrice(everyone, 'U18', 2)).toBe(10);
   });
 
+  test('U11 pay their own price when the mandate gives one, else the youth price', () => {
+    // Montureux-et-Prantigny, 2026-10-11: « U11 + Promotion 6 € / 8 €, Jeunes 8 € / 10 €, Adultes 10 € / 14 € ».
+    const withU11: MandatePrice[] = [
+      ...DEGRESSIVE,
+      { audience: 'u11', departures: 1, amountEuros: 6 },
+      { audience: 'u11', departures: 2, amountEuros: 8 },
+    ];
+    expect(registrationPrice(withU11, 'U11', 2)).toBe(8);
+    expect(registrationPrice(withU11, 'U13', 2)).toBe(10);
+    expect(registrationPrice(DEGRESSIVE, 'U11', 2)).toBe(10);
+  });
+
   test('never guesses: no prices, or nothing that fits, gives no amount', () => {
     expect(registrationPrice(null, 'S1', 1)).toBeNull();
     expect(registrationPrice([{ audience: 'adult', departures: 2, amountEuros: 16 }], 'S1', 1)).toBeNull();
