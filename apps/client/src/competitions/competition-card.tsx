@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { formatDateRange, formatDay, splitDay, todayInParis } from '@/lib/dates';
 import { useRegistrationActions } from '@/registrations/registration-actions';
 
+import { FOAM_TARGETS_BADGE, PARA_TIR_BADGE } from './badges';
 import { DISCIPLINE_COLORS } from './disciplines';
 import { rhythmBadgeClass } from './rhythms';
 
@@ -76,8 +77,8 @@ function Heading({ competition }: { competition: CompetitionDto }) {
   return (
     <div className='flex flex-wrap items-center gap-2'>
       <h3 className='leading-snug font-semibold'>{competition.title}</h3>
-      {competition.hasParaTir && <Badge className='bg-sky-100 text-sky-900'>Para-tir</Badge>}
-      {competition.hasFoamTargets && <Badge className='bg-lime-100 text-lime-900'>Cibles mousses</Badge>}
+      {competition.hasParaTir && <Badge className={PARA_TIR_BADGE}>Para-tir</Badge>}
+      {competition.hasFoamTargets && <Badge className={FOAM_TARGETS_BADGE}>Cibles mousses</Badge>}
       {competition.rhythm && (
         <Badge className={rhythmBadgeClass(competition.rhythm)}>Rythme {competition.rhythm}</Badge>
       )}

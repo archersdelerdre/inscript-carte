@@ -284,9 +284,11 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   **covers** the map (never hide the map: Leaflet needs its real size); a floating "Carte / Liste" button switches;
   phones open on the map the first time (asked by Hervé, 2026-10-11), then on the last view used (`mobileView` in
   `localStorage`; the user's choice).
-- Filters: a round button opening a dialog (disciplines as checkboxes, several at once, none = all; « para-tir »
-  checkbox; dates; "avec des inscrits du club"; "cibles mousses"; « Rythme (Salle 18m et Extérieur) », disabled with
-  a hint when the ticked disciplines have no rhythm), and a "where" pill: place menu (départements grouped by region,
+- Filters: a round button opening a dialog in sections (`FilterSection`, small uppercase titles, a line between):
+  Disciplines (checkboxes, several at once, none = all), Dates, « Seulement les concours » (Para-tir and Cibles
+  mousses with their card badges, `competitions/badges.ts`; avec des inscrits du club), Rythme (« Salle 18m et
+  Extérieur seulement », disabled with a hint when the ticked disciplines have no rhythm). The user liked this
+  layout (2026-10-11). And a "where" pill: place menu (départements grouped by region,
   `region:<id>`, remembered, default 44)
   plus a town search (our own ARIA combobox, not `<datalist>`). Chosen filters show as removable chips on a second
   line, never inside the search field. All filtering happens in the browser: `GET /api/competitions` sends everything.

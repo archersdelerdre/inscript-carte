@@ -9,9 +9,10 @@ import {
   type Rhythm,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { MapPinIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react';
+import { MapPinIcon, SearchIcon, SlidersHorizontalIcon, UsersIcon, XIcon } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -30,6 +31,7 @@ import { formatDay } from '@/lib/dates';
 import { matchesSearch } from '@/lib/search';
 
 import { ALL_FRANCE, areaName, groupDepartments, regionArea } from './areas';
+import { FOAM_TARGETS_BADGE, PARA_TIR_BADGE } from './badges';
 import { DISCIPLINE_COLORS } from './disciplines';
 import { RhythmDot } from './rhythms';
 import { TownSearch, type TownSuggestion } from './town-search';
@@ -307,11 +309,7 @@ export function CompetitionFilterBar({
             <DialogDescription>La liste et la carte se mettent à jour immédiatement.</DialogDescription>
           </DialogHeader>
 
-          <fieldset className='grid gap-1'>
-            <legend className='mb-1 font-medium'>Disciplines</legend>
-            <p className='text-muted-foreground mb-1 text-sm'>
-              Cochez-en une ou plusieurs. Sans case cochée, toutes les disciplines sont affichées.
-            </p>
+          <FilterSection title='Disciplines' hint='Une ou plusieurs. Sans case cochée, toutes sont affichées.'>
             <div className='grid grid-cols-2 gap-x-3'>
               {DISCIPLINES.map((discipline) => (
                 <Label
@@ -329,19 +327,9 @@ export function CompetitionFilterBar({
                 </Label>
               ))}
             </div>
-          </fieldset>
+          </FilterSection>
 
-          <Label htmlFor='filter-para-tir' className='min-h-10 cursor-pointer'>
-            <Checkbox
-              id='filter-para-tir'
-              checked={filters.paraTir}
-              onCheckedChange={(checked) => change({ paraTir: checked === true })}
-            />
-            Seulement les concours avec une épreuve para-tir
-          </Label>
-
-          <fieldset className='grid gap-2'>
-            <legend className='mb-2 font-medium'>Dates</legend>
+          <FilterSection title='Dates'>
             <div className='grid grid-cols-2 gap-3'>
               <div className='grid gap-1'>
                 <Label htmlFor='filter-from' className='text-muted-foreground font-normal'>
@@ -368,43 +356,55 @@ export function CompetitionFilterBar({
                 />
               </div>
             </div>
-          </fieldset>
+          </FilterSection>
 
-          <Label htmlFor='filter-club' className='min-h-10 cursor-pointer'>
-            <Checkbox
-              id='filter-club'
-              checked={filters.withClubArchers}
-              onCheckedChange={(checked) => change({ withClubArchers: checked === true })}
-            />
-            Seulement les concours avec des inscrits du club
-          </Label>
-
-          <div className='grid gap-1'>
-            <Label htmlFor='filter-foam' className='min-h-10 cursor-pointer'>
+          {/* Each with the badge the cards show, so the member knows what to look for. */}
+          <FilterSection title='Seulement les concours'>
+            <Label htmlFor='filter-para-tir' className='min-h-10 cursor-pointer font-normal'>
               <Checkbox
-                id='filter-foam'
-                checked={filters.foamTargets}
-                onCheckedChange={(checked) => change({ foamTargets: checked === true })}
+                id='filter-para-tir'
+                checked={filters.paraTir}
+                onCheckedChange={(checked) => change({ paraTir: checked === true })}
               />
-              Seulement les concours sur cibles mousses
+              <Badge className={PARA_TIR_BADGE}>Para-tir</Badge>
+              avec une épreuve para-tir
             </Label>
-            {/* Disappears by itself once the scraper fills the information. */}
-            {!foamTargetsKnown && (
-              <p className='text-muted-foreground pl-7 text-sm'>
-                Cette information n'est pas encore disponible : pour le moment, aucun concours ne sera affiché.
-              </p>
-            )}
-          </div>
+            <div className='grid'>
+              <Label htmlFor='filter-foam' className='min-h-10 cursor-pointer font-normal'>
+                <Checkbox
+                  id='filter-foam'
+                  checked={filters.foamTargets}
+                  onCheckedChange={(checked) => change({ foamTargets: checked === true })}
+                />
+                <Badge className={FOAM_TARGETS_BADGE}>Cibles mousses</Badge>
+                sur cibles mousses
+              </Label>
+              {/* Disappears by itself once the scraper fills the information. */}
+              {!foamTargetsKnown && (
+                <p className='text-muted-foreground pl-7 text-sm'>
+                  Cette information n'est pas encore disponible : pour le moment, aucun concours ne sera affiché.
+                </p>
+              )}
+            </div>
+            <Label htmlFor='filter-club' className='min-h-10 cursor-pointer font-normal'>
+              <Checkbox
+                id='filter-club'
+                checked={filters.withClubArchers}
+                onCheckedChange={(checked) => change({ withClubArchers: checked === true })}
+              />
+              <UsersIcon className='text-muted-foreground size-4.5 shrink-0' />
+              avec des inscrits du club
+            </Label>
+          </FilterSection>
 
-          <div className='grid gap-2'>
-            {/* Named in the label (asked by a member): only these disciplines have a rhythm. */}
-            <Label htmlFor='filter-rhythm'>Rythme ({RHYTHM_DISCIPLINES})</Label>
+          {/* Named in the hint (asked by a member): only these disciplines have a rhythm. */}
+          <FilterSection title='Rythme' hint={`${RHYTHM_DISCIPLINES} seulement.`}>
             <Select
               value={filters.rhythm}
               disabled={rhythms.length === 0}
               onValueChange={(value) => change({ rhythm: value as typeof ALL | Rhythm })}
             >
-              <SelectTrigger id='filter-rhythm' className='w-full'>
+              <SelectTrigger aria-label='Rythme' className='w-full'>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -428,7 +428,7 @@ export function CompetitionFilterBar({
                 Les concours dont le mandat ne précise pas le rythme ne sont pas affichés.
               </p>
             )}
-          </div>
+          </FilterSection>
 
           <DialogFooter>
             <Button variant='ghost' onClick={clearFilters}>
@@ -441,5 +441,18 @@ export function CompetitionFilterBar({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** One group of the filter dialog: a small title, an optional hint, a line above all but the first. */
+function FilterSection({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <fieldset className='grid gap-2 border-t pt-4 first-of-type:border-t-0 first-of-type:pt-0'>
+      <legend className='contents'>
+        <span className='text-muted-foreground text-sm font-semibold tracking-wide uppercase'>{title}</span>
+      </legend>
+      {hint && <p className='text-muted-foreground -mt-1 text-sm'>{hint}</p>}
+      {children}
+    </fieldset>
   );
 }

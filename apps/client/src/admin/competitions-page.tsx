@@ -10,6 +10,7 @@ import { cn } from 'cn';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { inArea } from '@/competitions/areas';
+import { PARA_TIR_BADGE } from '@/competitions/badges';
 import {
   CompetitionFilterBar,
   type CompetitionFilters,
@@ -292,7 +293,7 @@ const CompetitionRow = memo(function CompetitionRow({ competition, onOpen }: Row
         >
           {competition.title}
         </button>
-        {competition.hasParaTir && <Badge className='ml-2 bg-sky-100 text-sky-900'>Para-tir</Badge>}
+        {competition.hasParaTir && <Badge className={cn('ml-2', PARA_TIR_BADGE)}>Para-tir</Badge>}
       </td>
       <td className='px-3 py-2'>{competition.town}</td>
       <td className='px-3 py-2 tabular-nums'>{competition.departmentCode}</td>
