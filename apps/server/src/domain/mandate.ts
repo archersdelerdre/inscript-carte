@@ -10,7 +10,7 @@ import {
 } from '@inscript-carte/shared';
 import { z } from 'zod';
 
-import type { CalendarDate } from './calendar-date.ts';
+import { addDays, type CalendarDate } from './calendar-date.ts';
 
 /** More would be a misreading: the busiest competitions have six. */
 const MAX_DEPARTURES = 12;
@@ -110,5 +110,28 @@ export function checkMandateData(
       problems: ['Deux tarifs aussi précis l’un que l’autre donnent deux montants pour un même cas.'],
     };
   }
-  return { ok: true, data: { ...parsed.data, departures: onItsDays, prices: [...prices.values()] } };
+  const departures = datedDepartures(onItsDays, competition);
+  return { ok: true, data: { ...parsed.data, departures, prices: [...prices.values()] } };
+}
+
+/**
+ * Gives each départ its day when the mandate says none ("Tir 1, Tir 2, Tir 3" over a weekend), from the times: the
+ * départs come in order, and a time earlier than the one before ("14 h 30" then "8 h 00") starts the next day. Only
+ * when it holds together: no départ dated, a time on every one, and as many days found as the competition has.
+ * Otherwise the départs stay as they are (asked by the user, 2026-10-11).
+ */
+export function datedDepartures(
+  departures: MandateData['departures'],
+  competition: { startDate: CalendarDate; endDate: CalendarDate },
+): MandateData['departures'] {
+  const days: CalendarDate[] = [competition.startDate];
+  while (days.at(-1)! < competition.endDate && days.length <= MAX_DEPARTURES) days.push(addDays(days.at(-1)!, 1));
+  if (days.length < 2 || departures.some(({ date }) => date !== null)) return departures;
+  const times = departures.map(({ registrationOpens, shootingStarts }) => registrationOpens ?? shootingStarts);
+  if (times.some((opens) => opens === null)) return departures;
+
+  let day = 0;
+  const indexes = times.map((opens, index) => (index > 0 && opens! < times[index - 1]! ? ++day : day));
+  if (day !== days.length - 1) return departures;
+  return departures.map((departure, index) => ({ ...departure, date: days[indexes[index]!]! }));
 }

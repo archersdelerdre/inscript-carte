@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 
-import { checkMandateData, mandateAnswerJsonSchema, rhythmOf } from './mandate.ts';
+import type { MandateDeparture } from '@inscript-carte/shared';
+
+import { checkMandateData, datedDepartures, mandateAnswerJsonSchema, rhythmOf } from './mandate.ts';
 
 const COMPETITION = { startDate: '2026-10-31', endDate: '2026-11-01' };
 
@@ -90,6 +92,43 @@ describe('checkMandateData', () => {
 });
 
 const reading = (rhythms?: string[]) => answer({ rhythms }) as never;
+
+const tir = (number: number, registrationOpens: string | null, date: string | null = null): MandateDeparture => ({
+  date,
+  label: `Tir ${number}`,
+  registrationOpens,
+  shootingStarts: null,
+});
+const WEEKEND = { startDate: '2026-11-07', endDate: '2026-11-08' };
+const dates = (departures: MandateDeparture[], competition = WEEKEND) =>
+  datedDepartures(departures, competition).map(({ date }) => date);
+
+// Clisson, 7 and 8 November: « Tir 1 » 14 h 30, « Tir 2 » 8 h, « Tir 3 » 13 h 30, no day written.
+describe('datedDepartures', () => {
+  test('an earlier time than the départ before starts the next day', () => {
+    expect(dates([tir(1, '14:30'), tir(2, '08:00'), tir(3, '13:30')])).toEqual([
+      '2026-11-07',
+      '2026-11-08',
+      '2026-11-08',
+    ]);
+  });
+
+  test('leaves the days unknown when the times do not match the number of days', () => {
+    // Times always going forward on a two-day competition: which day each départ is cannot be told.
+    expect(dates([tir(1, '08:00'), tir(2, '13:30')])).toEqual([null, null]);
+    // Two day changes for two days.
+    expect(dates([tir(1, '14:00'), tir(2, '08:00'), tir(3, '07:00')])).toEqual([null, null, null]);
+  });
+
+  test('leaves the départs as they are without a time, with a day already given, or on one day', () => {
+    expect(dates([tir(1, '14:30'), tir(2, null)])).toEqual([null, null]);
+    expect(dates([tir(1, '14:30', '2026-11-07'), tir(2, '08:00')])).toEqual(['2026-11-07', null]);
+    expect(dates([tir(1, '14:30'), tir(2, '08:00')], { startDate: '2026-11-07', endDate: '2026-11-07' })).toEqual([
+      null,
+      null,
+    ]);
+  });
+});
 
 describe('rhythmOf', () => {
   test('AB/CD as soon as the mandate names it, among others or not', () => {

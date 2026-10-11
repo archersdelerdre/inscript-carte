@@ -257,8 +257,10 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     (120 s), the same request goes to `MANDATE_FALLBACK_MODEL` (default `google/gemini-3.1-flash-lite`, reasoning
     `minimal`, 60 s), which reads documents almost as well, does not reason long, and costs about 4× more.
   - `checkMandateData` checks the answer (≤ 12 départs, 0–150 €). A mandate often covers two FFTA entries of one
-    weekend: départs on other days are dropped. Refused answers are kept as `invalid`, never used. Errors never fail
-    the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
+    weekend: départs on other days are dropped. Undated départs on a competition over several days get their day from
+    the times (`datedDepartures`, asked 2026-10-11): an earlier time than the départ before starts the next day, only
+    when the day count matches; migration `0015` dated the readings stored before. Refused answers are kept as
+    `invalid`, never used. Errors never fail the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
   - **Rhythm** (asked 2026-10-11): one per competition, `AB` / `ABC` / `AB/CD`. Decided: the LLM only lists every
     rhythm the mandate writes (`rhythms`, migration `0013` turned the old single answer into a list); the user's rules
     are applied by the code (`rhythmOf`): **AB/CD as soon as it is named** ("AB/CD ou ABC selon le nombre

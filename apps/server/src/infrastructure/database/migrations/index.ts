@@ -14,6 +14,7 @@ import * as rhythmOverride from './0011-rhythm-override.ts';
 import * as pricesByCategory from './0012-prices-by-category.ts';
 import * as rhythmList from './0013-rhythm-list.ts';
 import * as clubPaysRegistrations from './0014-club-pays-registrations.ts';
+import * as dateDepartures from './0015-date-departures.ts';
 
 /** Listed explicitly so migrations survive `bun build`. Append new ones at the end; never rename. */
 const migrations: Record<string, Knex.Migration> = {
@@ -31,6 +32,7 @@ const migrations: Record<string, Knex.Migration> = {
   '0012-prices-by-category': pricesByCategory,
   '0013-rhythm-list': rhythmList,
   '0014-club-pays-registrations': clubPaysRegistrations,
+  '0015-date-departures': dateDepartures,
 };
 
 export const migrationSource: Knex.MigrationSource<string> = {
