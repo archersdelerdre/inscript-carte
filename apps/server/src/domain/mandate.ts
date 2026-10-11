@@ -1,7 +1,9 @@
 import {
+  allowedRhythms,
   FOAM_TARGETS_ANSWERS,
   MANDATE_AUDIENCES,
   RHYTHM_ANSWERS,
+  type Discipline,
   type MandateData,
   type Rhythm,
 } from '@inscript-carte/shared';
@@ -51,10 +53,16 @@ export const MandateAnswer = z.strictObject({
   evidence: z.strictObject({ departures: quote, prices: quote, foamTargets: quote, rhythm: quote }),
 }) satisfies z.ZodType<MandateData>;
 
-/** The rhythm a stored reading gives: none when not mentioned, or for readings made before it was asked. */
-export function rhythmOf(data: MandateData | null): Rhythm | null {
-  return !data?.rhythm || data.rhythm === 'not_mentioned' ? null : data.rhythm;
+/**
+ * The rhythm a stored reading gives: none when not mentioned, for readings made before it was asked, or when it does
+ * not fit the discipline (an LLM's "ABC" for an indoor competition is a misreading).
+ */
+export function rhythmOf(data: MandateData | null, discipline: Discipline): Rhythm | null {
+  const rhythm = data?.rhythm;
+  if (!rhythm || rhythm === 'not_mentioned' || !allowedRhythms(discipline).includes(rhythm)) return null;
+  return rhythm;
 }
+
 export const mandateAnswerJsonSchema = z.toJSONSchema(MandateAnswer);
 
 export type MandateCheck = { ok: true; data: MandateData } | { ok: false; problems: string[] };

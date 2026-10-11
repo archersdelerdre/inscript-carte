@@ -1344,10 +1344,18 @@ describe('competition edits', () => {
       .where({ ffta_id: SALLE })
       .update(reading({ rhythm: 'AB' }));
     expect((await publicSalle())?.rhythm).toBe('AB');
+    // SALLE is indoors: an "ABC" can only be a misreading.
+    await database('competition_mandates')
+      .where({ ffta_id: SALLE })
+      .update(reading({ rhythm: 'ABC' }));
+    expect((await publicSalle())?.rhythm).toBeNull();
 
     await makeAdmin(ADULT);
     const cookie = await adminSignIn();
-    await call(overridesPath, { method: 'PUT', cookie, body: { rhythm: 'AB/CD' } });
+    const put = (body: object) => call(overridesPath, { method: 'PUT', cookie, body });
+    expect((await put({ rhythm: 'ABC' })).status).toBe(400);
+    expect((await put({ rhythm: 'ABC', discipline: 'exterieur' })).status).toBe(204);
+    await put({ rhythm: 'AB/CD' });
     expect((await publicSalle())?.rhythm).toBe('AB/CD');
   });
 });

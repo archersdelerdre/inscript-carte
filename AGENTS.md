@@ -227,7 +227,10 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     weekend: départs on other days are dropped. Refused answers are kept as `invalid`, never used. Errors never fail
     the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
   - **Rhythm** (asked 2026-10-11): one per competition, `AB` / `ABC` / `AB/CD`, else `not_mentioned` (also when the
-    départs differ). Stored in the reading's data (`rhythmOf`: readings made before have none); edits in
+    départs differ). User's rule: indoors (Salle) only AB or AB/CD, outdoors (Extérieur) only ABC or AB/CD, other
+    disciplines not restricted (`allowedRhythms`): the prompt says so, `rhythmOf` ignores a reading that breaks it,
+    the edit modal offers only the allowed ones, `checkOverrides` refuses the others. Stored in the reading's data
+    (`rhythmOf`: readings made before have none); edits in
     `competition_overrides.rhythm` (migration `0011`). Decided: shown **exactly like « Cibles mousses »** (lime badge
     « Rythme AB/CD » on the card, a line in « Lu dans le mandat »), and a « Rythme » filter that leaves out
     competitions whose rhythm is not known.

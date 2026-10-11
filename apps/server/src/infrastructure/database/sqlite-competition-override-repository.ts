@@ -92,7 +92,7 @@ export class SqliteCompetitionOverrideRepository implements CompetitionOverrideR
       status: row.status,
       hasParaTir: row.has_para_tir === 1,
       hasFoamTargets: row.has_foam_targets === 1,
-      rhythm: rhythmOf(mandate),
+      rhythm: rhythmOf(mandate, row.discipline),
       mandateUrl: row.mandate_url,
       town: row.town,
       departmentCode: row.department_code,

@@ -1,3 +1,5 @@
+import type { Discipline } from './discipline.ts';
+
 /** What the FFTA mandate (the organizer's PDF) says, as read by an LLM and checked by the server. */
 
 export const MANDATE_AUDIENCES = ['adult', 'youth', 'all'] as const;
@@ -13,6 +15,16 @@ export const RHYTHMS = ['AB', 'ABC', 'AB/CD'] as const;
 export type Rhythm = (typeof RHYTHMS)[number];
 export const RHYTHM_ANSWERS = [...RHYTHMS, 'not_mentioned'] as const;
 export type RhythmAnswer = (typeof RHYTHM_ANSWERS)[number];
+
+/** Inside only AB or AB/CD, outside only ABC or AB/CD (the user's rule, 2026-10-11); the others are not restricted. */
+const RHYTHMS_BY_DISCIPLINE: Partial<Record<Discipline, readonly Rhythm[]>> = {
+  salle: ['AB', 'AB/CD'],
+  exterieur: ['ABC', 'AB/CD'],
+};
+
+export function allowedRhythms(discipline: Discipline): readonly Rhythm[] {
+  return RHYTHMS_BY_DISCIPLINE[discipline] ?? RHYTHMS;
+}
 
 export type MandateDeparture = {
   /** `YYYY-MM-DD`, `null` when the mandate does not say which day. */

@@ -1,4 +1,5 @@
 import {
+  allowedRhythms,
   COMPETITION_STATUSES,
   DEPARTMENT_NAMES,
   DISCIPLINES,
@@ -64,7 +65,8 @@ export type CompetitionOverrides = Partial<CompetitionFields>;
 
 /**
  * `null` when the edit is not valid, judged with the values it would give (an edited start date against the FFTA end
- * date, for instance): the dates in order, each départ on one of the competition's days, one amount per case.
+ * date, for instance): the dates in order, each départ on one of the competition's days, one amount per case, a
+ * rhythm the discipline allows.
  */
 export function checkOverrides(raw: unknown, ffta: CompetitionFields): CompetitionOverrides | null {
   const parsed = Overrides.safeParse(raw);
@@ -76,6 +78,9 @@ export function checkOverrides(raw: unknown, ffta: CompetitionFields): Competiti
   const endDate = overrides.endDate ?? ffta.endDate;
   if (endDate < startDate) return null;
   if (overrides.departures?.some(({ date }) => date && (date < startDate || date > endDate))) return null;
+  if (overrides.rhythm && !allowedRhythms(overrides.discipline ?? ffta.discipline).includes(overrides.rhythm)) {
+    return null;
+  }
   const amounts = new Map<string, number>();
   for (const { audience, departures, amountEuros } of overrides.prices ?? []) {
     const key = `${audience}|${departures}`;

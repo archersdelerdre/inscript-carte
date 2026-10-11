@@ -1,4 +1,5 @@
 import {
+  allowedRhythms,
   API_ROUTES,
   apiPath,
   COMPETITION_STATUSES,
@@ -7,6 +8,7 @@ import {
   DISCIPLINE_LABELS,
   MANDATE_AUDIENCES,
   RHYTHMS,
+  type Discipline,
   type Rhythm,
   type CompetitionEditDto,
   type CompetitionEditResponse,
@@ -373,7 +375,7 @@ function CompetitionForm({
           </div>
         </div>
 
-        <Field label='Rythme' htmlFor='edit-rhythm'>
+        <Field label='Rythme' htmlFor='edit-rhythm' error={errors.rhythm}>
           <Select
             value={form.rhythm ?? NO_RHYTHM}
             onValueChange={(value) => patch({ rhythm: value === NO_RHYTHM ? null : (value as Rhythm) })}
@@ -384,7 +386,8 @@ function CompetitionForm({
             <SelectContent>
               {/* An edit cannot remove the rhythm the mandate gives, only change it. */}
               {ffta.rhythm === null && <SelectItem value={NO_RHYTHM}>Non précisé</SelectItem>}
-              {RHYTHMS.map((rhythm) => (
+              {/* The discipline's rhythms, plus the current one while it no longer fits (the error says so). */}
+              {rhythmChoices(form.discipline, form.rhythm).map((rhythm) => (
                 <SelectItem key={rhythm} value={rhythm}>
                   {rhythm}
                 </SelectItem>
@@ -480,6 +483,11 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 const NO_RHYTHM = 'none';
+
+function rhythmChoices(discipline: Discipline, current: Rhythm | null): Rhythm[] {
+  const allowed = allowedRhythms(discipline);
+  return RHYTHMS.filter((rhythm) => allowed.includes(rhythm) || rhythm === current);
+}
 
 function Field({
   label,

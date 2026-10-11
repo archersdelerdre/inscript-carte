@@ -1,4 +1,5 @@
 import {
+  allowedRhythms,
   COMPETITION_STATUS_LABELS,
   DEPARTMENT_NAMES,
   DISCIPLINE_LABELS,
@@ -148,6 +149,7 @@ export type FormErrors = {
   mandateUrl?: string;
   departures?: string;
   prices?: string;
+  rhythm?: string;
 };
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -173,6 +175,9 @@ export function validate(form: FormState, edited: readonly FieldKey[]): FormErro
   }
   if (form.mandateUrl.trim() && !form.mandateUrl.trim().startsWith('https://')) {
     errors.mandateUrl = 'Le lien doit commencer par « https:// ».';
+  }
+  if (has('rhythm') && fields.rhythm && !allowedRhythms(fields.discipline).includes(fields.rhythm)) {
+    errors.rhythm = `Le rythme ${fields.rhythm} n’existe pas pour cette discipline : choisissez-en un autre.`;
   }
 
   if (has('departures') || datesEdited) {

@@ -102,7 +102,7 @@ function toCompetition(row: CompetitionRow): Competition {
     status: row.status,
     hasParaTir: row.has_para_tir === 1,
     hasFoamTargets: row.has_foam_targets === 1,
-    rhythm: row.edited_rhythm ?? rhythmOf(mandate),
+    rhythm: row.edited_rhythm ?? rhythmOf(mandate, row.discipline),
     startDate: row.start_date,
     endDate: row.end_date,
     organizerClub: row.organizer_club,
