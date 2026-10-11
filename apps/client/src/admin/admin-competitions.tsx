@@ -1,6 +1,12 @@
-import { API_ROUTES, type AdminCompetitionDto, type ListAdminCompetitionsResponse } from '@inscript-carte/shared';
+import {
+  API_ROUTES,
+  type AdminCompetitionDto,
+  type ListAdminCompetitionsResponse,
+  type PaymentStatus,
+  type RegistrationStatus,
+} from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { ArrowLeftIcon } from 'lucide-react';
+import { ArrowLeftIcon, ListFilterIcon, ListIcon, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { DISCIPLINE_COLORS } from '@/competitions/disciplines';
@@ -10,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, splitDay } from '@/lib/dates';
 import { ERROR_MESSAGES } from '@/registrations/messages';
+import { PaymentDot, StatusDot } from '@/registrations/status-badge';
 
 import { CompetitionRegistrations } from './competition-registrations';
 
@@ -24,27 +31,88 @@ type ListFilter =
   | 'to_refund'
   | 'all';
 
+type ListFilterOption = {
+  value: ListFilter;
+  label: string;
+  keeps: (competition: AdminCompetitionDto) => boolean;
+  /** The colors of the status and payment state it picks, as in the départ menus. */
+  status?: RegistrationStatus;
+  payment?: PaymentStatus;
+  /** A general choice, no precise state: a neutral icon instead of the dots. */
+  icon?: LucideIcon;
+};
+
 /** In the menu's order. "Concours" is masculine, "départ" too. */
-const LIST_FILTERS: { value: ListFilter; label: string; keeps: (competition: AdminCompetitionDto) => boolean }[] = [
+const LIST_FILTERS: ListFilterOption[] = [
   // A competition whose départs were all cancelled has nothing left, unless the club still owes a refund.
-  { value: 'ongoing', label: 'Avec des départs en cours', keeps: (c) => activeCount(c) > 0 || c.toRefundCount > 0 },
+  {
+    value: 'ongoing',
+    label: 'Avec des départs en cours',
+    keeps: (c) => activeCount(c) > 0 || c.toRefundCount > 0,
+    icon: ListFilterIcon,
+  },
   {
     value: 'todo',
     label: 'Avec quelque chose à faire',
     keeps: (c) => c.statusCounts.received > 0 || c.toPayCount > 0 || c.toRefundCount > 0,
+    status: 'received',
+    payment: 'to_pay',
   },
-  { value: 'received', label: 'Avec des départs à transmettre', keeps: (c) => c.statusCounts.received > 0 },
+  {
+    value: 'received',
+    label: 'Avec des départs à transmettre',
+    keeps: (c) => c.statusCounts.received > 0,
+    status: 'received',
+  },
   {
     value: 'sent_to_organizer',
     label: 'Avec des départs transmis à l’organisateur',
     keeps: (c) => c.statusCounts.sent_to_organizer > 0,
+    status: 'sent_to_organizer',
   },
-  { value: 'confirmed', label: 'Avec des départs validés', keeps: (c) => c.statusCounts.confirmed > 0 },
-  { value: 'full', label: 'Avec des départs « Plus de place »', keeps: (c) => c.statusCounts.full > 0 },
-  { value: 'to_pay', label: 'Avec des départs en attente de paiement', keeps: (c) => c.toPayCount > 0 },
-  { value: 'to_refund', label: 'Avec des départs à rembourser', keeps: (c) => c.toRefundCount > 0 },
-  { value: 'all', label: 'Tous, même sans départ en cours', keeps: () => true },
+  {
+    value: 'confirmed',
+    label: 'Avec des départs validés',
+    keeps: (c) => c.statusCounts.confirmed > 0,
+    status: 'confirmed',
+  },
+  { value: 'full', label: 'Avec des départs « Plus de place »', keeps: (c) => c.statusCounts.full > 0, status: 'full' },
+  {
+    value: 'to_pay',
+    label: 'Avec des départs en attente de paiement',
+    keeps: (c) => c.toPayCount > 0,
+    payment: 'to_pay',
+  },
+  {
+    value: 'to_refund',
+    label: 'Avec des départs à rembourser',
+    keeps: (c) => c.toRefundCount > 0,
+    payment: 'to_refund',
+  },
+  { value: 'all', label: 'Tous, même sans départ en cours', keeps: () => true, icon: ListIcon },
 ];
+
+/**
+ * Two fixed slots, status then payment: in the open list an empty one keeps the labels aligned; in the closed menu
+ * (the trigger repeats the chosen item) empty slots would only push the text, so they are hidden there. A general
+ * choice (no precise state) shows a neutral icon in their place.
+ */
+function FilterDots({ status, payment, icon: Icon }: Pick<ListFilterOption, 'status' | 'payment' | 'icon'>) {
+  if (Icon) {
+    return (
+      <span aria-hidden className='flex w-6 shrink-0 justify-center'>
+        <Icon className='text-muted-foreground size-4' />
+      </span>
+    );
+  }
+  const empty = 'size-2.5 in-data-[slot=select-trigger]:hidden';
+  return (
+    <span aria-hidden className='flex shrink-0 gap-1'>
+      {status ? <StatusDot status={status} /> : <span className={empty} />}
+      {payment ? <PaymentDot paymentStatus={payment} /> : <span className={empty} />}
+    </span>
+  );
+}
 
 /** Départs not cancelled. */
 function activeCount({ statusCounts }: AdminCompetitionDto): number {
@@ -106,8 +174,9 @@ export function AdminCompetitions({ selectedId, onSelect, onSessionExpired }: Pr
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {LIST_FILTERS.map(({ value, label }) => (
+              {LIST_FILTERS.map(({ value, label, status, payment, icon }) => (
                 <SelectItem key={value} value={value}>
+                  <FilterDots status={status} payment={payment} icon={icon} />
                   {label}
                 </SelectItem>
               ))}

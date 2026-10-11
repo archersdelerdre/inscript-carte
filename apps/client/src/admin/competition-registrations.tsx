@@ -57,7 +57,7 @@ import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, formatDateTime, formatDay } from '@/lib/dates';
 import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
-import { StatusBadge, StatusDot } from '@/registrations/status-badge';
+import { PaymentDot, StatusBadge, StatusDot } from '@/registrations/status-badge';
 
 import { MandateSummary } from './mandate-summary';
 
@@ -610,18 +610,6 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
       )}
     </div>
   );
-}
-
-const PAYMENT_DOT: Record<PaymentStatus, string> = {
-  to_pay: 'bg-amber-500',
-  paid: 'bg-green-600',
-  nothing_due: 'bg-gray-400',
-  to_refund: 'bg-violet-600',
-  refunded: 'bg-gray-400',
-};
-
-function PaymentDot({ paymentStatus }: { paymentStatus: PaymentStatus }) {
-  return <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', PAYMENT_DOT[paymentStatus])} />;
 }
 
 type NoteDialogProps = {

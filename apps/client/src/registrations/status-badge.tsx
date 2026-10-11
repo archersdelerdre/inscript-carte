@@ -1,4 +1,4 @@
-import { REGISTRATION_STATUS_LABELS, type RegistrationStatus } from '@inscript-carte/shared';
+import { REGISTRATION_STATUS_LABELS, type PaymentStatus, type RegistrationStatus } from '@inscript-carte/shared';
 
 import { Badge } from '@/components/ui/badge';
 
@@ -26,4 +26,18 @@ const DOT_CLASSES: Record<RegistrationStatus, string> = {
 /** For menus: the status color before its name. */
 export function StatusDot({ status }: { status: RegistrationStatus }) {
   return <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${DOT_CLASSES[status]}`} />;
+}
+
+/** « Remboursé » is « À rembourser » done: the same violet, hollow. « Rien à payer » stays gray. */
+const PAYMENT_DOT_CLASSES: Record<PaymentStatus, string> = {
+  to_pay: 'bg-amber-500',
+  paid: 'bg-green-600',
+  nothing_due: 'bg-gray-400',
+  to_refund: 'bg-violet-600',
+  refunded: 'bg-transparent ring-2 ring-inset ring-violet-600',
+};
+
+/** For menus: the payment state's color before its name. */
+export function PaymentDot({ paymentStatus }: { paymentStatus: PaymentStatus }) {
+  return <span aria-hidden className={`size-2.5 shrink-0 rounded-full ${PAYMENT_DOT_CLASSES[paymentStatus]}`} />;
 }
