@@ -15,7 +15,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["CHROME_PATH", "PORT", "DATABASE_PATH", "API_URL", "MANDATE_MODEL", "MANDATE_FALLBACK_MODEL"]
     }
   }
 }

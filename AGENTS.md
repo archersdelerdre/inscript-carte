@@ -35,7 +35,10 @@ Every sentence must read as natural French, written by a person.
   `size-[1.125rem]`).
 
 From the root: `bun run dev` (server `:3998`, client `:5173`, Vite proxies `/api`), `bun run format`, `lint`,
-`typecheck`, `test`, `build`. Server scripts, with `bun run --cwd apps/server`:
+`typecheck`, `test`, `build`. Turbo hides environment variables from tasks: `dev` lets through only those in
+`turbo.json` `passThroughEnv` (`CHROME_PATH`, `PORT`, `DATABASE_PATH`…). Scraper buttons in development:
+`CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" bun run dev`. Server scripts, with
+`bun run --cwd apps/server`:
 
 | Script | |
 | --- | --- |
