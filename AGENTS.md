@@ -301,9 +301,10 @@ Material Design baseline, without overdoing it:
 
 ## New contributors
 
-Club members new to development build their ideas with the skill `.claude/skills/nouvelle-idee/SKILL.md` (tools,
+Club members new to development build their ideas with the skill `.agents/skills/nouvelle-idee/SKILL.md` (tools,
 fork, made-up demo data, `bun run dev`, checks, pull request). It speaks French to them; code stays English. Update it
-when the setup, scripts or ports change.
+when the setup, scripts or ports change. `.claude/skills/nouvelle-idee` is a symlink to it (Claude Code only reads
+`.claude/skills/`): edit the file in `.agents/`.
 
 ## User guides (`docs/notice/`)
 
