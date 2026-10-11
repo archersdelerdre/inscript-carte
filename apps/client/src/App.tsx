@@ -108,7 +108,9 @@ export function App() {
               resultCount={shown.length}
             />
 
-            <div className='bg-muted/30 min-h-0 flex-1 overflow-y-auto p-4 pb-24 md:pb-4'>
+            {/* `relative`: hidden screen-reader texts (`sr-only`, absolute) are placed and clipped here; against the
+                aside they stuck out below and let the whole page scroll on phones. */}
+            <div className='bg-muted/30 relative min-h-0 flex-1 overflow-y-auto p-4 pb-24 md:pb-4'>
               {state.kind === 'loading' && <p className='text-muted-foreground'>Chargement des concours…</p>}
               {state.kind === 'error' && <p className='text-destructive'>Impossible de charger les concours.</p>}
               {state.kind === 'loaded' && (
