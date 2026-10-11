@@ -367,7 +367,7 @@ export function CompetitionFilterBar({
                 onCheckedChange={(checked) => change({ paraTir: checked === true })}
               />
               <Badge className={PARA_TIR_BADGE}>Para-tir</Badge>
-              avec une épreuve para-tir
+              adaptés au para-tir
             </Label>
             <div className='grid'>
               <Label htmlFor='filter-foam' className='min-h-10 cursor-pointer font-normal'>
@@ -377,7 +377,7 @@ export function CompetitionFilterBar({
                   onCheckedChange={(checked) => change({ foamTargets: checked === true })}
                 />
                 <Badge className={FOAM_TARGETS_BADGE}>Cibles mousses</Badge>
-                sur cibles mousses
+                indiquées sur le mandat
               </Label>
               {/* Disappears by itself once the scraper fills the information. */}
               {!foamTargetsKnown && (
