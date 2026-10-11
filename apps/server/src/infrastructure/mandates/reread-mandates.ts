@@ -1,7 +1,9 @@
 /**
  * Reads every upcoming mandate again, even the files already read: after a change of what is asked to the LLM (the
- * rhythm, 2026-10-11). `bun run mandate:reread-all [--limit N]`. Needs `OPENROUTER_API_KEY` and poppler. Prints
- * counts and FFTA ids only. Not while a calendar update runs: both would write the same readings.
+ * rhythm, 2026-10-11). `bun run mandate:reread-all [--limit N] [--ids 26337,27169]`: `--ids` reads only those (the
+ * ones a previous run reported; a failed forced re-read keeps the old reading, so nothing in the database says which
+ * failed). Needs `OPENROUTER_API_KEY` and poppler. Prints counts and FFTA ids only. Not while a calendar update runs:
+ * both would write the same readings.
  */
 import { MAX_MANDATE_ATTEMPTS, ReadMandates } from '../../application/read-mandates.ts';
 import { config } from '../config.ts';
@@ -11,10 +13,19 @@ import { SystemClock } from '../system-clock.ts';
 import { OpenRouterMandateExtractor } from './openrouter-mandate-extractor.ts';
 import { PdfMandateFetcher } from './pdf-mandate-fetcher.ts';
 
-const limitIndex = Bun.argv.indexOf('--limit');
-const limit = limitIndex === -1 ? Infinity : Number(Bun.argv[limitIndex + 1]);
-if (!config.openRouterApiKey || !(limit > 0)) {
-  console.error('Usage: OPENROUTER_API_KEY=… bun run mandate:reread-all [--limit N]');
+function option(name: string): string | undefined {
+  const index = Bun.argv.indexOf(name);
+  return index === -1 ? undefined : Bun.argv[index + 1];
+}
+
+const limit = Number(option('--limit') ?? Infinity);
+const idsText = option('--ids');
+const fftaIds = idsText
+  ?.split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
+if (!config.openRouterApiKey || !(limit > 0) || (idsText !== undefined && !fftaIds?.length)) {
+  console.error('Usage: OPENROUTER_API_KEY=… bun run mandate:reread-all [--limit N] [--ids 26337,27169]');
   process.exit(1);
 }
 
@@ -30,6 +41,7 @@ try {
   const counts = await readMandates.run({
     today: clock.today(),
     force: true,
+    fftaIds,
     limit,
     onProgress: (done, total) => {
       if (done % 20 === 0 || done === total) console.log(`${done} / ${total}`);

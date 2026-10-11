@@ -45,7 +45,7 @@ From the root: `bun run dev` (server `:3998`, client `:5173`, Vite proxies `/api
 | `db:relocate [--dry-run]` | locate every upcoming competition again |
 | `scrape [--dry-run] [--max-details N] [--max-mandates N]` | one FFTA run by hand (needs `CHROME_PATH`) |
 | `mandate:read <url> <start> [end]` | read one mandate with the LLM and print it, writes nothing |
-| `mandate:reread-all [--limit N]` | read every upcoming mandate again, same files included (after a prompt change); not during a calendar update |
+| `mandate:reread-all [--limit N] [--ids a,b]` | read every upcoming mandate again (or only those ids), same files included (after a prompt change); not during a calendar update |
 
 Migrations run when the server starts. There is no rollback command; to start over, stop the server and delete the
 `.sqlite`, `-wal` and `-shm` files.
