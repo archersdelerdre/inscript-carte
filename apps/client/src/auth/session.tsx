@@ -97,8 +97,9 @@ type SignInDialogProps = {
 function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
   const [licenceNumber, setLicenceNumber] = useState(() => localStorage.getItem(LICENCE_STORAGE_KEY) ?? '');
   const [birthDate, setBirthDate] = useState('');
-  // The archer's choice, never imposed (asked by a member 2026-10-11): off unless they tick it.
-  const [remember, setRemember] = useState(false);
+  // The archer's choice (asked by a member 2026-10-11), ticked by default (the user's choice): untick it on a shared
+  // device.
+  const [remember, setRemember] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -171,10 +172,7 @@ function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
               />
               Garder la connexion sur cet appareil
             </Label>
-            <p className='text-muted-foreground pl-7 text-sm'>
-              À cocher seulement sur un appareil personnel : vous n'aurez plus à vous reconnecter. Sinon, la connexion
-              s'arrête à la fermeture du navigateur.
-            </p>
+            <p className='text-muted-foreground pl-7 text-sm'>À décocher sur un appareil partagé ou peu sécurisé.</p>
           </div>
           {message && (
             <p role='alert' className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>

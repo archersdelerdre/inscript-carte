@@ -17,9 +17,10 @@ export function frenchTime(time: string): string {
   return `${Number(hours)} h${minutes === '00' ? '' : ` ${minutes}`}`;
 }
 
-function details(departure: MandateDeparture, severalDays: boolean): string | null {
+/** `date`: the day to show, `null` to show none. */
+function details(departure: MandateDeparture, date: string | null): string | null {
   // "Samedi matin" already says the day.
-  const day = severalDays && departure.date ? weekday.format(new Date(`${departure.date}T00:00:00Z`)) : null;
+  const day = date ? weekday.format(new Date(`${date}T00:00:00Z`)) : null;
   const dayShown = day && !departure.label.toLowerCase().includes(day.split(' ')[0]!) ? day : null;
   const parts = [
     dayShown && dayShown.charAt(0).toUpperCase() + dayShown.slice(1),
@@ -29,9 +30,13 @@ function details(departure: MandateDeparture, severalDays: boolean): string | nu
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
-/** The départs the archer may pick: the mandate's when it was read, else 1 to `DEFAULT_DEPARTURE_COUNT`. */
+/**
+ * The départs the archer may pick: the mandate's when it was read, else 1 to `DEFAULT_DEPARTURE_COUNT`. The day is
+ * shown when the competition lasts several days, or always with `withDay` (the registrants list: asked by a member).
+ */
 export function departureOptions(
   competition: Pick<CompetitionDto, 'departures' | 'startDate' | 'endDate'>,
+  { withDay = false }: { withDay?: boolean } = {},
 ): DepartureOption[] {
   if (!competition.departures) {
     return Array.from({ length: DEFAULT_DEPARTURE_COUNT }, (_, index) => ({
@@ -41,9 +46,13 @@ export function departureOptions(
     }));
   }
   const severalDays = competition.startDate !== competition.endDate;
-  return competition.departures.map((departure, index) => ({
-    number: index + 1,
-    name: departure.label,
-    details: details(departure, severalDays),
-  }));
+  return competition.departures.map((departure, index) => {
+    // One day only: the mandate may not date its départs, but the competition's date is theirs.
+    const date = departure.date ?? (severalDays ? null : competition.startDate);
+    return {
+      number: index + 1,
+      name: departure.label,
+      details: details(departure, severalDays || withDay ? date : null),
+    };
+  });
 }

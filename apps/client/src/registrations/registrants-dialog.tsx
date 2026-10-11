@@ -76,7 +76,7 @@ export function RegistrantsDialog({ competition, onClose }: Props) {
                 {competition.departures && (
                   <ul className='text-muted-foreground text-sm'>
                     {registrant.departures.map((number) => {
-                      const option = departureOptions(competition)[number - 1];
+                      const option = departureOptions(competition, { withDay: true })[number - 1];
                       return (
                         <li key={number}>
                           {[departureTitle(number, option?.name ?? null), option?.details].filter(Boolean).join(' · ')}

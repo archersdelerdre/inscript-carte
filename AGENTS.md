@@ -121,7 +121,8 @@ Inner layers never import outer ones. The domain may import types and rules from
   Limits: 30 failures per licence, 200 per address, per 15 min (high on purpose: no lockout for members who
   mistype). Cookie `HttpOnly`, `SameSite=Lax`; only the token's SHA-256 is stored. The browser never keeps the birth
   date. Decided (asked by Hervé, 2026-10-11): staying signed in is the member's choice, a box « Garder la connexion
-  sur cet appareil », off by default: ticked, a 180-day cookie and the licence number kept on the device; not ticked,
+  sur cet appareil », ticked by default (the user's choice), « À décocher sur un appareil partagé ou peu sécurisé. »: ticked, a
+  180-day cookie and the licence number kept on the device; not ticked,
   a browser-session cookie and a 12-hour session on the server. The header shows « Se connecter », or « Mon suivi »
   with a green dot. Decided: no name in the header (the user found it useless).
 - Admins: decided, **two steps**: member sign-in, then a personal password (`admins` table). 10 wrong passwords per
@@ -157,8 +158,8 @@ Inner layers never import outer ones. The domain may import types and rules from
   in the note, and leaves "Mon suivi".
 - Names of registrants: signed-in members only; the count (`clubArcherCount`) is public. « Voir les inscrits » shows
   each archer's category for that competition (« Senior 2 Femme », stored with the registration; asked by members,
-  2026-10-11), bow and départs; when the mandate was read, one line per départ with its day and times (asked by
-  Hervé: no need to open the mandate).
+  2026-10-11), bow and départs; when the mandate was read, one line per départ with its day (always, even on a
+  one-day competition: the competition's date when the mandate gives none) and times (asked by Hervé).
 - Postponed competitions (`status = 'postponed'`): a solid red « Reporté » badge and a red notice on the card; no
   « S'inscrire », and the server refuses registrations (`isClubRegistrationOpen` needs `scheduled`). Asked by Hervé.
 - « Ajouter à mon agenda » (success screen and "Mon suivi", hidden once the competition is over): Google Agenda link
