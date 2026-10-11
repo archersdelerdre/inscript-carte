@@ -31,12 +31,25 @@ function details(departure: MandateDeparture, date: string | null): string | nul
 }
 
 /**
- * The départs the archer may pick: the mandate's when it was read, else 1 to `DEFAULT_DEPARTURE_COUNT`. The day is
- * shown when the competition lasts several days, or always with `withDay` (the registrants list: asked by a member).
+ * The day of départ `number` (1-based): the mandate's, else the competition's own date when it lasts one day; `null`
+ * when not known (no mandate on a competition over several days, or an undated départ).
+ */
+export function departureDate(
+  competition: Pick<CompetitionDto, 'departures' | 'startDate' | 'endDate'>,
+  number: number,
+): string | null {
+  const severalDays = competition.startDate !== competition.endDate;
+  return competition.departures?.[number - 1]?.date ?? (severalDays ? null : competition.startDate);
+}
+
+/**
+ * The départs the archer may pick: the mandate's when it was read, else 1 to `DEFAULT_DEPARTURE_COUNT`. The day is in
+ * the details when the competition lasts several days, unless `showDay` says otherwise (the registrants list groups
+ * by day instead).
  */
 export function departureOptions(
   competition: Pick<CompetitionDto, 'departures' | 'startDate' | 'endDate'>,
-  { withDay = false }: { withDay?: boolean } = {},
+  { showDay = competition.startDate !== competition.endDate }: { showDay?: boolean } = {},
 ): DepartureOption[] {
   if (!competition.departures) {
     return Array.from({ length: DEFAULT_DEPARTURE_COUNT }, (_, index) => ({
@@ -45,14 +58,9 @@ export function departureOptions(
       details: null,
     }));
   }
-  const severalDays = competition.startDate !== competition.endDate;
-  return competition.departures.map((departure, index) => {
-    // One day only: the mandate may not date its départs, but the competition's date is theirs.
-    const date = departure.date ?? (severalDays ? null : competition.startDate);
-    return {
-      number: index + 1,
-      name: departure.label,
-      details: details(departure, severalDays || withDay ? date : null),
-    };
-  });
+  return competition.departures.map((departure, index) => ({
+    number: index + 1,
+    name: departure.label,
+    details: details(departure, showDay ? departureDate(competition, index + 1) : null),
+  }));
 }

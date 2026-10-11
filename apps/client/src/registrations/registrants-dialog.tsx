@@ -17,8 +17,46 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { api } from '@/lib/api';
 import { formatDateRange } from '@/lib/dates';
 
-import { departureOptions } from './departures';
+import { departureDate, departureOptions } from './departures';
 import { departuresPhrase, ERROR_MESSAGES } from './messages';
+
+const dayHeading = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  timeZone: 'UTC',
+});
+
+type DayGroup = {
+  /** `YYYY-MM-DD`, `null` for départs whose day is not known. */
+  date: string | null;
+  /** Each archer (and bow) with only their départs of that day. */
+  registrants: CompetitionRegistrantDto[];
+};
+
+/** One group per day, in order; undated départs last. Asked by the user: who shoots together that day. */
+function groupByDay(competition: CompetitionDto, registrants: CompetitionRegistrantDto[]): DayGroup[] {
+  const groups = new Map<string | null, CompetitionRegistrantDto[]>();
+  for (const registrant of registrants) {
+    const byDate = new Map<string | null, number[]>();
+    for (const departure of registrant.departures) {
+      const date = departureDate(competition, departure);
+      byDate.set(date, [...(byDate.get(date) ?? []), departure]);
+    }
+    for (const [date, departures] of byDate) {
+      groups.set(date, [...(groups.get(date) ?? []), { ...registrant, departures }]);
+    }
+  }
+  return [...groups]
+    .map(([date, list]) => ({ date, registrants: list }))
+    .toSorted((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'));
+}
+
+function dayLabel(date: string | null): string {
+  if (!date) return 'Jour non précisé';
+  const text = dayHeading.format(new Date(`${date}T00:00:00Z`));
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 type Props = { competition: CompetitionDto; onClose: () => void };
 
@@ -55,41 +93,64 @@ export function RegistrantsDialog({ competition, onClose }: Props) {
         {!message && registrants === null && <p className='text-muted-foreground'>Chargement…</p>}
         {registrants?.length === 0 && <p className='text-muted-foreground'>Aucun inscrit du club pour le moment.</p>}
         {registrants && registrants.length > 0 && (
-          <ul className='grid gap-2'>
-            {registrants.map((registrant) => (
-              <li key={`${registrant.fullName}|${registrant.bowType}`} className='rounded-md border px-3 py-2'>
-                <p className='flex flex-wrap items-center gap-2 font-medium'>
-                  {registrant.fullName}
-                  {registrant.carpool && (
-                    <Badge className='bg-sky-100 font-normal text-sky-900'>
-                      <CarIcon />
-                      Covoiturage
-                    </Badge>
-                  )}
-                </p>
-                <p className='text-muted-foreground text-sm'>
-                  {categoryLabel(registrant.category, registrant.sex)} · {BOW_TYPE_LABELS[registrant.bowType]}
-                  {!competition.departures && ` · ${departuresPhrase(registrant.departures)}`}
-                </p>
-                {/* With the mandate read, each départ with its day and times (asked by a member: no need to open
-                    the mandate to know when a départ is). */}
-                {competition.departures && (
-                  <ul className='text-muted-foreground text-sm'>
-                    {registrant.departures.map((number) => {
-                      const option = departureOptions(competition, { withDay: true })[number - 1];
-                      return (
-                        <li key={number}>
-                          {[departureTitle(number, option?.name ?? null), option?.details].filter(Boolean).join(' · ')}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </li>
+          <div className='grid gap-4'>
+            {groupByDay(competition, registrants).map((group) => (
+              <section key={group.date ?? 'undated'} className='grid gap-2'>
+                <h3 className='font-semibold'>{dayLabel(group.date)}</h3>
+                <ul className='grid gap-2'>
+                  {group.registrants.map((registrant) => (
+                    <RegistrantItem
+                      key={`${registrant.fullName}|${registrant.bowType}`}
+                      competition={competition}
+                      registrant={registrant}
+                    />
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RegistrantItem({
+  competition,
+  registrant,
+}: {
+  competition: CompetitionDto;
+  registrant: CompetitionRegistrantDto;
+}) {
+  // The day is the group's heading: only the départ and its times here.
+  const options = departureOptions(competition, { showDay: false });
+  return (
+    <li className='rounded-md border px-3 py-2'>
+      <p className='flex flex-wrap items-center gap-2 font-medium'>
+        {registrant.fullName}
+        {registrant.carpool && (
+          <Badge className='bg-sky-100 font-normal text-sky-900'>
+            <CarIcon />
+            Covoiturage
+          </Badge>
+        )}
+      </p>
+      <p className='text-muted-foreground text-sm'>
+        {categoryLabel(registrant.category, registrant.sex)} · {BOW_TYPE_LABELS[registrant.bowType]}
+        {!competition.departures && ` · ${departuresPhrase(registrant.departures)}`}
+      </p>
+      {competition.departures && (
+        <ul className='text-muted-foreground text-sm'>
+          {registrant.departures.map((number) => {
+            const option = options[number - 1];
+            return (
+              <li key={number}>
+                {[departureTitle(number, option?.name ?? null), option?.details].filter(Boolean).join(' · ')}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
   );
 }

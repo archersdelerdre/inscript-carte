@@ -158,8 +158,9 @@ Inner layers never import outer ones. The domain may import types and rules from
   in the note, and leaves "Mon suivi".
 - Names of registrants: signed-in members only; the count (`clubArcherCount`) is public. « Voir les inscrits » shows
   each archer's category for that competition (« Senior 2 Femme », stored with the registration; asked by members,
-  2026-10-11), bow and départs; when the mandate was read, one line per départ with its day (always, even on a
-  one-day competition: the competition's date when the mandate gives none) and times (asked by Hervé).
+  2026-10-11), bow and départs. Grouped **by day** (user's choice): a heading « Mardi 3 novembre », then the archers
+  shooting that day with only that day's départs and times (`departureDate`: the mandate's date, else the
+  competition's on a one-day competition; « Jour non précisé » last).
 - Postponed competitions (`status = 'postponed'`): a solid red « Reporté » badge and a red notice on the card; no
   « S'inscrire », and the server refuses registrations (`isClubRegistrationOpen` needs `scheduled`). Asked by Hervé.
 - « Ajouter à mon agenda » (success screen and "Mon suivi", hidden once the competition is over): Google Agenda link
