@@ -177,7 +177,10 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   address is the only state (`pushState` + `popstate`), tabs are real links. `main.tsx` lazy-loads the member app or
   the admin app as separate chunks (also keeps chunks under Vite's 500 kB warning).
 - Inscriptions: competitions with registrations (badges « à transmettre », « en attente de paiement », « à
-  rembourser »), then one card per payment reference, one line per départ (status menu, payment menu, note).
+  rembourser »), narrowed by a menu above the list (`LIST_FILTERS`, asked by Loïc 2026-10-11): by default « Avec des
+  départs en cours » hides those whose départs are all cancelled (unless a refund is due); also « quelque chose à
+  faire », one per status or payment state, and « Tous ». Then one card per payment reference, one line per départ
+  (status menu, payment menu, note).
   Decided: a card starts closed only when nothing is left to do (every active départ full, or validated and paid,
   nothing to refund); it never closes by itself. Search (name, licence, reference; accents ignored) and filters
   (status, payment).

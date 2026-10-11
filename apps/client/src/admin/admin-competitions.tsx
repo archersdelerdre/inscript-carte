@@ -6,11 +6,50 @@ import { useCallback, useEffect, useState } from 'react';
 import { DISCIPLINE_COLORS } from '@/competitions/disciplines';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, splitDay } from '@/lib/dates';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 
 import { CompetitionRegistrations } from './competition-registrations';
+
+type ListFilter =
+  | 'ongoing'
+  | 'todo'
+  | 'received'
+  | 'sent_to_organizer'
+  | 'confirmed'
+  | 'full'
+  | 'to_pay'
+  | 'to_refund'
+  | 'all';
+
+/** In the menu's order. "Concours" is masculine, "départ" too. */
+const LIST_FILTERS: { value: ListFilter; label: string; keeps: (competition: AdminCompetitionDto) => boolean }[] = [
+  // A competition whose départs were all cancelled has nothing left, unless the club still owes a refund.
+  { value: 'ongoing', label: 'Avec des départs en cours', keeps: (c) => activeCount(c) > 0 || c.toRefundCount > 0 },
+  {
+    value: 'todo',
+    label: 'Avec quelque chose à faire',
+    keeps: (c) => c.statusCounts.received > 0 || c.toPayCount > 0 || c.toRefundCount > 0,
+  },
+  { value: 'received', label: 'Avec des départs à transmettre', keeps: (c) => c.statusCounts.received > 0 },
+  {
+    value: 'sent_to_organizer',
+    label: 'Avec des départs transmis à l’organisateur',
+    keeps: (c) => c.statusCounts.sent_to_organizer > 0,
+  },
+  { value: 'confirmed', label: 'Avec des départs validés', keeps: (c) => c.statusCounts.confirmed > 0 },
+  { value: 'full', label: 'Avec des départs « Plus de place »', keeps: (c) => c.statusCounts.full > 0 },
+  { value: 'to_pay', label: 'Avec des départs en attente de paiement', keeps: (c) => c.toPayCount > 0 },
+  { value: 'to_refund', label: 'Avec des départs à rembourser', keeps: (c) => c.toRefundCount > 0 },
+  { value: 'all', label: 'Tous, même sans départ en cours', keeps: () => true },
+];
+
+/** Départs not cancelled. */
+function activeCount({ statusCounts }: AdminCompetitionDto): number {
+  return statusCounts.received + statusCounts.sent_to_organizer + statusCounts.confirmed + statusCounts.full;
+}
 
 type Props = {
   /** From the address: `/admin/inscriptions/<id>`. `null` on the list alone. */
@@ -24,6 +63,7 @@ type Props = {
 export function AdminCompetitions({ selectedId, onSelect, onSessionExpired }: Props) {
   const [competitions, setCompetitions] = useState<AdminCompetitionDto[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ListFilter>('ongoing');
 
   const showResult = useCallback(
     (result: ApiResult<ListAdminCompetitionsResponse>) => {
@@ -40,8 +80,10 @@ export function AdminCompetitions({ selectedId, onSelect, onSessionExpired }: Pr
 
   useEffect(reload, [reload]);
 
-  const upcoming = competitions?.filter((competition) => !competition.isFinished) ?? [];
-  const finished = competitions?.filter((competition) => competition.isFinished) ?? [];
+  const keeps = LIST_FILTERS.find(({ value }) => value === filter)!.keeps;
+  const shown = competitions?.filter(keeps) ?? [];
+  const upcoming = shown.filter((competition) => !competition.isFinished);
+  const finished = shown.filter((competition) => competition.isFinished);
 
   return (
     <div className='flex min-h-0 flex-1'>
@@ -58,6 +100,23 @@ export function AdminCompetitions({ selectedId, onSelect, onSessionExpired }: Pr
         )}
         {competitions === null && !message && <p className='text-muted-foreground'>Chargement…</p>}
         {competitions?.length === 0 && <p className='text-muted-foreground'>Aucune inscription pour le moment.</p>}
+        {competitions && competitions.length > 0 && (
+          <Select value={filter} onValueChange={(value) => setFilter(value as ListFilter)}>
+            <SelectTrigger aria-label='Concours affichés' className='w-full'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {LIST_FILTERS.map(({ value, label }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {competitions && competitions.length > 0 && shown.length === 0 && (
+          <p className='text-muted-foreground'>Aucun concours ne correspond à ce choix.</p>
+        )}
         {upcoming.length > 0 && (
           <CompetitionGroup
             title={`${upcoming.length} concours à venir`}
@@ -134,8 +193,8 @@ function CompetitionItem({
   onSelect: () => void;
 }) {
   const start = splitDay(competition.startDate);
-  const { received, sent_to_organizer, confirmed, full } = competition.statusCounts;
-  const active = received + sent_to_organizer + confirmed + full;
+  const { received } = competition.statusCounts;
+  const active = activeCount(competition);
   return (
     <button
       type='button'
