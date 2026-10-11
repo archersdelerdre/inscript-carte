@@ -139,6 +139,8 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
     const rows: {
       archer_licence_number: string;
       full_name: string;
+      category: AgeCategory;
+      sex: Sex;
       bow_type: BowType;
       departure: number;
       carpool: 0 | 1;
@@ -149,6 +151,8 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
       .select(
         'registrations.archer_licence_number',
         'archers.full_name',
+        'registrations.category',
+        'archers.sex',
         'registrations.bow_type',
         'registrations.departure',
         'registrations.carpool',
@@ -156,6 +160,8 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
     return rows.map((row) => ({
       archerLicenceNumber: row.archer_licence_number,
       fullName: row.full_name,
+      category: row.category,
+      sex: row.sex,
       bowType: row.bow_type,
       departure: row.departure,
       carpool: row.carpool === 1,

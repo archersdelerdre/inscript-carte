@@ -1,4 +1,4 @@
-import type { BowType, PaymentStatus, RegistrationStatus, Sex } from '@inscript-carte/shared';
+import type { AgeCategory, BowType, PaymentStatus, RegistrationStatus, Sex } from '@inscript-carte/shared';
 
 import type { CalendarDate } from './calendar-date.ts';
 import type { NewRegistration, Registration } from './registration.ts';
@@ -7,6 +7,8 @@ import type { NewRegistration, Registration } from './registration.ts';
 export type Registrant = {
   readonly archerLicenceNumber: string;
   readonly fullName: string;
+  readonly category: AgeCategory;
+  readonly sex: Sex;
   readonly bowType: BowType;
   readonly departure: number;
   readonly carpool: boolean;

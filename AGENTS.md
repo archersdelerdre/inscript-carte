@@ -147,7 +147,9 @@ Inner layers never import outer ones. The domain may import types and rules from
   another file), cleared when it goes.
 - Withdraw: only `received` départs, until the deadline. The row stays, `cancelled`, with "Retirée par l'archer le …"
   in the note, and leaves "Mon suivi".
-- Names of registrants: signed-in members only; the count (`clubArcherCount`) is public.
+- Names of registrants: signed-in members only; the count (`clubArcherCount`) is public. « Voir les inscrits » shows
+  each archer's category for that competition (« Senior 2 Femme », stored with the registration; asked by members,
+  2026-10-11), bow and départs.
 - « Ajouter à mon agenda » (success screen and "Mon suivi", hidden once the competition is over): Google Agenda link
   or an `.ics` built in the browser (`registrations/calendar.ts`). Decided: one event **per day**, merging that day's
   départs, from the first greffe to the last estimated end (shooting + 3 h, else greffe + 4 h), floating local times;

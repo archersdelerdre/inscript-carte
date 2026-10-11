@@ -7,6 +7,7 @@ import {
   type BowType,
   type DepartureChoice,
   type Distance,
+  type Sex,
 } from '@inscript-carte/shared';
 
 import { birthYear, type Archer } from '../domain/archer.ts';
@@ -33,7 +34,14 @@ export type RegisterResult =
   | { ok: true; departures: number[]; category: AgeCategory; paymentReference: string; paymentDeadline: string }
   | { ok: false; reason: 'not_found' | 'invalid_request' | 'registration_closed' | 'already_registered' };
 
-export type RegistrantGroup = { fullName: string; bowType: BowType; departures: number[]; carpool: boolean };
+export type RegistrantGroup = {
+  fullName: string;
+  category: AgeCategory;
+  sex: Sex;
+  bowType: BowType;
+  departures: number[];
+  carpool: boolean;
+};
 
 export type MyRegistration = { registration: Registration; competition: Competition; canWithdraw: boolean };
 
@@ -115,6 +123,8 @@ export class ClubRegistrations {
       else
         groups.set(key, {
           fullName: registrant.fullName,
+          category: registrant.category,
+          sex: registrant.sex,
           bowType: registrant.bowType,
           departures: [registrant.departure],
           carpool: carpoolers.has(registrant.archerLicenceNumber),

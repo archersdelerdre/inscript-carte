@@ -365,7 +365,16 @@ describe('registration', () => {
 
     const response = await call(`/api/competitions/${SALLE}/registrations`, { cookie: await signIn(YOUTH) });
     expect((await response.json()) as ListCompetitionRegistrantsResponse).toEqual({
-      registrants: [{ fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1, 3], carpool: false }],
+      registrants: [
+        {
+          fullName: 'DUPONT JEANNE',
+          category: 'S2',
+          sex: 'female',
+          bowType: 'classique',
+          departures: [1, 3],
+          carpool: false,
+        },
+      ],
     });
   });
 
@@ -387,8 +396,15 @@ describe('registration', () => {
     // A later request for another départ, with another bow, says yes: départ 1 says yes too.
     await register(form({ departures: [2], bowType: 'poulies', carpool: true }));
     expect(await registrants()).toEqual([
-      { fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1], carpool: true },
-      { fullName: 'DUPONT JEANNE', bowType: 'poulies', departures: [2], carpool: true },
+      {
+        fullName: 'DUPONT JEANNE',
+        category: 'S2',
+        sex: 'female',
+        bowType: 'classique',
+        departures: [1],
+        carpool: true,
+      },
+      { fullName: 'DUPONT JEANNE', category: 'S2', sex: 'female', bowType: 'poulies', departures: [2], carpool: true },
     ]);
     expect(await mine()).toEqual([
       [1, true],
@@ -428,8 +444,15 @@ describe('registration', () => {
     ]);
     const response = await call(`/api/competitions/${SALLE}/registrations`, { cookie });
     expect(((await response.json()) as ListCompetitionRegistrantsResponse).registrants).toEqual([
-      { fullName: 'DUPONT JEANNE', bowType: 'classique', departures: [1], carpool: false },
-      { fullName: 'DUPONT JEANNE', bowType: 'poulies', departures: [2], carpool: false },
+      {
+        fullName: 'DUPONT JEANNE',
+        category: 'S2',
+        sex: 'female',
+        bowType: 'classique',
+        departures: [1],
+        carpool: false,
+      },
+      { fullName: 'DUPONT JEANNE', category: 'S2', sex: 'female', bowType: 'poulies', departures: [2], carpool: false },
     ]);
   });
 });

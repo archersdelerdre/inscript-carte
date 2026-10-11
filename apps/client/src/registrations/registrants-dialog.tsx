@@ -2,6 +2,7 @@ import {
   apiPath,
   API_ROUTES,
   BOW_TYPE_LABELS,
+  categoryLabel,
   type CompetitionDto,
   type CompetitionRegistrantDto,
   type ListCompetitionRegistrantsResponse,
@@ -65,7 +66,8 @@ export function RegistrantsDialog({ competition, onClose }: Props) {
                   )}
                 </p>
                 <p className='text-muted-foreground text-sm'>
-                  {BOW_TYPE_LABELS[registrant.bowType]} · {departuresPhrase(registrant.departures)}
+                  {categoryLabel(registrant.category, registrant.sex)} · {BOW_TYPE_LABELS[registrant.bowType]} ·{' '}
+                  {departuresPhrase(registrant.departures)}
                 </p>
               </li>
             ))}

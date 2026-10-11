@@ -160,6 +160,9 @@ export type RegistrationCreatedResponse = {
 
 export type CompetitionRegistrantDto = {
   fullName: string;
+  /** For that competition, as stored with the registration; with `sex` for « Senior 1 Femme ». */
+  category: AgeCategory;
+  sex: Sex;
   bowType: BowType;
   departures: number[];
   /** Interested in carpooling from the club, so the members can organize together. */
