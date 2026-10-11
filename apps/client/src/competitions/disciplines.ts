@@ -7,7 +7,7 @@ export const DISCIPLINE_COLORS: Record<Discipline, string> = {
   '3d': '#d9822b',
   nature: '#2e8b57',
   beursault: '#8d6e63',
-  loisirs: '#4a9d8f',
+  loisirs: '#c2185b',
   autres: '#666666',
 };
 
