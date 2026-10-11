@@ -232,8 +232,10 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   concours" re-reads its mandate; a failed forced reading keeps the previous good one.
   - PDF over plain HTTP (`https://*.ffta.fr` only, 10 MB max); same SHA-256 as the last good reading → not sent again.
     poppler gives the first 6 pages as JPEG + `pdftotext`.
-  - LLM via `@openrouter/sdk`: `MANDATE_MODEL` (default `z-ai/glm-5.3-flash`), temperature 0, reasoning `medium`,
-    `dataCollection: 'deny'`, JSON schema from zod. Prompt in French in `openrouter-mandate-extractor.ts`.
+  - LLM via `@openrouter/sdk`: `MANDATE_MODEL` (default `z-ai/glm-5.3-flash`), temperature 0, reasoning `low` (was
+    `medium` until 2026-10-11: long reasonings hit the 120 s timeout), `dataCollection: 'deny'`, providers sorted by
+    price among those at 50 tokens/s or more (`preferredMinThroughput`; OpenRouter has no price-per-speed sort), JSON
+    schema from zod. Prompt in French in `openrouter-mandate-extractor.ts`.
   - `checkMandateData` checks the answer (≤ 12 départs, 0–150 €). A mandate often covers two FFTA entries of one
     weekend: départs on other days are dropped. Refused answers are kept as `invalid`, never used. Errors never fail
     the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
