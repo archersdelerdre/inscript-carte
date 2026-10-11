@@ -156,10 +156,7 @@ export function App() {
   );
 }
 
-/**
- * Says whether the member is signed in (asked by a member, 2026-10-11): « Se connecter » when not, else « Mon suivi »
- * with a green dot and, on wide screens, their name.
- */
+/** « Se connecter » when signed out, else « Mon suivi » with a green dot (asked by a member, 2026-10-11). */
 function MyRegistrationsButton() {
   const { archer, withArcher } = useSession();
   const { showMyRegistrations } = useRegistrationActions();
@@ -171,24 +168,19 @@ function MyRegistrationsButton() {
       </Button>
     );
   }
-  const connected = archer && `${archer.sex === 'female' ? 'Connectée' : 'Connecté'} : ${archer.fullName}`;
   return (
-    <>
-      {connected && <span className='text-muted-foreground max-w-64 truncate text-sm max-lg:hidden'>{connected}</span>}
-      <Button variant='outline' className='shrink-0' onClick={showMyRegistrations} title={connected || undefined}>
-        <span className='relative'>
-          <UserRoundIcon />
-          {archer && (
-            <span
-              aria-hidden
-              className='border-background absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 bg-green-600'
-            />
-          )}
-        </span>
-        Mon suivi
-        {connected && <span className='sr-only'>, {connected}</span>}
-      </Button>
-    </>
+    <Button variant='outline' className='shrink-0' onClick={showMyRegistrations}>
+      <span className='relative'>
+        <UserRoundIcon />
+        {archer && (
+          <span
+            aria-hidden
+            className='border-background absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 bg-green-600'
+          />
+        )}
+      </span>
+      Mon suivi
+    </Button>
   );
 }
 

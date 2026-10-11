@@ -123,7 +123,7 @@ Inner layers never import outer ones. The domain may import types and rules from
   date. Decided (asked by Hervé, 2026-10-11): staying signed in is the member's choice, a box « Garder la connexion
   sur cet appareil », off by default: ticked, a 180-day cookie and the licence number kept on the device; not ticked,
   a browser-session cookie and a 12-hour session on the server. The header shows « Se connecter », or « Mon suivi »
-  with a green dot and « Connecté(e) : NOM » on wide screens.
+  with a green dot. Decided: no name in the header (the user found it useless).
 - Admins: decided, **two steps**: member sign-in, then a personal password (`admins` table). 10 wrong passwords per
   licence, 50 per address, per 15 min. Session 1 year, cookie `admin_session` (`Path=/api/admin`, `SameSite=Strict`).
   "Nommer admin" generates a password (`XXXX-XXXX-XXXX`) shown once; the new admin must replace it before anything
