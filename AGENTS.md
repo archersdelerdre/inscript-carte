@@ -282,7 +282,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 
 - Layout like SeLoger: list on the left (500 px, own scroll), full-height map on the right. On phones the list
   **covers** the map (never hide the map: Leaflet needs its real size); a floating "Carte / Liste" button switches;
-  phones open on the map (asked by Hervé, 2026-10-11).
+  phones open on the map the first time (asked by Hervé, 2026-10-11), then on the last view used (`mobileView` in
+  `localStorage`; the user's choice).
 - Filters: a round button opening a dialog (disciplines as checkboxes, several at once, none = all; « para-tir »
   checkbox; dates; "avec des inscrits du club"; "cibles mousses"; « Rythme (Salle 18m et Extérieur) », disabled with
   a hint when the ticked disciplines have no rhythm), and a "where" pill: place menu (départements grouped by region,

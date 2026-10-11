@@ -22,6 +22,9 @@ import { useCompetitions } from './competitions/use-competitions';
 
 const DEFAULT_DEPARTMENT = '44';
 const DEPARTMENT_STORAGE_KEY = 'department';
+const MOBILE_VIEW_STORAGE_KEY = 'mobileView';
+
+type MobileView = 'list' | 'map';
 
 /** The stored choice if it is still offered, else the club's département, else all of France. */
 function chooseArea(stored: string | null, departmentCodes: string[]): string {
@@ -36,8 +39,13 @@ export function App() {
   const [storedDepartment, setStoredDepartment] = useState(() => localStorage.getItem(DEPARTMENT_STORAGE_KEY));
   const [filters, setFilters] = useState<CompetitionFilters>(NO_FILTERS);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
-  /** Phones show either the list or the map, the map first (asked by a member); wider screens show both. */
-  const [mobileView, setMobileView] = useState<'list' | 'map'>('map');
+  /**
+   * Phones show either the list or the map; wider screens show both. The map first (asked by a member), then the
+   * last view the person used, remembered on the device.
+   */
+  const [mobileView, setMobileView] = useState<MobileView>(() =>
+    localStorage.getItem(MOBILE_VIEW_STORAGE_KEY) === 'list' ? 'list' : 'map',
+  );
 
   const competitions = useMemo(() => (state.kind === 'loaded' ? state.competitions : []), [state]);
   const departmentCodes = useMemo(
@@ -68,8 +76,13 @@ export function App() {
     setStoredDepartment(value);
   }
 
+  function changeView(view: MobileView) {
+    localStorage.setItem(MOBILE_VIEW_STORAGE_KEY, view);
+    setMobileView(view);
+  }
+
   function showOnMap(competitionId: string) {
-    setMobileView('map');
+    changeView('map');
     setFocusRequest({ competitionId, requestedAt: Date.now() });
   }
 
@@ -133,7 +146,7 @@ export function App() {
           // Fixed width and margin centering, no press offset: the button must not move when tapped.
           className='fixed inset-x-0 bottom-6 z-40 mx-auto w-32 rounded-full shadow-lg active:not-aria-[haspopup]:translate-y-0 md:hidden'
           size='lg'
-          onClick={() => setMobileView(mobileView === 'list' ? 'map' : 'list')}
+          onClick={() => changeView(mobileView === 'list' ? 'map' : 'list')}
         >
           {mobileView === 'list' ? <MapIcon /> : <ListIcon />}
           {mobileView === 'list' ? 'Carte' : 'Liste'}
