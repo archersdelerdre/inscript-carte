@@ -30,7 +30,7 @@ departures : chaque départ (séance de tir) du concours, dans l'ordre. Un conco
 - shootingStarts : l'heure du début des tirs (HH:MM), sinon null ; pas l'heure de l'échauffement ni de l'entraînement.
 
 prices : les tarifs d'inscription par archer.
-- amountEuros : le prix TOTAL pour ce nombre de départs ("1 tir 9 €, 2 tirs 16 €" donne deux tarifs : 1 départ 9, 2 départs 16).
+- amountEuros : le prix TOTAL pour ce nombre de départs ("1 tir 9 €, 2 tirs 16 €" donne deux tarifs : 1 départ 9, 2 départs 16). Quand le mandat donne un prix pour le premier départ et un autre pour chaque départ suivant ("Premier tir : 12 €, autre tir : 8 €"), donne le TOTAL pour 1, 2, 3… départs, jusqu'au nombre de départs du concours : 1 départ 12, 2 départs 20, 3 départs 28. Ne donne jamais deux prix différents pour le même nombre de départs et les mêmes catégories.
 - departures : le nombre de départs que ce prix couvre (1 si le prix est par départ).
 - categories : les catégories d'âge FFTA auxquelles ce prix s'applique, telles que le mandat les nomme : U11, U13, U15, U18, U21 (les jeunes), S1, S2, S3 (les adultes). "Jeunes" ou "-21 ans" donne U11, U13, U15, U18, U21 ; "-18 ans" donne U11, U13, U15, U18 ; "Adultes", "Seniors" ou "Scratch" donne S1, S2, S3 ; un prix pour tous les archers donne les huit. Les anciens noms : poussins U11, benjamins U13, minimes U15, cadets U18, juniors U21. Recopie chaque ligne de tarif du mandat telle qu'elle est, même si une catégorie apparaît dans deux lignes ("U11 + Promotion : 6 €, Jeunes : 8 €" donne un tarif U11 à 6 et un tarif U11 à U21 à 8) : le programme choisit lui-même le plus précis.
 - Ignore les repas, buvettes, licences découverte, équipes et options : seulement l'inscription individuelle.
