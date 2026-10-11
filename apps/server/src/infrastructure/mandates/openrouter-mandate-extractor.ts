@@ -16,8 +16,8 @@ const MAX_ANSWER_TOKENS = 32_000;
 /** The PDF's own text helps with numbers, but a few pages are enough. */
 const MAX_TEXT_CHARACTERS = 20_000;
 const TIMEOUT_MS = 120_000;
-/** Tokens per second (p50): at 50, a reading of 6 000 tokens ends in about 2 minutes. */
-const MIN_THROUGHPUT = 50;
+/** Tokens per second (p50, the user's choice): at 75, a reading of 6 000 tokens ends in about 80 s. */
+const MIN_THROUGHPUT = 75;
 
 const INSTRUCTIONS = `Tu lis le mandat d'un concours de tir à l'arc de la FFTA (le document de l'organisateur). Tu reçois les pages en images, et leur texte quand le PDF en a un (le texte peut être mal ordonné : les images font foi).
 
@@ -68,7 +68,7 @@ export class OpenRouterMandateExtractor implements MandateExtractor {
           // some GLM 5.3 Flash providers refuse it ("Reasoning is mandatory for this endpoint").
           reasoning: { effort: 'low' },
           // Mandates hold the organizers' names and phones: only providers that keep nothing, and that honour the schema.
-          // The cheapest provider among those fast enough (p50 ≥ 50 tokens/s); slower ones only as a fallback. OpenRouter
+          // The cheapest provider among those fast enough (p50 ≥ 75 tokens/s); slower ones only as a fallback. OpenRouter
           // has no "price per speed" sort, this is its way to ask for both (the user's choice, 2026-10-11).
           provider: {
             dataCollection: 'deny',
