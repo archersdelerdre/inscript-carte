@@ -99,31 +99,26 @@ version du club. »
 
 ## Étape 5 : des données pour essayer
 
-La base locale (`apps/server/data/inscript-carte.sqlite`) part vide. Si elle n'a pas encore de concours, ajoute toi-même
-des données inventées, depuis le dossier `apps/server` :
+La base locale (`apps/server/data/inscript-carte.sqlite`) part vide. Remplis-la toi-même avec le jeu de données de
+démonstration, depuis le dossier `apps/server` :
 
 ```bash
-bun -e "
-import { createDatabase } from './src/infrastructure/database/connection.ts';
-const db = createDatabase('data/inscript-carte.sqlite');
-await db.migrate.latest();
-const day = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
-const towns = [['NANTES', 47.218, -1.554], ['CARQUEFOU', 47.297, -1.491], ['SAINT-NAZAIRE', 47.273, -2.214]];
-for (const [i, [town, latitude, longitude]] of towns.entries()) {
-  await db('competitions').insert({ ffta_id: String(90001 + i), title: 'CONCOURS DE DEMO ' + town, discipline: i === 1 ? 'exterieur' : 'salle', status: 'scheduled', department_code: '44', town, latitude, longitude, start_date: day(20 + 7 * i), end_date: day(20 + 7 * i), has_para_tir: false });
-}
-await db('archers').insert({ licence_number: '0000001A', birth_date: '1980-01-01', full_name: 'TEST ARCHER', sex: 'female', is_active: true });
-await db.destroy(); console.log('Données de démo ajoutées.');"
-printf 'demo-password-2026\ndemo-password-2026\n' | bun run db:add-admin 0000001A
+bun run db:seed-demo
 ```
+
+Le script ne fait rien si la base contient déjà des concours ou des membres : tu peux le lancer à chaque fois sans
+risque. Il ajoute des données **inventées**, aux dates calées sur aujourd'hui : 16 membres de tous âges (dont deux
+jeunes payés par le club et un parti du club), 24 concours de toutes les disciplines autour de Nantes et dans les
+départements voisins (para-tir, cibles mousses, reporté, annulé, sans lieu, terminé, mandats lus avec départs, tarifs
+et rythmes, un mandat refusé, un mandat pas encore lu), et des inscriptions dans tous les statuts et états de paiement.
 
 Donne-lui ensuite les identifiants pour essayer : licence `0000001A`, date de naissance `01/01/1980`, mot de passe
 admin `demo-password-2026` (seulement sur sa machine, avec des données inventées).
 
 - Pour repartir de zéro : arrête l'application, supprime `apps/server/data/inscript-carte.sqlite` et les fichiers
-  `-wal` et `-shm` à côté, relance ce script.
-- Si son idée a besoin d'autres données (des inscriptions, d'autres membres…), ajoute-les de la même façon, toujours
-  inventées.
+  `-wal` et `-shm` à côté, relance le script.
+- Si son idée a besoin d'un cas qui manque, ajoute-le dans `apps/server/src/infrastructure/database/seed-demo.ts`
+  (toujours des données inventées), pour qu'il serve aussi aux suivants.
 - La lecture des mandats par IA demande une clé OpenRouter : sans elle, cette partie est simplement désactivée. Ne
   pas en demander une pour essayer autre chose.
 

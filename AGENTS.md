@@ -43,6 +43,7 @@ From the root: `bun run dev` (server `:3998`, client `:5173`, Vite proxies `/api
 | `db:add-admin <licence>` / `db:remove-admin <licence>` | give admin rights (password typed hidden) / remove them |
 | `db:import-legacy-events <events.json>` | import the old app's competitions |
 | `db:relocate [--dry-run]` | locate every upcoming competition again |
+| `db:seed-demo` | fill an **empty** development database with made-up members, competitions, mandate readings and registrations (dates follow today); does nothing when the database has data. Admin `0000001A`, birth date 01/01/1980, password `demo-password-2026` |
 | `scrape [--dry-run] [--max-details N] [--max-mandates N]` | one FFTA run by hand (needs `CHROME_PATH`) |
 | `mandate:read <url> <start> [end]` | read one mandate with the LLM and print it, writes nothing |
 | `mandate:reread-all [--limit N] [--ids a,b]` | read every upcoming mandate again (or only those ids), same files included (after a prompt change); not during a calendar update |
