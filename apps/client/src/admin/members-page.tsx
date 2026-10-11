@@ -1,7 +1,10 @@
 import {
+  AGE_CATEGORIES,
+  AGE_CATEGORY_LABELS,
   apiPath,
   API_ROUTES,
   categoryLabel,
+  type AgeCategory,
   type AdminMemberDto,
   type ApiError,
   type GrantAdminResponse,
@@ -80,6 +83,17 @@ function problemMessage({ problem, line, detail }: MemberExportErrorResponse): s
 }
 
 type StateFilter = 'all' | 'active' | 'left';
+/** One category, or a group: « Jeunes » is U11 to U21, « Adultes » the three seniors. Current season's category. */
+type CategoryFilter = 'all' | 'youth' | 'adults' | AgeCategory;
+
+const ADULT_CATEGORIES: readonly AgeCategory[] = ['S1', 'S2', 'S3'];
+
+function inCategory(category: AgeCategory, filter: CategoryFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'youth') return !ADULT_CATEGORIES.includes(category);
+  if (filter === 'adults') return ADULT_CATEGORIES.includes(category);
+  return category === filter;
+}
 
 type Props = {
   /** The signed-in admin: no action on their own row. */
@@ -96,6 +110,7 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<StateFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [importOpen, setImportOpen] = useState(false);
   const [pending, setPending] = useState<{ action: MemberAction; member: AdminMemberDto } | null>(null);
   const [granted, setGranted] = useState<{ member: AdminMemberDto; password: string } | null>(null);
@@ -146,6 +161,7 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
   const shown = (members ?? []).filter(
     (member) =>
       (stateFilter === 'all' || member.isActive === (stateFilter === 'active')) &&
+      inCategory(member.category, categoryFilter) &&
       matchesSearch(query, `${member.fullName} ${member.licenceNumber}`),
   );
   const leftCount = members?.filter((member) => !member.isActive).length ?? 0;
@@ -188,6 +204,21 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
             <SelectItem value='all'>Tous les licenciés</SelectItem>
             <SelectItem value='active'>Seulement les licenciés du club</SelectItem>
             <SelectItem value='left'>Seulement ceux qui ont quitté le club</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as CategoryFilter)}>
+          <SelectTrigger aria-label='Catégorie' className='min-w-48'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>Toutes les catégories</SelectItem>
+            <SelectItem value='youth'>Jeunes (U11 à U21)</SelectItem>
+            <SelectItem value='adults'>Adultes (Senior 1 à 3)</SelectItem>
+            {AGE_CATEGORIES.map((category) => (
+              <SelectItem key={category} value={category}>
+                {AGE_CATEGORY_LABELS[category]}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

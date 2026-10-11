@@ -4,7 +4,7 @@ import type { Sex } from './registration.ts';
 export const AGE_CATEGORIES = ['U11', 'U13', 'U15', 'U18', 'U21', 'S1', 'S2', 'S3'] as const;
 export type AgeCategory = (typeof AGE_CATEGORIES)[number];
 
-const AGE_CATEGORY_LABELS: Record<AgeCategory, string> = {
+export const AGE_CATEGORY_LABELS: Record<AgeCategory, string> = {
   U11: 'U11',
   U13: 'U13',
   U15: 'U15',

@@ -212,8 +212,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   FFTA details read only. A field that differs from the FFTA shows « Modifié », the FFTA value and « Revenir à la
   valeur FFTA ». Saving replaces every edit with the fields that differ (`checkOverrides`). Closing with unsaved
   changes asks first.
-- Licenciés: table with search and active/left filter, a "⋯" menu per row (deactivate, club pays, admin rights), import
-  dialog.
+- Licenciés: table with search, active/left filter and category filter (« Jeunes » U11–U21, « Adultes » S1–S3, or one
+  category; asked by Loïc 2026-10-11), a "⋯" menu per row (deactivate, club pays, admin rights), import dialog.
 
 ## FFTA scraper (`infrastructure/ffta/`, `application/sync-ffta-calendar.ts`)
 
