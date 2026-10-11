@@ -1,4 +1,10 @@
-import { FOAM_TARGETS_ANSWERS, MANDATE_AUDIENCES, type MandateData } from '@inscript-carte/shared';
+import {
+  FOAM_TARGETS_ANSWERS,
+  MANDATE_AUDIENCES,
+  RHYTHM_ANSWERS,
+  type MandateData,
+  type Rhythm,
+} from '@inscript-carte/shared';
 import { z } from 'zod';
 
 import type { CalendarDate } from './calendar-date.ts';
@@ -41,9 +47,14 @@ export const MandateAnswer = z.strictObject({
     )
     .max(MAX_DEPARTURES * MANDATE_AUDIENCES.length),
   foamTargets: z.enum(FOAM_TARGETS_ANSWERS),
-  evidence: z.strictObject({ departures: quote, prices: quote, foamTargets: quote }),
+  rhythm: z.enum(RHYTHM_ANSWERS),
+  evidence: z.strictObject({ departures: quote, prices: quote, foamTargets: quote, rhythm: quote }),
 }) satisfies z.ZodType<MandateData>;
 
+/** The rhythm a stored reading gives: none when not mentioned, or for readings made before it was asked. */
+export function rhythmOf(data: MandateData | null): Rhythm | null {
+  return !data?.rhythm || data.rhythm === 'not_mentioned' ? null : data.rhythm;
+}
 export const mandateAnswerJsonSchema = z.toJSONSchema(MandateAnswer);
 
 export type MandateCheck = { ok: true; data: MandateData } | { ok: false; problems: string[] };

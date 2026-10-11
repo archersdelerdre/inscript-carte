@@ -16,7 +16,8 @@ const answer = (overrides: Record<string, unknown> = {}) => ({
     { audience: 'youth', departures: 1, amountEuros: 7 },
   ],
   foamTargets: 'not_mentioned',
-  evidence: { departures: null, prices: 'jeunes 7€ - adultes 10€', foamTargets: null },
+  rhythm: 'AB/CD',
+  evidence: { departures: null, prices: 'jeunes 7€ - adultes 10€', foamTargets: null, rhythm: 'Rythme AB/CD' },
   ...overrides,
 });
 
@@ -62,6 +63,7 @@ describe('checkMandateData', () => {
       { departures: [{ date: null, label: 'Matin', registrationOpens: '25:00', shootingStarts: null }] },
       { departures: [{ date: null, label: '  ', registrationOpens: null, shootingStarts: null }] },
       { foamTargets: 'maybe' },
+      { rhythm: 'ABCD' },
       { extra: 'field' },
     ]) {
       expect(checkMandateData(answer(overrides), COMPETITION).ok).toBe(false);
@@ -72,7 +74,7 @@ describe('checkMandateData', () => {
   test('tells the LLM the same shape, with every field required and nothing else allowed', () => {
     expect(mandateAnswerJsonSchema).toMatchObject({
       type: 'object',
-      required: ['departures', 'prices', 'foamTargets', 'evidence'],
+      required: ['departures', 'prices', 'foamTargets', 'rhythm', 'evidence'],
       additionalProperties: false,
     });
   });

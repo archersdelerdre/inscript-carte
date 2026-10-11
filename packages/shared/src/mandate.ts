@@ -8,6 +8,12 @@ export const FOAM_TARGETS_ANSWERS = ['yes', 'no', 'not_mentioned'] as const;
 /** Most mandates never say: `not_mentioned` is never read as "no". */
 export type FoamTargetsAnswer = (typeof FOAM_TARGETS_ANSWERS)[number];
 
+/** How archers take turns at the target: by two (AB), by three (ABC), or four per target in two waves (AB/CD). */
+export const RHYTHMS = ['AB', 'ABC', 'AB/CD'] as const;
+export type Rhythm = (typeof RHYTHMS)[number];
+export const RHYTHM_ANSWERS = [...RHYTHMS, 'not_mentioned'] as const;
+export type RhythmAnswer = (typeof RHYTHM_ANSWERS)[number];
+
 export type MandateDeparture = {
   /** `YYYY-MM-DD`, `null` when the mandate does not say which day. */
   date: string | null;
@@ -25,6 +31,8 @@ export type MandateData = {
   departures: MandateDeparture[];
   prices: MandatePrice[];
   foamTargets: FoamTargetsAnswer;
+  /** Missing from readings made before the rhythm was asked. */
+  rhythm?: RhythmAnswer;
   /** The mandate's own words for each answer, so an admin can check it in a second. */
-  evidence: { departures: string | null; prices: string | null; foamTargets: string | null };
+  evidence: { departures: string | null; prices: string | null; foamTargets: string | null; rhythm?: string | null };
 };

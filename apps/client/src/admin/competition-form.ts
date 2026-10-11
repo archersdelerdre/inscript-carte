@@ -71,6 +71,7 @@ export function normalize(fields: CompetitionFields): CompetitionFields {
     status: fields.status,
     hasParaTir: fields.hasParaTir,
     hasFoamTargets: fields.hasFoamTargets,
+    rhythm: fields.rhythm,
     mandateUrl: fields.mandateUrl?.trim() || null,
     town: fields.town.trim(),
     departmentCode: fields.departmentCode,
@@ -113,12 +114,15 @@ export function formToFields(form: FormState): CompetitionFields {
 
 type FieldKey = keyof CompetitionFields;
 
-/** Fields whose form value is not FFTA's. `mandateUrl` and `position` cannot be edited to nothing: empty is "not edited". */
+/**
+ * Fields whose form value is not FFTA's. `mandateUrl`, `position` and `rhythm` cannot be edited to nothing: empty is
+ * "not edited".
+ */
 export function editedKeys(form: FormState, ffta: CompetitionFields): FieldKey[] {
   const current = formToFields(form);
   const original = normalize(ffta);
   return (Object.keys(original) as FieldKey[]).filter((key) => {
-    if ((key === 'mandateUrl' || key === 'position') && current[key] === null) return false;
+    if ((key === 'mandateUrl' || key === 'position' || key === 'rhythm') && current[key] === null) return false;
     return JSON.stringify(current[key]) !== JSON.stringify(original[key]);
   });
 }
@@ -251,6 +255,8 @@ export function describeFfta(key: FieldKey | 'dates', ffta: CompetitionFields): 
       return ffta.hasParaTir ? 'oui' : 'non';
     case 'hasFoamTargets':
       return ffta.hasFoamTargets ? 'oui' : 'non';
+    case 'rhythm':
+      return ffta.rhythm ?? 'non précisé';
     case 'mandateUrl':
       return ffta.mandateUrl ?? 'aucune';
     case 'town':

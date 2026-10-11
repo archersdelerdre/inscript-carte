@@ -4,6 +4,7 @@ import {
   type Discipline,
   type MandateDeparture,
   type MandatePrice,
+  type Rhythm,
 } from '@inscript-carte/shared';
 
 import { addDays, type CalendarDate } from './calendar-date.ts';
@@ -25,6 +26,8 @@ export type Competition = {
   readonly hasParaTir: boolean;
   /** Shot on foam targets ("cibles mousses"); not in the legacy data, `false` until the scraper fills it. */
   readonly hasFoamTargets: boolean;
+  /** From the checked mandate reading, or an admin's edit; `null` when not known. */
+  readonly rhythm: Rhythm | null;
   readonly startDate: CalendarDate;
   readonly endDate: CalendarDate;
   readonly organizerClub: string | null;

@@ -1327,6 +1327,29 @@ describe('competition edits', () => {
       clubRegistrationDeadline: '2026-12-26',
     });
   });
+
+  test('the rhythm comes from the mandate reading (none for older readings), and an edit wins', async () => {
+    const link = 'https://extranet.ffta.fr/r.pdf';
+    await database('competitions').where({ ffta_id: SALLE }).update({ mandate_url: link });
+    const reading = (data: object) => ({
+      ffta_id: SALLE,
+      mandate_url: link,
+      status: 'parsed',
+      data: JSON.stringify({ departures: [], prices: [], foamTargets: 'not_mentioned', evidence: {}, ...data }),
+      read_at: new Date().toISOString(),
+    });
+    await database('competition_mandates').insert(reading({}));
+    expect((await publicSalle())?.rhythm).toBeNull();
+    await database('competition_mandates')
+      .where({ ffta_id: SALLE })
+      .update(reading({ rhythm: 'AB' }));
+    expect((await publicSalle())?.rhythm).toBe('AB');
+
+    await makeAdmin(ADULT);
+    const cookie = await adminSignIn();
+    await call(overridesPath, { method: 'PUT', cookie, body: { rhythm: 'AB/CD' } });
+    expect((await publicSalle())?.rhythm).toBe('AB/CD');
+  });
 });
 
 function mandateDeparture(label: string) {

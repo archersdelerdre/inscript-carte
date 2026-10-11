@@ -3,6 +3,7 @@ import {
   DEPARTMENT_NAMES,
   DISCIPLINES,
   MANDATE_AUDIENCES,
+  RHYTHMS,
   type CompetitionFields,
 } from '@inscript-carte/shared';
 import { z } from 'zod';
@@ -26,6 +27,7 @@ const Overrides = z.strictObject({
   status: z.enum(COMPETITION_STATUSES).optional(),
   hasParaTir: z.boolean().optional(),
   hasFoamTargets: z.boolean().optional(),
+  rhythm: z.enum(RHYTHMS).optional(),
   mandateUrl: z.string().trim().startsWith('https://').max(500).optional(),
   town: z.string().trim().min(1).max(MAX_TEXT).optional(),
   departmentCode: z

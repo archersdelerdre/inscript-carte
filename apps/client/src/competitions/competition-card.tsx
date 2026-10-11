@@ -77,6 +77,7 @@ function Heading({ competition }: { competition: CompetitionDto }) {
       <h3 className='leading-snug font-semibold'>{competition.title}</h3>
       {competition.hasParaTir && <Badge className='bg-sky-100 text-sky-900'>Para-tir</Badge>}
       {competition.hasFoamTargets && <Badge className='bg-lime-100 text-lime-900'>Cibles mousses</Badge>}
+      {competition.rhythm && <Badge className='bg-lime-100 text-lime-900'>Rythme {competition.rhythm}</Badge>}
       {competition.isPostponed && <Badge className='bg-amber-100 text-amber-900'>Reportée</Badge>}
     </div>
   );

@@ -14,7 +14,8 @@
     "db:remove-admin": "bun src/infrastructure/database/remove-admin.ts",
     "db:relocate": "bun src/infrastructure/database/relocate-competitions.ts",
     "scrape": "bun src/infrastructure/ffta/scrape.ts",
-    "mandate:read": "bun src/infrastructure/mandates/read-mandate.ts"
+    "mandate:read": "bun src/infrastructure/mandates/read-mandate.ts",
+    "mandate:reread-all": "bun src/infrastructure/mandates/reread-mandates.ts"
   },
   "dependencies": {
     "@inscript-carte/shared": "workspace:*",

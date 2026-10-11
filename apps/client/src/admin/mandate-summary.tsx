@@ -31,7 +31,7 @@ function priceList(prices: MandatePrice[]): string {
 export function MandateSummary({ competition }: { competition: AdminCompetitionDto }) {
   const { departures, prices } = competition;
   if (!competition.mandateUrl) return null;
-  if (!departures && !prices) {
+  if (!departures && !prices && !competition.rhythm) {
     return (
       <p className='text-muted-foreground text-sm'>Le mandat n’a pas encore été lu : départs et tarifs inconnus.</p>
     );
@@ -43,6 +43,7 @@ export function MandateSummary({ competition }: { competition: AdminCompetitionD
       <h2 id='mandate-summary' className='font-semibold'>
         Lu dans le mandat
       </h2>
+      <p className='font-medium'>{competition.rhythm ? `Rythme ${competition.rhythm}` : 'Rythme non précisé'}</p>
       <div className='grid gap-1'>
         <p className='font-medium'>
           {departures ? `${departureCount} ${departureCount > 1 ? 'départs' : 'départ'}` : 'Départs non précisés'}

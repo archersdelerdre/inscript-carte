@@ -45,6 +45,7 @@ From the root: `bun run dev` (server `:3998`, client `:5173`, Vite proxies `/api
 | `db:relocate [--dry-run]` | locate every upcoming competition again |
 | `scrape [--dry-run] [--max-details N] [--max-mandates N]` | one FFTA run by hand (needs `CHROME_PATH`) |
 | `mandate:read <url> <start> [end]` | read one mandate with the LLM and print it, writes nothing |
+| `mandate:reread-all [--limit N]` | read every upcoming mandate again, same files included (after a prompt change); not during a calendar update |
 
 Migrations run when the server starts. There is no rollback command; to start over, stop the server and delete the
 `.sqlite`, `-wal` and `-shm` files.
@@ -96,7 +97,7 @@ Inner layers never import outer ones. The domain may import types and rules from
   field, `NULL` = the FFTA value. Decided: an edit **always wins**, even after a later FFTA change, until an admin puts
   the FFTA value back. The scraper never writes there. `SqliteCompetitionRepository` merges them
   (`coalesce(o.x, c.x)`), so every reader sees the edited competition; the mandate reader reads the edited link and
-  dates. Edited départs / prices replace the mandate reading. A mandate link the FFTA did not have gets its own
+  dates. Edited départs / prices / rhythm replace the mandate reading. A mandate link the FFTA did not have gets its own
   `mandate_added_on` (the club deadline's late-mandate rule).
 - Value lists are `CHECK` constraints. SQLite cannot change one: the migration copies the table (see `0008`). One
   active registration per (competition, archer, départ): a partial unique index that ignores `cancelled`.
@@ -190,7 +191,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   `inArea` (area not remembered, Loire-Atlantique at start: user's choice), plus a problems filter.
 - Clicking a row opens a large modal (`competition-edit-dialog.tsx`, `CompetitionEdits`, route
   `/api/admin/competitions/:id/overrides`): problems and actions, then title, dates, discipline, status, para-tir,
-  cibles mousses, mandate link, town, département, position (click on a lazy-loaded map), départs and prices, then the
+  cibles mousses, rhythm, mandate link, town, département, position (click on a lazy-loaded map), départs and prices,
+  then the
   FFTA details read only. A field that differs from the FFTA shows « Modifié », the FFTA value and « Revenir à la
   valeur FFTA ». Saving replaces every edit with the fields that differ (`checkOverrides`). Closing with unsaved
   changes asks first.
@@ -224,6 +226,11 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   - `checkMandateData` checks the answer (≤ 12 départs, 0–150 €). A mandate often covers two FFTA entries of one
     weekend: départs on other days are dropped. Refused answers are kept as `invalid`, never used. Errors never fail
     the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
+  - **Rhythm** (asked 2026-10-11): one per competition, `AB` / `ABC` / `AB/CD`, else `not_mentioned` (also when the
+    départs differ). Stored in the reading's data (`rhythmOf`: readings made before have none); edits in
+    `competition_overrides.rhythm` (migration `0011`). Decided: shown **exactly like « Cibles mousses »** (lime badge
+    « Rythme AB/CD » on the card, a line in « Lu dans le mandat »), and a « Rythme » filter that leaves out
+    competitions whose rhythm is not known.
 
 ## Places and geocoding
 
@@ -242,7 +249,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 - Layout like SeLoger: list on the left (500 px, own scroll), full-height map on the right. On phones the list
   **covers** the map (never hide the map: Leaflet needs its real size); a floating "Carte / Liste" button switches.
 - Filters: a round button opening a dialog (discipline, para-tir, dates, "avec des inscrits du club", "cibles
-  mousses"), and a "where" pill: place menu (départements grouped by region, `region:<id>`, remembered, default 44)
+  mousses", rythme), and a "where" pill: place menu (départements grouped by region, `region:<id>`, remembered,
+  default 44)
   plus a town search (our own ARIA combobox, not `<datalist>`). Chosen filters show as removable chips on a second
   line, never inside the search field. All filtering happens in the browser: `GET /api/competitions` sends everything.
 - Cards: date block in the discipline color, badges, town with « Voir sur la carte » (icon only on phones), club

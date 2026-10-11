@@ -2,8 +2,10 @@ import {
   DEPARTMENT_NAMES,
   DISCIPLINE_LABELS,
   DISCIPLINES,
+  RHYTHMS,
   type CompetitionDto,
   type Discipline,
+  type Rhythm,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
 import { MapPinIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react';
@@ -44,6 +46,8 @@ export type CompetitionFilters = {
   to: string;
   withClubArchers: boolean;
   foamTargets: boolean;
+  /** Competitions whose rhythm is not known are left out once one is chosen. */
+  rhythm: typeof ALL | Rhythm;
   town: string;
 };
 
@@ -53,13 +57,14 @@ export const NO_FILTERS: CompetitionFilters = {
   to: '',
   withClubArchers: false,
   foamTargets: false,
+  rhythm: ALL,
   town: '',
 };
 
 /** What the filters read: the public list and the admins' « Concours » table both have it. */
 export type FilterableCompetition = Pick<
   CompetitionDto,
-  'discipline' | 'hasParaTir' | 'startDate' | 'endDate' | 'clubArcherCount' | 'hasFoamTargets' | 'town'
+  'discipline' | 'hasParaTir' | 'startDate' | 'endDate' | 'clubArcherCount' | 'hasFoamTargets' | 'rhythm' | 'town'
 >;
 
 export function matchesFilters(competition: FilterableCompetition, filters: CompetitionFilters): boolean {
@@ -71,6 +76,7 @@ export function matchesFilters(competition: FilterableCompetition, filters: Comp
   if (filters.to && competition.startDate > filters.to) return false;
   if (filters.withClubArchers && competition.clubArcherCount === 0) return false;
   if (filters.foamTargets && !competition.hasFoamTargets) return false;
+  if (filters.rhythm !== ALL && competition.rhythm !== filters.rhythm) return false;
   return matchesSearch(filters.town, competition.town);
 }
 
@@ -164,10 +170,14 @@ export function CompetitionFilterBar({
     const text = 'Cibles mousses';
     chips.push({ key: 'foam', text, remove: () => change({ foamTargets: false }) });
   }
+  if (filters.rhythm !== ALL) {
+    const text = `Rythme ${filters.rhythm}`;
+    chips.push({ key: 'rhythm', text, remove: () => change({ rhythm: ALL }) });
+  }
 
   /** The département stays: it has its own menu in the bar, remembered on the device. */
   function clearFilters() {
-    change({ discipline: ALL, from: '', to: '', withClubArchers: false, foamTargets: false });
+    change({ discipline: ALL, from: '', to: '', withClubArchers: false, foamTargets: false, rhythm: ALL });
   }
 
   const isDepartment = department !== ALL_FRANCE && DEPARTMENT_NAMES[department] !== undefined;
@@ -346,6 +356,28 @@ export function CompetitionFilterBar({
             {!foamTargetsKnown && (
               <p className='text-muted-foreground pl-7 text-sm'>
                 Cette information n'est pas encore disponible : pour le moment, aucun concours ne sera affiché.
+              </p>
+            )}
+          </div>
+
+          <div className='grid gap-2'>
+            <Label htmlFor='filter-rhythm'>Rythme</Label>
+            <Select value={filters.rhythm} onValueChange={(value) => change({ rhythm: value as typeof ALL | Rhythm })}>
+              <SelectTrigger id='filter-rhythm' className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Tous les rythmes</SelectItem>
+                {RHYTHMS.map((rhythm) => (
+                  <SelectItem key={rhythm} value={rhythm}>
+                    {rhythm}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {filters.rhythm !== ALL && (
+              <p className='text-muted-foreground text-sm'>
+                Les concours dont le mandat ne précise pas le rythme ne sont pas affichés.
               </p>
             )}
           </div>

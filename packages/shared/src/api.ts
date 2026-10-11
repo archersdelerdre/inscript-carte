@@ -1,7 +1,7 @@
 import type { CompetitionStatus } from './competition.ts';
 import type { Discipline } from './discipline.ts';
 import type { AgeCategory } from './ffta-category.ts';
-import type { MandateDeparture, MandatePrice } from './mandate.ts';
+import type { MandateDeparture, MandatePrice, Rhythm } from './mandate.ts';
 import type { BowType, Distance, PaymentMethod, PaymentStatus, RegistrationStatus, Sex } from './registration.ts';
 
 /** Bun route patterns; the client fills the `:params` with `apiPath`. */
@@ -88,6 +88,8 @@ export type CompetitionDto = {
   hasParaTir: boolean;
   /** Shot on foam targets ("cibles mousses"). Not known yet for any competition: the scraper will fill it. */
   hasFoamTargets: boolean;
+  /** From the mandate (or an admin's edit); `null` when not known. */
+  rhythm: Rhythm | null;
   startDate: string;
   endDate: string;
   clubRegistrationDeadline: string;
@@ -229,6 +231,7 @@ export type AdminCompetitionDto = {
   town: string;
   departmentCode: string;
   mandateUrl: string | null;
+  rhythm: Rhythm | null;
   /** What the mandate says, from a checked reading of its current link; `null` when not read or not given. */
   departures: MandateDeparture[] | null;
   prices: MandatePrice[] | null;
@@ -271,6 +274,7 @@ export type CompetitionOverviewDto = {
   discipline: Discipline;
   hasParaTir: boolean;
   hasFoamTargets: boolean;
+  rhythm: Rhythm | null;
   startDate: string;
   endDate: string;
   town: string;
@@ -302,6 +306,7 @@ export type CompetitionFields = {
   status: CompetitionStatus;
   hasParaTir: boolean;
   hasFoamTargets: boolean;
+  rhythm: Rhythm | null;
   mandateUrl: string | null;
   town: string;
   departmentCode: string;

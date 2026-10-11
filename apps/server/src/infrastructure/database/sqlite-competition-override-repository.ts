@@ -1,4 +1,4 @@
-import type { CompetitionFields, Discipline, MandateData } from '@inscript-carte/shared';
+import type { CompetitionFields, Discipline, MandateData, Rhythm } from '@inscript-carte/shared';
 import type { Knex } from 'knex';
 
 import type { CalendarDate } from '../../domain/calendar-date.ts';
@@ -8,6 +8,7 @@ import type {
 } from '../../domain/competition-override-repository.ts';
 import type { CompetitionOverrides } from '../../domain/competition-overrides.ts';
 import type { CompetitionStatus } from '../../domain/competition.ts';
+import { rhythmOf } from '../../domain/mandate.ts';
 
 type Row = {
   title: string;
@@ -46,6 +47,7 @@ type OverrideRow = {
   status: CompetitionStatus | null;
   has_para_tir: 0 | 1 | null;
   has_foam_targets: 0 | 1 | null;
+  rhythm: Rhythm | null;
   mandate_url: string | null;
   mandate_added_on: string | null;
   town: string | null;
@@ -90,6 +92,7 @@ export class SqliteCompetitionOverrideRepository implements CompetitionOverrideR
       status: row.status,
       hasParaTir: row.has_para_tir === 1,
       hasFoamTargets: row.has_foam_targets === 1,
+      rhythm: rhythmOf(mandate),
       mandateUrl: row.mandate_url,
       town: row.town,
       departmentCode: row.department_code,
@@ -141,6 +144,7 @@ export class SqliteCompetitionOverrideRepository implements CompetitionOverrideR
       status: overrides.status ?? null,
       has_para_tir: overrides.hasParaTir ?? null,
       has_foam_targets: overrides.hasFoamTargets ?? null,
+      rhythm: overrides.rhythm ?? null,
       mandate_url: overrides.mandateUrl ?? null,
       mandate_added_on: mandateAddedOn,
       town: overrides.town ?? null,
@@ -170,6 +174,7 @@ function overridesOf(row: OverrideRow): CompetitionOverrides {
     status: row.status ?? undefined,
     hasParaTir: flag(row.has_para_tir),
     hasFoamTargets: flag(row.has_foam_targets),
+    rhythm: row.rhythm ?? undefined,
     mandateUrl: row.mandate_url ?? undefined,
     town: row.town ?? undefined,
     departmentCode: row.department_code ?? undefined,

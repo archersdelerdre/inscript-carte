@@ -17,7 +17,8 @@ const goodAnswer = (foamTargets = 'not_mentioned') => ({
     { audience: 'adult', departures: 2, amountEuros: 16 },
   ],
   foamTargets,
-  evidence: { departures: null, prices: '1 tir 9 €, 2 tirs 16 €', foamTargets: null },
+  rhythm: 'ABC',
+  evidence: { departures: null, prices: '1 tir 9 €, 2 tirs 16 €', foamTargets: null, rhythm: 'en ABC' },
 });
 
 let database: Knex;

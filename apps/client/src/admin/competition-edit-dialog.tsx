@@ -6,6 +6,8 @@ import {
   DISCIPLINES,
   DISCIPLINE_LABELS,
   MANDATE_AUDIENCES,
+  RHYTHMS,
+  type Rhythm,
   type CompetitionEditDto,
   type CompetitionEditResponse,
   type CompetitionFields,
@@ -371,6 +373,27 @@ function CompetitionForm({
           </div>
         </div>
 
+        <Field label='Rythme' htmlFor='edit-rhythm'>
+          <Select
+            value={form.rhythm ?? NO_RHYTHM}
+            onValueChange={(value) => patch({ rhythm: value === NO_RHYTHM ? null : (value as Rhythm) })}
+          >
+            <SelectTrigger id='edit-rhythm' className='w-full sm:w-64'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {/* An edit cannot remove the rhythm the mandate gives, only change it. */}
+              {ffta.rhythm === null && <SelectItem value={NO_RHYTHM}>Non précisé</SelectItem>}
+              {RHYTHMS.map((rhythm) => (
+                <SelectItem key={rhythm} value={rhythm}>
+                  {rhythm}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {note('rhythm')}
+        </Field>
+
         <Field label='Lien du mandat' htmlFor='edit-mandate' error={errors.mandateUrl}>
           <Input
             id='edit-mandate'
@@ -455,6 +478,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     </section>
   );
 }
+
+const NO_RHYTHM = 'none';
 
 function Field({
   label,
