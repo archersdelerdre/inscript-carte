@@ -3,6 +3,7 @@ import {
   API_ROUTES,
   BOW_TYPE_LABELS,
   categoryLabel,
+  departureTitle,
   type CompetitionDto,
   type CompetitionRegistrantDto,
   type ListCompetitionRegistrantsResponse,
@@ -16,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { api } from '@/lib/api';
 import { formatDateRange } from '@/lib/dates';
 
+import { departureOptions } from './departures';
 import { departuresPhrase, ERROR_MESSAGES } from './messages';
 
 type Props = { competition: CompetitionDto; onClose: () => void };
@@ -66,9 +68,23 @@ export function RegistrantsDialog({ competition, onClose }: Props) {
                   )}
                 </p>
                 <p className='text-muted-foreground text-sm'>
-                  {categoryLabel(registrant.category, registrant.sex)} · {BOW_TYPE_LABELS[registrant.bowType]} ·{' '}
-                  {departuresPhrase(registrant.departures)}
+                  {categoryLabel(registrant.category, registrant.sex)} · {BOW_TYPE_LABELS[registrant.bowType]}
+                  {!competition.departures && ` · ${departuresPhrase(registrant.departures)}`}
                 </p>
+                {/* With the mandate read, each départ with its day and times (asked by a member: no need to open
+                    the mandate to know when a départ is). */}
+                {competition.departures && (
+                  <ul className='text-muted-foreground text-sm'>
+                    {registrant.departures.map((number) => {
+                      const option = departureOptions(competition)[number - 1];
+                      return (
+                        <li key={number}>
+                          {[departureTitle(number, option?.name ?? null), option?.details].filter(Boolean).join(' · ')}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>

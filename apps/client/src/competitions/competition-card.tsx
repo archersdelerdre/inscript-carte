@@ -81,7 +81,7 @@ function Heading({ competition }: { competition: CompetitionDto }) {
       {competition.rhythm && (
         <Badge className={rhythmBadgeClass(competition.rhythm)}>Rythme {competition.rhythm}</Badge>
       )}
-      {competition.isPostponed && <Badge className='bg-amber-100 text-amber-900'>Reportée</Badge>}
+      {competition.isPostponed && <Badge className='bg-red-700 text-white'>Reporté</Badge>}
     </div>
   );
 }
@@ -108,6 +108,14 @@ function Place({ competition, onShowOnMap }: { competition: CompetitionDto; onSh
 }
 
 function Deadline({ competition }: { competition: CompetitionDto }) {
+  // Made to stand out (asked by a member): the date shown may no longer be the right one.
+  if (competition.isPostponed) {
+    return (
+      <p role='note' className='rounded-md border border-red-300 bg-red-50 px-3 py-2 font-semibold text-red-900'>
+        Ce concours est reporté. Les inscriptions par le club reprendront quand la nouvelle date sera connue.
+      </p>
+    );
+  }
   if (competition.clubRegistrationDeadline < todayInParis()) {
     return (
       <p className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
@@ -139,7 +147,7 @@ function RegistrationCount({ competition }: { competition: CompetitionDto }) {
 /** Bottom right of the card: the club registration actions. */
 function Actions({ competition }: { competition: CompetitionDto }) {
   const { register, showRegistrants } = useRegistrationActions();
-  const open = competition.clubRegistrationDeadline >= todayInParis();
+  const open = !competition.isPostponed && competition.clubRegistrationDeadline >= todayInParis();
   const hasRegistrants = competition.clubArcherCount > 0;
   // Nothing to see and nothing to do: no buttons at all.
   if (!open && !hasRegistrants) return null;

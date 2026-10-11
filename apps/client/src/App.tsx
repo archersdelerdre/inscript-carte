@@ -1,6 +1,6 @@
 import type { GeoPosition } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { ListIcon, MapIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react';
+import { ListIcon, LogInIcon, MapIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { useSession } from '@/auth/session';
@@ -36,8 +36,8 @@ export function App() {
   const [storedDepartment, setStoredDepartment] = useState(() => localStorage.getItem(DEPARTMENT_STORAGE_KEY));
   const [filters, setFilters] = useState<CompetitionFilters>(NO_FILTERS);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
-  /** Phones show either the list or the map; wider screens show both side by side. */
-  const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
+  /** Phones show either the list or the map, the map first (asked by a member); wider screens show both. */
+  const [mobileView, setMobileView] = useState<'list' | 'map'>('map');
 
   const competitions = useMemo(() => (state.kind === 'loaded' ? state.competitions : []), [state]);
   const departmentCodes = useMemo(
@@ -141,13 +141,39 @@ export function App() {
   );
 }
 
+/**
+ * Says whether the member is signed in (asked by a member, 2026-10-11): « Se connecter » when not, else « Mon suivi »
+ * with a green dot and, on wide screens, their name.
+ */
 function MyRegistrationsButton() {
+  const { archer, withArcher } = useSession();
   const { showMyRegistrations } = useRegistrationActions();
+  if (archer === null) {
+    return (
+      <Button variant='outline' className='shrink-0' onClick={() => withArcher(() => undefined)}>
+        <LogInIcon />
+        Se connecter
+      </Button>
+    );
+  }
+  const connected = archer && `${archer.sex === 'female' ? 'Connectée' : 'Connecté'} : ${archer.fullName}`;
   return (
-    <Button variant='outline' className='shrink-0' onClick={showMyRegistrations}>
-      <UserRoundIcon />
-      Mon suivi
-    </Button>
+    <>
+      {connected && <span className='text-muted-foreground max-w-64 truncate text-sm max-lg:hidden'>{connected}</span>}
+      <Button variant='outline' className='shrink-0' onClick={showMyRegistrations} title={connected || undefined}>
+        <span className='relative'>
+          <UserRoundIcon />
+          {archer && (
+            <span
+              aria-hidden
+              className='border-background absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 bg-green-600'
+            />
+          )}
+        </span>
+        Mon suivi
+        {connected && <span className='sr-only'>, {connected}</span>}
+      </Button>
+    </>
   );
 }
 

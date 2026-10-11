@@ -103,8 +103,9 @@ function call(path: string, init: { method?: string; body?: unknown; cookie?: st
   });
 }
 
+/** « Rester connecté » ticked: several tests move the clock days ahead. */
 async function signIn(member: typeof ADULT): Promise<string> {
-  const response = await call('/api/session', { method: 'POST', body: member });
+  const response = await call('/api/session', { method: 'POST', body: { ...member, remember: true } });
   expect(response.status).toBe(200);
   return response.headers.get('set-cookie')!.split(';')[0]!;
 }
@@ -144,6 +145,13 @@ describe('sign-in', () => {
 
     expect((await call('/api/session', { method: 'DELETE', cookie })).status).toBe(204);
     expect((await call('/api/session', { cookie })).status).toBe(401);
+  });
+
+  test('the cookie outlives the browser only when « Rester connecté » is ticked', async () => {
+    const once = await call('/api/session', { method: 'POST', body: ADULT });
+    expect(once.headers.get('set-cookie')).not.toMatch(/Expires=/i);
+    const remembered = await call('/api/session', { method: 'POST', body: { ...ADULT, remember: true } });
+    expect(remembered.headers.get('set-cookie')).toMatch(/Expires=/i);
   });
 
   test('wrong birth dates and departed members are refused the same way', async () => {
@@ -355,6 +363,14 @@ describe('registration', () => {
         })
       ).status,
     ).toBe(409);
+  });
+
+  test('is closed while the competition is postponed', async () => {
+    await database('competitions').where({ ffta_id: SALLE }).update({ status: 'postponed' });
+    const cookie = await signIn(ADULT);
+    const response = await call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie, body: form() });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'registration_closed' });
   });
 
   test('members see who is registered, grouped by archer', async () => {

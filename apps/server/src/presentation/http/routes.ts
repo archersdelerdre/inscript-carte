@@ -61,7 +61,8 @@ export function createRoutes({
           return error('invalid_request', 400);
         }
         const clientAddress = server.requestIP(request)?.address ?? 'unknown';
-        const result = await authentication.signIn(body.licenceNumber, body.birthDate, clientAddress);
+        const remember = body.remember === true;
+        const result = await authentication.signIn(body.licenceNumber, body.birthDate, clientAddress, remember);
         if (!result.ok) return error(result.reason, result.reason === 'too_many_attempts' ? 429 : 401);
 
         request.cookies.set(SESSION_COOKIE, result.token, {
@@ -69,7 +70,8 @@ export function createRoutes({
           sameSite: 'lax',
           secure: isHttps(request),
           path: '/',
-          expires: result.expiresAt,
+          // Without an expiry the browser drops the cookie when it closes.
+          ...(remember ? { expires: result.expiresAt } : {}),
         });
         return sessionResponse(result.archer);
       },

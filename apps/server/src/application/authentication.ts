@@ -4,8 +4,10 @@ import type { Clock } from './ports/clock.ts';
 import type { LoginAttemptLimiter } from './ports/login-attempt-limiter.ts';
 import type { SessionStore } from './ports/session-store.ts';
 
-/** Archers type their details once per device: "never ask twice". */
-const SESSION_DAYS = 180;
+/** « Rester connecté » ticked: the archer types their details once per device. */
+const REMEMBERED_SESSION_HOURS = 180 * 24;
+/** Not ticked: the cookie goes when the browser closes, and the session ends on the server after 12 hours anyway. */
+const BROWSER_SESSION_HOURS = 12;
 
 export type SignInResult =
   | { ok: true; archer: Archer; token: string; expiresAt: Date }
@@ -25,7 +27,12 @@ export class Authentication {
     this.#clock = clock;
   }
 
-  async signIn(licenceNumber: string, birthDate: string, clientAddress: string): Promise<SignInResult> {
+  async signIn(
+    licenceNumber: string,
+    birthDate: string,
+    clientAddress: string,
+    remember: boolean,
+  ): Promise<SignInResult> {
     const now = this.#clock.now();
     const licence = licenceNumber.replace(/\s/g, '').toUpperCase();
     const keys = [`licence:${licence}`, `address:${clientAddress}`];
@@ -39,7 +46,8 @@ export class Authentication {
     }
 
     this.#limiter.clear(`licence:${licence}`);
-    const expiresAt = new Date(now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+    const hours = remember ? REMEMBERED_SESSION_HOURS : BROWSER_SESSION_HOURS;
+    const expiresAt = new Date(now.getTime() + hours * 60 * 60 * 1000);
     const token = await this.#sessions.create(archer.licenceNumber, expiresAt, now);
     return { ok: true, archer, token, expiresAt };
   }

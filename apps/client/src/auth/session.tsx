@@ -2,6 +2,7 @@ import { API_ROUTES, type SessionResponse, type SignedInArcher } from '@inscript
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -96,6 +97,8 @@ type SignInDialogProps = {
 function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
   const [licenceNumber, setLicenceNumber] = useState(() => localStorage.getItem(LICENCE_STORAGE_KEY) ?? '');
   const [birthDate, setBirthDate] = useState('');
+  // The archer's choice, never imposed (asked by a member 2026-10-11): off unless they tick it.
+  const [remember, setRemember] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -111,13 +114,15 @@ function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
     setSending(true);
     const result = await api<SessionResponse>(API_ROUTES.session, {
       method: 'POST',
-      body: { licenceNumber, birthDate: isoBirthDate },
+      body: { licenceNumber, birthDate: isoBirthDate, remember },
     });
     setSending(false);
     if (!result.ok) return setMessage(ERROR_MESSAGES[result.error]);
 
-    // The licence number is public, so it can stay on the device; the birth date never does.
-    localStorage.setItem(LICENCE_STORAGE_KEY, result.data.archer.licenceNumber);
+    // The licence number is public, so it may stay on the device, but only when the archer asked to stay signed in.
+    // The birth date never does.
+    if (remember) localStorage.setItem(LICENCE_STORAGE_KEY, result.data.archer.licenceNumber);
+    else localStorage.removeItem(LICENCE_STORAGE_KEY);
     setBirthDate('');
     setMessage(null);
     onSignedIn(result.data.archer);
@@ -129,9 +134,7 @@ function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
         <form onSubmit={submit} className='grid gap-4' noValidate>
           <DialogHeader>
             <DialogTitle>Se connecter</DialogTitle>
-            <DialogDescription>
-              Réservé aux licenciés du club. À faire une seule fois : cet appareil se souviendra de vous.
-            </DialogDescription>
+            <DialogDescription>Réservé aux licenciés du club.</DialogDescription>
           </DialogHeader>
           <div className='grid gap-2'>
             <Label htmlFor='licence-number'>Numéro de licence</Label>
@@ -158,6 +161,20 @@ function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
               inputMode='numeric'
               autoComplete='bday'
             />
+          </div>
+          <div className='grid gap-1'>
+            <Label htmlFor='remember-me' className='min-h-10 cursor-pointer'>
+              <Checkbox
+                id='remember-me'
+                checked={remember}
+                onCheckedChange={(checked) => setRemember(checked === true)}
+              />
+              Garder la connexion sur cet appareil
+            </Label>
+            <p className='text-muted-foreground pl-7 text-sm'>
+              À cocher seulement sur un appareil personnel : vous n'aurez plus à vous reconnecter. Sinon, la connexion
+              s'arrête à la fermeture du navigateur.
+            </p>
           </div>
           {message && (
             <p role='alert' className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>

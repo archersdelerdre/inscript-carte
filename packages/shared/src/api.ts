@@ -116,6 +116,11 @@ export type SignInRequest = {
   licenceNumber: string;
   /** `YYYY-MM-DD` */
   birthDate: string;
+  /**
+   * « Rester connecté sur cet appareil » (the archer's choice, asked by a member 2026-10-11): a 180-day cookie.
+   * Otherwise the cookie ends with the browser.
+   */
+  remember?: boolean;
 };
 
 /** The full birth date is never sent back: the birth year is enough to compute the FFTA category. */

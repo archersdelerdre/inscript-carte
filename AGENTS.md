@@ -119,8 +119,11 @@ Inner layers never import outer ones. The domain may import types and rules from
   **not** touched; an admin deactivates them by hand. Members are never deleted.
 - Member sign-in: licence + birth date of an **active** member; unknown, departed and wrong date get the same error.
   Limits: 30 failures per licence, 200 per address, per 15 min (high on purpose: no lockout for members who
-  mistype). Cookie `HttpOnly`, `SameSite=Lax`, 180 days; only the token's SHA-256 is stored. The browser never keeps
-  the birth date.
+  mistype). Cookie `HttpOnly`, `SameSite=Lax`; only the token's SHA-256 is stored. The browser never keeps the birth
+  date. Decided (asked by Hervé, 2026-10-11): staying signed in is the member's choice, a box « Garder la connexion
+  sur cet appareil », off by default: ticked, a 180-day cookie and the licence number kept on the device; not ticked,
+  a browser-session cookie and a 12-hour session on the server. The header shows « Se connecter », or « Mon suivi »
+  with a green dot and « Connecté(e) : NOM » on wide screens.
 - Admins: decided, **two steps**: member sign-in, then a personal password (`admins` table). 10 wrong passwords per
   licence, 50 per address, per 15 min. Session 1 year, cookie `admin_session` (`Path=/api/admin`, `SameSite=Strict`).
   "Nommer admin" generates a password (`XXXX-XXXX-XXXX`) shown once; the new admin must replace it before anything
@@ -154,7 +157,10 @@ Inner layers never import outer ones. The domain may import types and rules from
   in the note, and leaves "Mon suivi".
 - Names of registrants: signed-in members only; the count (`clubArcherCount`) is public. « Voir les inscrits » shows
   each archer's category for that competition (« Senior 2 Femme », stored with the registration; asked by members,
-  2026-10-11), bow and départs.
+  2026-10-11), bow and départs; when the mandate was read, one line per départ with its day and times (asked by
+  Hervé: no need to open the mandate).
+- Postponed competitions (`status = 'postponed'`): a solid red « Reporté » badge and a red notice on the card; no
+  « S'inscrire », and the server refuses registrations (`isClubRegistrationOpen` needs `scheduled`). Asked by Hervé.
 - « Ajouter à mon agenda » (success screen and "Mon suivi", hidden once the competition is over): Google Agenda link
   or an `.ics` built in the browser (`registrations/calendar.ts`). Decided: one event **per day**, merging that day's
   départs, from the first greffe to the last estimated end (shooting + 3 h, else greffe + 4 h), floating local times;
@@ -257,8 +263,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     was asked have none; edits in
     `competition_overrides.rhythm` (migration `0011`). Decided: shown **like « Cibles mousses »** (a badge « Rythme
     AB/CD » on the card, a line in « Lu dans le mandat »), and a « Rythme » filter that leaves out competitions whose
-    rhythm is not known. Each badge has its own color (user's request): sky Para-tir, lime Cibles mousses, amber
-    Reportée, indigo AB, pink ABC, teal AB/CD (`competitions/rhythms.tsx`; the same dot in both « Rythme » menus).
+    rhythm is not known. Each badge has its own color (user's request): sky Para-tir, lime Cibles mousses, solid red
+    Reporté, indigo AB, pink ABC, teal AB/CD (`competitions/rhythms.tsx`; the same dot in both « Rythme » menus).
 
 ## Places and geocoding
 
@@ -275,10 +281,12 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 ## Client UI (decided, keep it)
 
 - Layout like SeLoger: list on the left (500 px, own scroll), full-height map on the right. On phones the list
-  **covers** the map (never hide the map: Leaflet needs its real size); a floating "Carte / Liste" button switches.
-- Filters: a round button opening a dialog (discipline, para-tir, dates, "avec des inscrits du club", "cibles
-  mousses", rythme), and a "where" pill: place menu (départements grouped by region, `region:<id>`, remembered,
-  default 44)
+  **covers** the map (never hide the map: Leaflet needs its real size); a floating "Carte / Liste" button switches;
+  phones open on the map (asked by Hervé, 2026-10-11).
+- Filters: a round button opening a dialog (disciplines as checkboxes, several at once, none = all; « para-tir »
+  checkbox; dates; "avec des inscrits du club"; "cibles mousses"; « Rythme (Salle 18m et Extérieur) », disabled with
+  a hint when the ticked disciplines have no rhythm), and a "where" pill: place menu (départements grouped by region,
+  `region:<id>`, remembered, default 44)
   plus a town search (our own ARIA combobox, not `<datalist>`). Chosen filters show as removable chips on a second
   line, never inside the search field. All filtering happens in the browser: `GET /api/competitions` sends everything.
 - Cards: date block in the discipline color, badges, town with « Voir sur la carte » (icon only on phones), club

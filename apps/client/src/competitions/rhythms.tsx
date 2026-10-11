@@ -2,8 +2,8 @@ import type { Rhythm } from '@inscript-carte/shared';
 import { cn } from 'cn';
 
 /**
- * One color per rhythm, apart from the other badges (sky Para-tir, lime Cibles mousses, amber Reportée; red is the
- * app's accent): the card's badge and the dots in the menus use the same one.
+ * One color per rhythm, apart from the other badges (sky Para-tir, lime Cibles mousses, solid red Reporté; red is
+ * also the app's accent): the card's badge and the dots in the menus use the same one.
  */
 const RHYTHM_COLORS: Record<Rhythm, { badge: string; dot: string }> = {
   AB: { badge: 'bg-indigo-100 text-indigo-900', dot: 'bg-indigo-500' },

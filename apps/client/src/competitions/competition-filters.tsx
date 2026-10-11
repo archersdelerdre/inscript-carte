@@ -35,14 +35,13 @@ import { RhythmDot } from './rhythms';
 import { TownSearch, type TownSuggestion } from './town-search';
 
 const ALL = 'all';
-const PARA_TIR = 'para-tir';
 const TOWN_SEARCH_DELAY_MS = 300;
-
-type DisciplineFilter = typeof ALL | typeof PARA_TIR | Discipline;
 
 /** Everything but the département, which is remembered on the device and kept by `App`. */
 export type CompetitionFilters = {
-  discipline: DisciplineFilter;
+  /** Several at once (asked by a member: « Campagne + 3D + Nature »); empty for every discipline. */
+  disciplines: Discipline[];
+  paraTir: boolean;
   /** `YYYY-MM-DD`, or empty for no limit. */
   from: string;
   to: string;
@@ -54,7 +53,8 @@ export type CompetitionFilters = {
 };
 
 export const NO_FILTERS: CompetitionFilters = {
-  discipline: ALL,
+  disciplines: [],
+  paraTir: false,
   from: '',
   to: '',
   withClubArchers: false,
@@ -70,9 +70,8 @@ export type FilterableCompetition = Pick<
 >;
 
 export function matchesFilters(competition: FilterableCompetition, filters: CompetitionFilters): boolean {
-  if (filters.discipline === PARA_TIR && !competition.hasParaTir) return false;
-  if (filters.discipline !== ALL && filters.discipline !== PARA_TIR && competition.discipline !== filters.discipline)
-    return false;
+  if (filters.paraTir && !competition.hasParaTir) return false;
+  if (filters.disciplines.length > 0 && !filters.disciplines.includes(competition.discipline)) return false;
   // A competition over several days is kept if one of its days is in the range.
   if (filters.from && competition.endDate < filters.from) return false;
   if (filters.to && competition.startDate > filters.to) return false;
@@ -82,10 +81,17 @@ export function matchesFilters(competition: FilterableCompetition, filters: Comp
   return matchesSearch(filters.town, competition.town);
 }
 
-/** Every rhythm while no discipline (or only Para-tir) is chosen; else the chosen discipline's, none off targets. */
-function rhythmsFor(discipline: DisciplineFilter): readonly Rhythm[] {
-  return discipline === ALL || discipline === PARA_TIR ? RHYTHMS : allowedRhythms(discipline);
+/** Every rhythm while no discipline is chosen; else those the chosen disciplines allow (none off targets). */
+function rhythmsFor(disciplines: readonly Discipline[]): readonly Rhythm[] {
+  if (disciplines.length === 0) return RHYTHMS;
+  return RHYTHMS.filter((rhythm) => disciplines.some((discipline) => allowedRhythms(discipline).includes(rhythm)));
 }
+
+/** The disciplines that have a rhythm: « Salle 18m et Extérieur » for the label, « … ou … » for the hint. */
+const RHYTHM_DISCIPLINE_LABELS = DISCIPLINES.filter((discipline) => allowedRhythms(discipline).length > 0).map(
+  (discipline) => DISCIPLINE_LABELS[discipline],
+);
+const RHYTHM_DISCIPLINES = RHYTHM_DISCIPLINE_LABELS.join(' et ');
 
 function dateRangeLabel(from: string, to: string): string {
   if (from && to) return `Du ${formatDay(from)} au ${formatDay(to)}`;
@@ -93,9 +99,8 @@ function dateRangeLabel(from: string, to: string): string {
   return `Jusqu'au ${formatDay(to)}`;
 }
 
-function DisciplineDot({ discipline }: { discipline: DisciplineFilter }) {
-  if (discipline === ALL) return null;
-  const color = discipline === PARA_TIR ? undefined : DISCIPLINE_COLORS[discipline];
+function DisciplineDot({ discipline }: { discipline: Discipline | 'para-tir' }) {
+  const color = discipline === 'para-tir' ? undefined : DISCIPLINE_COLORS[discipline];
   return <span aria-hidden className='size-3 shrink-0 rounded-full bg-sky-500' style={{ background: color }} />;
 }
 
@@ -155,14 +160,19 @@ export function CompetitionFilterBar({
     change({ town: '' });
   }
 
-  const chips: Chip[] = [];
-  if (filters.discipline !== ALL) {
-    const text = filters.discipline === PARA_TIR ? 'Para-tir' : DISCIPLINE_LABELS[filters.discipline];
+  const chips: Chip[] = filters.disciplines.map((discipline) => ({
+    key: `discipline-${discipline}`,
+    text: DISCIPLINE_LABELS[discipline],
+    icon: <DisciplineDot discipline={discipline} />,
+    remove: () => toggleDiscipline(discipline),
+  }));
+  if (filters.paraTir) {
+    const text = 'Para-tir';
     chips.push({
-      key: 'discipline',
+      key: 'para-tir',
       text,
-      icon: <DisciplineDot discipline={filters.discipline} />,
-      remove: () => change({ discipline: ALL }),
+      icon: <DisciplineDot discipline='para-tir' />,
+      remove: () => change({ paraTir: false }),
     });
   }
   if (filters.from || filters.to) {
@@ -182,10 +192,21 @@ export function CompetitionFilterBar({
     chips.push({ key: 'rhythm', text, remove: () => change({ rhythm: ALL }) });
   }
 
+  function toggleDiscipline(discipline: Discipline) {
+    const disciplines = filters.disciplines.includes(discipline)
+      ? filters.disciplines.filter((chosen) => chosen !== discipline)
+      : DISCIPLINES.filter((known) => known === discipline || filters.disciplines.includes(known));
+    // A rhythm the chosen disciplines cannot have would hide every competition.
+    const keepsRhythm = filters.rhythm === ALL || rhythmsFor(disciplines).includes(filters.rhythm);
+    change(keepsRhythm ? { disciplines } : { disciplines, rhythm: ALL });
+  }
+
   /** The département stays: it has its own menu in the bar, remembered on the device. */
   function clearFilters() {
-    change({ discipline: ALL, from: '', to: '', withClubArchers: false, foamTargets: false, rhythm: ALL });
+    change({ ...NO_FILTERS, town: filters.town });
   }
+
+  const rhythms = rhythmsFor(filters.disciplines);
 
   const isDepartment = department !== ALL_FRANCE && DEPARTMENT_NAMES[department] !== undefined;
 
@@ -286,35 +307,38 @@ export function CompetitionFilterBar({
             <DialogDescription>La liste et la carte se mettent à jour immédiatement.</DialogDescription>
           </DialogHeader>
 
-          <div className='grid gap-2'>
-            <Label htmlFor='filter-discipline'>Discipline</Label>
-            <Select
-              value={filters.discipline}
-              onValueChange={(value) => {
-                const discipline = value as DisciplineFilter;
-                // A rhythm the new discipline cannot have would hide every competition.
-                const keepsRhythm = filters.rhythm === ALL || rhythmsFor(discipline).includes(filters.rhythm);
-                change(keepsRhythm ? { discipline } : { discipline, rhythm: ALL });
-              }}
-            >
-              <SelectTrigger id='filter-discipline' className='w-full'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Toutes les disciplines</SelectItem>
-                {DISCIPLINES.map((discipline) => (
-                  <SelectItem key={discipline} value={discipline}>
-                    <DisciplineDot discipline={discipline} />
-                    {DISCIPLINE_LABELS[discipline]}
-                  </SelectItem>
-                ))}
-                <SelectItem value={PARA_TIR}>
-                  <DisciplineDot discipline={PARA_TIR} />
-                  Para-tir
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <fieldset className='grid gap-1'>
+            <legend className='mb-1 font-medium'>Disciplines</legend>
+            <p className='text-muted-foreground mb-1 text-sm'>
+              Cochez-en une ou plusieurs. Sans case cochée, toutes les disciplines sont affichées.
+            </p>
+            <div className='grid grid-cols-2 gap-x-3'>
+              {DISCIPLINES.map((discipline) => (
+                <Label
+                  key={discipline}
+                  htmlFor={`filter-${discipline}`}
+                  className='min-h-10 cursor-pointer font-normal'
+                >
+                  <Checkbox
+                    id={`filter-${discipline}`}
+                    checked={filters.disciplines.includes(discipline)}
+                    onCheckedChange={() => toggleDiscipline(discipline)}
+                  />
+                  <DisciplineDot discipline={discipline} />
+                  {DISCIPLINE_LABELS[discipline]}
+                </Label>
+              ))}
+            </div>
+          </fieldset>
+
+          <Label htmlFor='filter-para-tir' className='min-h-10 cursor-pointer'>
+            <Checkbox
+              id='filter-para-tir'
+              checked={filters.paraTir}
+              onCheckedChange={(checked) => change({ paraTir: checked === true })}
+            />
+            Seulement les concours avec une épreuve para-tir
+          </Label>
 
           <fieldset className='grid gap-2'>
             <legend className='mb-2 font-medium'>Dates</legend>
@@ -372,33 +396,39 @@ export function CompetitionFilterBar({
             )}
           </div>
 
-          {rhythmsFor(filters.discipline).length > 0 && (
-            <div className='grid gap-2'>
-              <Label htmlFor='filter-rhythm'>Rythme</Label>
-              <Select
-                value={filters.rhythm}
-                onValueChange={(value) => change({ rhythm: value as typeof ALL | Rhythm })}
-              >
-                <SelectTrigger id='filter-rhythm' className='w-full'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Tous les rythmes</SelectItem>
-                  {rhythmsFor(filters.discipline).map((rhythm) => (
-                    <SelectItem key={rhythm} value={rhythm}>
-                      <RhythmDot rhythm={rhythm} />
-                      {rhythm}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {filters.rhythm !== ALL && (
-                <p className='text-muted-foreground text-sm'>
-                  Les concours dont le mandat ne précise pas le rythme ne sont pas affichés.
-                </p>
-              )}
-            </div>
-          )}
+          <div className='grid gap-2'>
+            {/* Named in the label (asked by a member): only these disciplines have a rhythm. */}
+            <Label htmlFor='filter-rhythm'>Rythme ({RHYTHM_DISCIPLINES})</Label>
+            <Select
+              value={filters.rhythm}
+              disabled={rhythms.length === 0}
+              onValueChange={(value) => change({ rhythm: value as typeof ALL | Rhythm })}
+            >
+              <SelectTrigger id='filter-rhythm' className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Tous les rythmes</SelectItem>
+                {rhythms.map((rhythm) => (
+                  <SelectItem key={rhythm} value={rhythm}>
+                    <RhythmDot rhythm={rhythm} />
+                    {rhythm}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {rhythms.length === 0 && (
+              <p className='text-muted-foreground text-sm'>
+                Les disciplines cochées n'ont pas de rythme : cochez {RHYTHM_DISCIPLINE_LABELS.join(' ou ')} pour
+                choisir un rythme.
+              </p>
+            )}
+            {filters.rhythm !== ALL && (
+              <p className='text-muted-foreground text-sm'>
+                Les concours dont le mandat ne précise pas le rythme ne sont pas affichés.
+              </p>
+            )}
+          </div>
 
           <DialogFooter>
             <Button variant='ghost' onClick={clearFilters}>
