@@ -305,7 +305,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 - Hovering a card does nothing on the map; « Voir sur la carte » is the only link from list to map.
 - Map: OSM standard tiles (CARTO and Plan IGN rejected), one dot per position, red cluster bubbles, zoom bottom right,
   "© OpenStreetMap" bottom left in 10 px (required credit).
-- FFTA titles are shown as they come (often in capitals). Labels: "Salle 18m" (no space). App accent: red.
+- FFTA titles are shown as they come (often in capitals). Labels: "Salle 18m" (no space). App accent: blue (buttons);
+  red stays for warnings and the map clusters.
 
 ## Accessibility (older and disabled members)
 
