@@ -4,7 +4,12 @@ import type { Knex } from 'knex';
 
 import { createDatabase } from '../infrastructure/database/connection.ts';
 import { SqliteScrapedCompetitionStore } from '../infrastructure/database/sqlite-scraped-competition-store.ts';
-import type { CompetitionDetail, FftaCalendar, ListedCompetition } from './ports/ffta-calendar.ts';
+import {
+  type CompetitionDetail,
+  type FftaCalendar,
+  FftaPageTimeoutError,
+  type ListedCompetition,
+} from './ports/ffta-calendar.ts';
 import type { PlaceLocator } from './ports/scraped-competition-store.ts';
 import { listingFingerprint, planSync, SyncFftaCalendar } from './sync-ffta-calendar.ts';
 
@@ -207,6 +212,22 @@ describe('SyncFftaCalendar', () => {
     const blocked = await sync([one, two, three], { 2: detail(two) }).run({ dryRun: false });
     expect(blocked).toMatchObject({ detailsRead: 1, detailsLeft: 1, aborted: null });
     expect((await rows()).map(({ ffta_id }) => ffta_id)).toEqual(['1', '2']);
+  });
+
+  test('skips a page that does not load in time and reads the next ones', async () => {
+    const [one, two, three] = [listed('1'), listed('2'), listed('3')];
+    const slow: FftaCalendar = {
+      ...calendar([one, two, three], { 1: detail(one), 3: detail(three) }),
+      readCompetition: async (fftaId) => {
+        if (fftaId === '2') throw new FftaPageTimeoutError('trop lente');
+        return { detail: detail(fftaId === '1' ? one : three), problems: [] };
+      },
+    };
+    const report = await new SyncFftaCalendar(slow, store, locator, null, clock).run({ dryRun: false });
+    expect(report).toMatchObject({ detailsRead: 2, detailsLeft: 1 });
+    expect(report.problems).toContain('Fiche 2 : trop lente.');
+    expect((await rows()).map(({ ffta_id }) => ffta_id)).toEqual(['1', '3']);
+    expect((await sync([one, two, three], { 2: detail(two) }).run({ dryRun: false })).detailsRead).toBe(1);
   });
 
   test('writes nothing when the list cannot be read, or is far shorter than what is known', async () => {

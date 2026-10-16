@@ -2,7 +2,12 @@ import type { GeoPosition, ScraperProgress, ScraperReport } from '@inscript-cart
 
 import type { CalendarDate } from '../domain/calendar-date.ts';
 import type { Clock } from './ports/clock.ts';
-import type { CompetitionDetail, FftaCalendar, ListedCompetition } from './ports/ffta-calendar.ts';
+import {
+  type CompetitionDetail,
+  type FftaCalendar,
+  FftaPageTimeoutError,
+  type ListedCompetition,
+} from './ports/ffta-calendar.ts';
 import type {
   PlaceLocator,
   ScrapedCompetition,
@@ -181,6 +186,12 @@ export class SyncFftaCalendar {
       try {
         page = await this.#calendar.readCompetition(listed.fftaId);
       } catch (error) {
+        if (error instanceof FftaPageTimeoutError) {
+          // Not stored: a new competition appears with the next run, a changed one keeps its values until then.
+          report.problems.push(`Fiche ${listed.fftaId} : ${error.message}.`);
+          report.detailsLeft++;
+          continue;
+        }
         // Cloudflare stopped the browser: what was read so far is still good, the rest waits for the next run.
         report.problems.push(`Arrêt des fiches : ${error instanceof Error ? error.message : String(error)}`);
         report.detailsLeft += reading.length - index;

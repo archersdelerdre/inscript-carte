@@ -1,6 +1,8 @@
-import puppeteerCore, { type Browser, type Page } from 'puppeteer-core';
+import puppeteerCore, { TimeoutError, type Browser, type Page } from 'puppeteer-core';
 import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+import { FftaPageTimeoutError } from '../../application/ports/ffta-calendar.ts';
 
 /** One page at a time, with this pause between two: the FFTA site is read slowly, like a person would. */
 const PAUSE_BETWEEN_PAGES_MS = 1000;
@@ -80,13 +82,24 @@ export class FftaBrowser {
     return new FftaBrowser(browser, page);
   }
 
-  /** The page's HTML once Cloudflare lets it through; throws `CloudflareBlockedError` when it does not. */
+  /**
+   * The page's HTML once Cloudflare lets it through; throws `CloudflareBlockedError` when it does not, and
+   * `FftaPageTimeoutError` when the page does not load twice in a row (one FFTA page did, on 2026-10-16).
+   */
   async html(url: string): Promise<string> {
-    const wait = this.#lastRequestAt + PAUSE_BETWEEN_PAGES_MS - Date.now();
-    if (wait > 0) await Bun.sleep(wait);
-    this.#lastRequestAt = Date.now();
-
-    await this.#page.goto(url, { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT_MS });
+    try {
+      await this.#goto(url);
+    } catch (error) {
+      if (!(error instanceof TimeoutError)) throw error;
+      try {
+        await this.#goto(url);
+      } catch (again) {
+        if (!(again instanceof TimeoutError)) throw again;
+        throw new FftaPageTimeoutError(
+          `la page ${url} n'a pas répondu en ${PAGE_TIMEOUT_MS / 1000} s, deux fois de suite ; elle sera lue à la prochaine mise à jour`,
+        );
+      }
+    }
     const passed = await this.#page
       // A string, run in the page: the server code has no DOM types.
       .waitForFunction(`!document.title.includes(${JSON.stringify(CLOUDFLARE_TITLE)})`, { timeout: PAGE_TIMEOUT_MS })
@@ -94,6 +107,13 @@ export class FftaBrowser {
       .catch(() => false);
     if (!passed) throw new CloudflareBlockedError(url);
     return this.#page.content();
+  }
+
+  async #goto(url: string): Promise<void> {
+    const wait = this.#lastRequestAt + PAUSE_BETWEEN_PAGES_MS - Date.now();
+    if (wait > 0) await Bun.sleep(wait);
+    this.#lastRequestAt = Date.now();
+    await this.#page.goto(url, { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT_MS });
   }
 
   async close(): Promise<void> {

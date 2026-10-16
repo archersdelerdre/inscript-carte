@@ -237,7 +237,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   every 15 s; `server.timeout(request, 0)` because Bun closes idle connections after 10 s.
 - Cloudflare blocks plain HTTP and plain headless Chrome: `puppeteer-core` + `puppeteer-extra` stealth passes. Chrome
   runs with `pipe: true` so it dies with the process. A blocked page throws `CloudflareBlockedError` and the run changes
-  nothing. One tab, 1 s between pages, no images or fonts.
+  nothing. One tab, 1 s between pages, no images or fonts. A page that does not load in 30 s is tried once more, then
+  skipped (`FftaPageTimeoutError`, 2026-10-16): the other detail pages are still read, it waits for the next run.
 - Every run reads the **whole list** (one year ahead, ~75 pages); detail pages (`/epreuve/<id>`) only for new or
   changed cards (list fingerprint). Para-tir entries become a flag on the main entry (`mergeParaTir`).
 - Département: the venue's postal code first, else the departmental committee (longest name wins: "HAUTE LOIRE"
@@ -254,8 +255,9 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     `medium` until 2026-10-11: long reasonings hit the 120 s timeout), `dataCollection: 'deny'`, providers sorted by
     price among those at 75 tokens/s or more (`preferredMinThroughput`; OpenRouter has no price-per-speed sort), JSON
     schema from zod. Prompt in French in `openrouter-mandate-extractor.ts`. Decided (2026-10-11): when GLM times out
-    (120 s), the same request goes to `MANDATE_FALLBACK_MODEL` (default `google/gemini-3.1-flash-lite`, reasoning
-    `minimal`, 60 s), which reads documents almost as well, does not reason long, and costs about 4× more.
+    (120 s) or answers with an HTTP error (2026-10-16), the same request goes to `MANDATE_FALLBACK_MODEL` (default
+    `google/gemini-3.1-flash-lite`, reasoning `minimal`, 60 s), which reads documents almost as well, does not reason
+    long, and costs about 4× more. Error messages keep the HTTP code and the provider's name.
   - `checkMandateData` checks the answer (≤ 12 départs, 0–150 €). A mandate often covers two FFTA entries of one
     weekend: départs on other days are dropped. Undated départs on a competition over several days get their day from
     the times (`datedDepartures`, asked 2026-10-11): an earlier time than the départ before starts the next day, only

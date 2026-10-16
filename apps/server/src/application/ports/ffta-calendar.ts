@@ -60,7 +60,13 @@ export type CalendarRead = {
 };
 export type CompetitionPage = { detail: CompetitionDetail | null; problems: string[] };
 
-/** The FFTA website. Throws when it cannot be read at all (Cloudflare): nothing may be trusted then. */
+/** One page of the FFTA site did not load in time: the next ones may, the run goes on without it. */
+export class FftaPageTimeoutError extends Error {}
+
+/**
+ * The FFTA website. Throws when it cannot be read at all (Cloudflare): nothing may be trusted then. Throws
+ * `FftaPageTimeoutError` when only one page is too slow.
+ */
 export interface FftaCalendar {
   /** Every competition from `today` for a year, Para-tir merged as a flag. */
   readList(today: CalendarDate, onPage: (page: number, found: number) => void): Promise<CalendarRead>;

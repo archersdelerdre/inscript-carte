@@ -1,5 +1,5 @@
 import { OpenRouter } from '@openrouter/sdk';
-import { RequestTimeoutError } from '@openrouter/sdk/models/errors';
+import { OpenRouterError, RequestTimeoutError } from '@openrouter/sdk/models/errors';
 
 import type {
   MandateAnswer,
@@ -48,8 +48,9 @@ evidence : pour departures, prices, foamTargets et rhythm (les rythmes), les mot
 
 /**
  * GLM 5.3 Flash through OpenRouter, the user's choice (2026-10-09): it reads images, cheaply. Its reasoning cannot be
- * turned off and sometimes runs past the timeout: the mandate is then read by a model that does not reason (Gemini
- * 3.1 Flash-Lite, close on document benchmarks, about 4× the price; the user's choice, 2026-10-11).
+ * turned off and sometimes runs past the timeout, and its providers sometimes answer with an error: the mandate is
+ * then read by a model that does not reason (Gemini 3.1 Flash-Lite, close on document benchmarks, about 4× the
+ * price; the user's choice, 2026-10-11 for timeouts, 2026-10-16 for errors).
  */
 export class OpenRouterMandateExtractor implements MandateExtractor {
   readonly #client: OpenRouter;
@@ -69,11 +70,18 @@ export class OpenRouterMandateExtractor implements MandateExtractor {
       return await this.#read(document, context, this.#model, 'low', TIMEOUT_MS);
     } catch (error) {
       // Before the headers, the SDK throws its RequestTimeoutError. Once they arrived, reading the body throws the bare
-      // DOMException "The operation timed out." (the one seen in the runs of 2026-10-11).
+      // DOMException "The operation timed out." (the one seen in the runs of 2026-10-11). An HTTP error answer is an
+      // OpenRouterError ("Provider returned error", 2026-10-16).
       const timedOut =
         error instanceof RequestTimeoutError || (error instanceof DOMException && error.name === 'TimeoutError');
-      if (!timedOut) throw error;
-      return this.#read(document, context, this.#fallbackModel, 'minimal', FALLBACK_TIMEOUT_MS);
+      if (!timedOut && !(error instanceof OpenRouterError)) throw error;
+      try {
+        return await this.#read(document, context, this.#fallbackModel, 'minimal', FALLBACK_TIMEOUT_MS);
+      } catch (fallbackError) {
+        throw new Error(`${describe(error)}, puis ${this.#fallbackModel} : ${describe(fallbackError)}`, {
+          cause: fallbackError,
+        });
+      }
     }
   }
 
@@ -146,6 +154,22 @@ export class OpenRouterMandateExtractor implements MandateExtractor {
     }
     return { answer, model: result.model, costUsd: result.usage?.cost ?? null };
   }
+}
+
+/**
+ * An error's message, with the HTTP code and the provider of an OpenRouter error answer ("Provider returned error"
+ * alone does not tell why). Never the body itself: a provider's raw error may quote the request.
+ */
+function describe(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  if (!(error instanceof OpenRouterError)) return error.message;
+  let provider: unknown;
+  try {
+    provider = JSON.parse(error.body)?.error?.metadata?.provider_name;
+  } catch {
+    // Not JSON: the code is enough.
+  }
+  return `${error.message} (code HTTP ${error.statusCode}${typeof provider === 'string' ? `, ${provider}` : ''})`;
 }
 
 /**
