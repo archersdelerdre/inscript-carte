@@ -149,6 +149,10 @@ Inner layers never import outer ones. The domain may import types and rules from
 - Covoiturage is one answer per archer and competition: each request sets it on all their active départs there.
 - **One payment reference per archer and competition** (`R-0001`, club-wide counter): later départs reuse it, even if
   the first ones were withdrawn.
+- **Amount to pay the club** (asked by Loïc, 2026-10-25), on the success screen and once per competition in « Mon
+  suivi »: `amountDue` (`shared/src/pricing.ts`, computed by the server), the price of all the archer's départs there
+  (to pay or paid, not ended) less what the paid ones cost, so a départ added after paying costs the degressive
+  difference. `null` (sentence without amount) when nothing is due or no price fits.
 - **Club deadline** (`clubRegistrationDeadline`), last day included. Decided:
   - no mandate: 7 days before the start (still used for withdrawals and payments when a link goes away);
   - with a mandate: the later of 14 days before the start and 2 days after the day the mandate appeared, but never

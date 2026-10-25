@@ -213,6 +213,8 @@ describe('registration', () => {
       paymentReference: 'R-0001',
       paymentDeadline: '2026-12-26',
       paymentStatus: 'to_pay',
+      // No mandate read: no amount rather than a wrong one.
+      amountDue: null,
     });
 
     const second = await call(`/api/competitions/${SALLE}/registrations`, {
@@ -228,6 +230,40 @@ describe('registration', () => {
     // Two archers, three départs: the public counter counts archers.
     const list = (await (await call('/api/competitions')).json()) as { competitions: CompetitionDto[] };
     expect(list.competitions.find((competition) => competition.id === SALLE)?.clubArcherCount).toBe(2);
+  });
+
+  test('the amount to pay the club comes from the mandate prices, for all the archer’s départs there', async () => {
+    await database('competition_mandates').insert({
+      ffta_id: SALLE,
+      mandate_url: 'https://extranet.ffta.fr/salle.pdf',
+      status: 'parsed',
+      data: JSON.stringify({
+        departures: [],
+        prices: [
+          { categories: ['S1', 'S2', 'S3'], departures: 1, amountEuros: 9 },
+          { categories: ['S1', 'S2', 'S3'], departures: 2, amountEuros: 16 },
+        ],
+        foamTargets: 'not_mentioned',
+        evidence: { departures: null, prices: null, foamTargets: null },
+      }),
+      read_at: new Date().toISOString(),
+    });
+    const cookie = await signIn(ADULT);
+    const register = async (departure: number) =>
+      (await (
+        await call(`/api/competitions/${SALLE}/registrations`, {
+          method: 'POST',
+          cookie,
+          body: form({ departures: [departure] }),
+        })
+      ).json()) as RegistrationCreatedResponse;
+
+    expect((await register(1)).amountDue).toBe(9);
+    await database('registrations').update({ payment_status: 'paid' });
+    // The 1st départ is paid: the 2nd costs what the 2-départ price adds.
+    expect((await register(2)).amountDue).toBe(7);
+    const mine = (await (await call('/api/me/registrations', { cookie })).json()) as ListMyRegistrationsResponse;
+    expect(mine.registrations.map(({ amountDue }) => amountDue)).toEqual([7, 7]);
   });
 
   test('a later request on the same competition keeps the reference, even after a withdrawal', async () => {

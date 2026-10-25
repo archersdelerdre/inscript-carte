@@ -1,6 +1,7 @@
 import { AGE_CATEGORIES, categoriesLabel, type AdminCompetitionDto, type MandatePrice } from '@inscript-carte/shared';
 import { ChevronRightIcon } from 'lucide-react';
 
+import { formatEuros } from '@/lib/euros';
 import { departureOptions } from '@/registrations/departures';
 
 /** One line per list of categories, the widest first ("Tous", "Jeunes", then "U11"): as the mandates write them. */
@@ -14,14 +15,6 @@ function priceGroups(prices: MandatePrice[]): { key: string; label: string; pric
   return [...groups]
     .map(([key, list]) => ({ key, label: categoriesLabel(list[0]!.categories), prices: list }))
     .toSorted((a, b) => b.prices[0]!.categories.length - a.prices[0]!.categories.length);
-}
-
-const wholeEuros = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-const euros = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
-
-/** 9 → "9 €", 6.5 → "6,50 €". */
-export function formatEuros(amount: number): string {
-  return (Number.isInteger(amount) ? wholeEuros : euros).format(amount);
 }
 
 function priceList(prices: MandatePrice[]): string {

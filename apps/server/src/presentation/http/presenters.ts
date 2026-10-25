@@ -54,7 +54,12 @@ export function toSignedInArcher(archer: Archer, isAdmin: boolean): SignedInArch
   };
 }
 
-export function toMyRegistrationDto({ registration, competition, canWithdraw }: MyRegistration): MyRegistrationDto {
+export function toMyRegistrationDto({
+  registration,
+  competition,
+  canWithdraw,
+  amountDue,
+}: MyRegistration): MyRegistrationDto {
   return {
     id: registration.id,
     competitionId: competition.id,
@@ -72,6 +77,7 @@ export function toMyRegistrationDto({ registration, competition, canWithdraw }: 
     paymentStatus: registration.paymentStatus,
     paymentMethod: registration.paymentMethod,
     paymentReference: registration.paymentReference,
+    amountDue,
     clubRegistrationDeadline: clubRegistrationDeadline(competition),
     clubNote: registration.clubNote,
     canWithdraw,

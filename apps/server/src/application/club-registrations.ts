@@ -1,5 +1,6 @@
 import {
   ageCategory,
+  amountDue,
   BOW_TYPES,
   DISTANCES,
   PAYMENT_METHODS,
@@ -39,6 +40,7 @@ export type RegisterResult =
       paymentReference: string;
       paymentDeadline: string;
       paymentStatus: PaymentStatus;
+      amountDue: number | null;
     }
   | { ok: false; reason: 'not_found' | 'invalid_request' | 'registration_closed' | 'already_registered' };
 
@@ -51,7 +53,13 @@ export type RegistrantGroup = {
   carpool: boolean;
 };
 
-export type MyRegistration = { registration: Registration; competition: Competition; canWithdraw: boolean };
+export type MyRegistration = {
+  registration: Registration;
+  competition: Competition;
+  canWithdraw: boolean;
+  /** For the whole competition: the same on each of its rows. */
+  amountDue: number | null;
+};
 
 export type WithdrawResult = { ok: true } | { ok: false; reason: 'not_found' | 'cannot_withdraw' };
 
@@ -111,6 +119,10 @@ export class ClubRegistrations {
       paymentStatus,
     });
     if (!result.ok) return result;
+    // Earlier requests on the same competition count too: degressive prices are for all the départs.
+    const ownDepartures = (await this.#registrations.forArcher(archer.licenceNumber)).filter(
+      (registration) => registration.competitionId === competition.id,
+    );
     return {
       ok: true,
       departures: departures.map(({ departure }) => departure),
@@ -118,6 +130,7 @@ export class ClubRegistrations {
       paymentReference: result.paymentReference,
       paymentDeadline: clubRegistrationDeadline(competition),
       paymentStatus,
+      amountDue: amountDue(competition.prices, category, ownDepartures),
     };
   }
 
@@ -158,11 +171,23 @@ export class ClubRegistrations {
       if (competition) competitions.set(id, competition);
     }
     const today = this.#clock.today();
+    const dueByCompetition = new Map<string, number | null>();
+    for (const [id, competition] of competitions) {
+      const own = registrations.filter((registration) => registration.competitionId === id);
+      dueByCompetition.set(id, amountDue(competition.prices, own[0]!.category, own));
+    }
     return registrations
       .flatMap((registration) => {
         const competition = competitions.get(registration.competitionId);
         return competition
-          ? [{ registration, competition, canWithdraw: canWithdraw(registration, competition, today) }]
+          ? [
+              {
+                registration,
+                competition,
+                canWithdraw: canWithdraw(registration, competition, today),
+                amountDue: dueByCompetition.get(competition.id) ?? null,
+              },
+            ]
           : [];
       })
       .toSorted(

@@ -166,6 +166,9 @@ export type RegistrationCreatedResponse = {
   paymentDeadline: string;
   /** "nothing_due" when the club pays. */
   paymentStatus: PaymentStatus;
+  /** What is left to pay the club for this competition, all the archer's départs there; `null` when nothing is
+   * left to pay or the mandate gives no price that fits (`amountDue`). */
+  amountDue: number | null;
 };
 
 export type CompetitionRegistrantDto = {
@@ -202,6 +205,8 @@ export type MyRegistrationDto = {
   /** `null` for registrations made before the payment method was asked. */
   paymentMethod: PaymentMethod | null;
   paymentReference: string;
+  /** For the whole competition, the same on each of its rows: see `RegistrationCreatedResponse.amountDue`. */
+  amountDue: number | null;
   clubRegistrationDeadline: string;
   clubNote: string | null;
   canWithdraw: boolean;

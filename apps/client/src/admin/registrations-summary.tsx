@@ -9,7 +9,7 @@ import {
 import { cn } from 'cn';
 import { CheckIcon } from 'lucide-react';
 
-import { formatEuros } from './mandate-summary';
+import { formatEuros } from '@/lib/euros';
 
 /** A filter a task can set: a status or a payment state. */
 export type TileFilter = { status: RegistrationStatus } | { paymentStatus: PaymentStatus };

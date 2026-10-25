@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { api } from '@/lib/api';
 import { formatDateRange, formatDay } from '@/lib/dates';
+import { formatEuros } from '@/lib/euros';
 import { cn } from '@/lib/utils';
 
 import { AddToCalendarButton } from './add-to-calendar-button';
@@ -161,9 +162,16 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
                 <p>Le club prend en charge cette inscription : vous n'avez rien à régler.</p>
               ) : (
                 <p>
-                  À régler au club avant le {formatDay(created.paymentDeadline)}
+                  À régler au club
+                  {created.amountDue !== null && (
+                    <>
+                      {' '}
+                      pour ce concours : <strong>{formatEuros(created.amountDue)}</strong>,
+                    </>
+                  )}{' '}
+                  avant le {formatDay(created.paymentDeadline)}
                   {paymentMethod && `, ${PAYMENT_METHOD_PHRASES[paymentMethod]}`}, en indiquant la référence{' '}
-                  <strong>{created.paymentReference}</strong>.
+                  <strong className='whitespace-nowrap'>{created.paymentReference}</strong>.
                 </p>
               )}
               <p>Vous retrouverez cette inscription et sa référence dans « Mon suivi ».</p>

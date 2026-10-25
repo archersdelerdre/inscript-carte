@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import type { AgeCategory } from './ffta-category.ts';
 import type { MandatePrice } from './mandate.ts';
-import { registrationPrice } from './pricing.ts';
+import { amountDue, registrationPrice } from './pricing.ts';
 
 const YOUTH: AgeCategory[] = ['U11', 'U13', 'U15', 'U18', 'U21'];
 const ADULTS: AgeCategory[] = ['S1', 'S2', 'S3'];
@@ -56,5 +56,22 @@ describe('registrationPrice', () => {
     expect(registrationPrice(null, 'S1', 1)).toBeNull();
     expect(registrationPrice([{ categories: ADULTS, departures: 2, amountEuros: 16 }], 'S1', 1)).toBeNull();
     expect(registrationPrice([{ categories: YOUTH, departures: 1, amountEuros: 5 }], 'S1', 1)).toBeNull();
+  });
+});
+
+describe('amountDue', () => {
+  const toPay = { status: 'received', paymentStatus: 'to_pay' } as const;
+  const paid = { status: 'confirmed', paymentStatus: 'paid' } as const;
+
+  test('a départ added after paying costs only the difference of the degressive price', () => {
+    expect(amountDue(DEGRESSIVE, 'S1', [toPay, toPay])).toBe(16);
+    expect(amountDue(DEGRESSIVE, 'S1', [paid, toPay])).toBe(7);
+  });
+
+  test('ended départs and those with nothing to pay do not count; nothing left gives no amount', () => {
+    expect(amountDue(DEGRESSIVE, 'S1', [toPay, { status: 'cancelled', paymentStatus: 'to_refund' }])).toBe(9);
+    expect(amountDue(DEGRESSIVE, 'S1', [paid])).toBeNull();
+    expect(amountDue(DEGRESSIVE, 'U13', [{ status: 'received', paymentStatus: 'nothing_due' }])).toBeNull();
+    expect(amountDue(null, 'S1', [toPay])).toBeNull();
   });
 });

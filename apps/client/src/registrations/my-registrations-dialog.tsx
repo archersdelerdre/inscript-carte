@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, formatDay, todayInParis } from '@/lib/dates';
+import { formatEuros } from '@/lib/euros';
 
 import { AddToCalendarButton } from './add-to-calendar-button';
 import { competitionEvents } from './calendar';
@@ -107,6 +108,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
 
         {[...byCompetition.values()].map((rows) => {
           const [first] = rows as [MyRegistrationDto, ...MyRegistrationDto[]];
+          const due = rows.find((row) => row.paymentStatus === 'to_pay');
           return (
             <section key={first.competitionId} className='grid gap-2 rounded-xl border p-4 shadow-sm'>
               {/* The chip goes after the title, or at the start of the next line when it does not fit. */}
@@ -141,13 +143,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                         </Badge>
                       )}
                     </div>
-                    {registration.paymentStatus === 'to_pay' && (
-                      <p className='text-sm'>
-                        En attente de paiement : à régler avant le {formatDay(registration.clubRegistrationDeadline)}
-                        {registration.paymentMethod && `, ${PAYMENT_METHOD_PHRASES[registration.paymentMethod]}`},
-                        référence <strong>{registration.paymentReference}</strong>
-                      </p>
-                    )}
+                    {registration.paymentStatus === 'to_pay' && <p className='text-sm'>En attente de paiement.</p>}
                     {registration.paymentStatus === 'nothing_due' && registration.status !== 'full' && (
                       <p className='text-muted-foreground text-sm'>Rien à régler au club pour ce départ.</p>
                     )}
@@ -166,6 +162,21 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                   </li>
                 ))}
               </ul>
+              {/* Once for the competition: the price is for all the archer's départs there. */}
+              {due && (
+                <p className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
+                  À régler au club
+                  {due.amountDue !== null && (
+                    <>
+                      {' '}
+                      pour ce concours : <strong>{formatEuros(due.amountDue)}</strong>,
+                    </>
+                  )}{' '}
+                  avant le {formatDay(due.clubRegistrationDeadline)}
+                  {due.paymentMethod && `, ${PAYMENT_METHOD_PHRASES[due.paymentMethod]}`}, en indiquant la référence{' '}
+                  <strong className='whitespace-nowrap'>{due.paymentReference}</strong>.
+                </p>
+              )}
               {/* For the whole competition, set apart from the départs' own buttons. Not once it is over. */}
               {first.endDate >= today && (
                 <div className='mt-2 border-t pt-3'>
