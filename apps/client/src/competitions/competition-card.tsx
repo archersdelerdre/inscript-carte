@@ -85,7 +85,7 @@ export function CompetitionPopupItem({ competition }: { competition: Competition
 /** The badges always on their own line under the title, never beside it: the same place on every card. */
 function Heading({ competition }: { competition: CompetitionDto }) {
   const hasBadges =
-    competition.hasParaTir || competition.hasFoamTargets || competition.rhythm !== null || competition.isPostponed;
+    competition.hasParaTir || competition.hasFoamTargets || competition.rhythms.length > 0 || competition.isPostponed;
   return (
     <div className='grid gap-1.5'>
       <h3 className='leading-snug font-semibold'>{competition.title}</h3>
@@ -94,9 +94,11 @@ function Heading({ competition }: { competition: CompetitionDto }) {
           {competition.isPostponed && <Badge className='bg-red-700 text-white'>Reporté</Badge>}
           {competition.hasParaTir && <Badge className={PARA_TIR_BADGE}>Para-tir</Badge>}
           {competition.hasFoamTargets && <Badge className={FOAM_TARGETS_BADGE}>Cibles mousses</Badge>}
-          {competition.rhythm && (
-            <Badge className={rhythmBadgeClass(competition.rhythm)}>Rythme {competition.rhythm}</Badge>
-          )}
+          {competition.rhythms.map((rhythm) => (
+            <Badge key={rhythm} className={rhythmBadgeClass(rhythm)}>
+              Rythme {rhythm}
+            </Badge>
+          ))}
         </div>
       )}
     </div>

@@ -29,7 +29,13 @@ const Overrides = z.strictObject({
   status: z.enum(COMPETITION_STATUSES).optional(),
   hasParaTir: z.boolean().optional(),
   hasFoamTargets: z.boolean().optional(),
-  rhythm: z.enum(RHYTHMS).optional(),
+  rhythms: z
+    .array(z.enum(RHYTHMS))
+    .min(1)
+    .max(RHYTHMS.length)
+    .refine((rhythms) => new Set(rhythms).size === rhythms.length)
+    .transform((rhythms) => RHYTHMS.filter((rhythm) => rhythms.includes(rhythm)))
+    .optional(),
   mandateUrl: z.string().trim().startsWith('https://').max(500).optional(),
   town: z.string().trim().min(1).max(MAX_TEXT).optional(),
   departmentCode: z
@@ -67,7 +73,7 @@ export type CompetitionOverrides = Partial<CompetitionFields>;
 /**
  * `null` when the edit is not valid, judged with the values it would give (an edited start date against the FFTA end
  * date, for instance): the dates in order, each départ on one of the competition's days, one amount per case, a
- * rhythm the discipline allows.
+ * rhythms the discipline allows.
  */
 export function checkOverrides(raw: unknown, ffta: CompetitionFields): CompetitionOverrides | null {
   const parsed = Overrides.safeParse(raw);
@@ -79,9 +85,8 @@ export function checkOverrides(raw: unknown, ffta: CompetitionFields): Competiti
   const endDate = overrides.endDate ?? ffta.endDate;
   if (endDate < startDate) return null;
   if (overrides.departures?.some(({ date }) => date && (date < startDate || date > endDate))) return null;
-  if (overrides.rhythm && !allowedRhythms(overrides.discipline ?? ffta.discipline).includes(overrides.rhythm)) {
-    return null;
-  }
+  const allowed = allowedRhythms(overrides.discipline ?? ffta.discipline);
+  if (overrides.rhythms?.some((rhythm) => !allowed.includes(rhythm))) return null;
   if (overrides.prices && hasPriceConflict(overrides.prices)) return null;
   return overrides;
 }

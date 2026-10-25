@@ -18,6 +18,7 @@ const goodAnswer = (foamTargets = 'not_mentioned') => ({
   ],
   foamTargets,
   rhythms: ['ABC'],
+  rhythmsAreAlternatives: false,
   evidence: { departures: null, prices: '1 tir 9 €, 2 tirs 16 €', foamTargets: null, rhythm: 'en ABC' },
 });
 

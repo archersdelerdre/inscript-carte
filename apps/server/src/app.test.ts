@@ -1489,7 +1489,7 @@ describe('competition edits', () => {
     });
   });
 
-  test('the rhythm comes from the mandate reading (none for older readings), and an edit wins', async () => {
+  test('the rhythms come from the mandate reading (none for older readings), and an edit wins', async () => {
     const link = 'https://extranet.ffta.fr/r.pdf';
     await database('competitions').where({ ffta_id: SALLE }).update({ mandate_url: link });
     const reading = (data: object) => ({
@@ -1499,32 +1499,29 @@ describe('competition edits', () => {
       data: JSON.stringify({ departures: [], prices: [], foamTargets: 'not_mentioned', evidence: {}, ...data }),
       read_at: new Date().toISOString(),
     });
+    const rhythms = async () => (await publicSalle())?.rhythms;
     await database('competition_mandates').insert(reading({}));
-    expect((await publicSalle())?.rhythm).toBeNull();
+    expect(await rhythms()).toEqual([]);
+    // A rhythm per day keeps both; ABC is shot indoors too.
     await database('competition_mandates')
       .where({ ffta_id: SALLE })
-      .update(reading({ rhythms: ['AB'] }));
-    expect((await publicSalle())?.rhythm).toBe('AB');
-    // SALLE is indoors: an "ABC" is AB there.
-    await database('competition_mandates')
-      .where({ ffta_id: SALLE })
-      .update(reading({ rhythms: ['ABC'] }));
-    expect((await publicSalle())?.rhythm).toBe('AB');
+      .update(reading({ rhythms: ['AB/CD', 'ABC'], rhythmsAreAlternatives: false }));
+    expect(await rhythms()).toEqual(['ABC', 'AB/CD']);
 
     await makeAdmin(ADULT);
     const cookie = await adminSignIn();
     const put = (body: object) => call(overridesPath, { method: 'PUT', cookie, body });
-    expect((await put({ rhythm: 'ABC' })).status).toBe(400);
-    expect((await put({ rhythm: 'ABC', discipline: 'exterieur' })).status).toBe(204);
+    expect((await put({ rhythms: ['AB'], discipline: 'exterieur' })).status).toBe(400);
+    expect((await put({ rhythms: [] })).status).toBe(400);
+    expect((await put({ rhythms: ['AB', 'AB'] })).status).toBe(400);
+    expect((await put({ rhythms: ['ABC', 'AB/CD'], discipline: 'exterieur' })).status).toBe(204);
+    expect(await rhythms()).toEqual(['ABC', 'AB/CD']);
     // Off targets, no rhythm at all: an edit refused, a reading ignored.
-    expect((await put({ rhythm: 'AB/CD', discipline: 'campagne' })).status).toBe(400);
+    expect((await put({ rhythms: ['AB/CD'], discipline: 'campagne' })).status).toBe(400);
     await put({ discipline: 'campagne' });
-    await database('competition_mandates')
-      .where({ ffta_id: SALLE })
-      .update(reading({ rhythms: ['AB/CD'] }));
-    expect((await publicSalle())?.rhythm).toBeNull();
-    await put({ rhythm: 'AB/CD' });
-    expect((await publicSalle())?.rhythm).toBe('AB/CD');
+    expect(await rhythms()).toEqual([]);
+    await put({ rhythms: ['AB/CD', 'AB'] });
+    expect(await rhythms()).toEqual(['AB', 'AB/CD']);
   });
 });
 

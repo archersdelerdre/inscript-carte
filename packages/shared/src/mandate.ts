@@ -12,11 +12,12 @@ export const RHYTHMS = ['AB', 'ABC', 'AB/CD'] as const;
 export type Rhythm = (typeof RHYTHMS)[number];
 
 /**
- * The user's rule (2026-10-11), applied by the code, never asked to the LLM: indoors only AB or AB/CD, outdoors only
- * ABC or AB/CD. Other disciplines are not shot on targets in turns: no rhythm at all.
+ * The user's rules (2026-10-11; ABC indoors too since 2026-10-25), applied by the code, never asked to the LLM:
+ * indoors AB, ABC or AB/CD, outdoors only ABC or AB/CD. Other disciplines are not shot on targets in turns: no rhythm
+ * at all.
  */
 const RHYTHMS_BY_DISCIPLINE: Partial<Record<Discipline, readonly Rhythm[]>> = {
-  salle: ['AB', 'AB/CD'],
+  salle: ['AB', 'ABC', 'AB/CD'],
   exterieur: ['ABC', 'AB/CD'],
 };
 
@@ -87,10 +88,16 @@ export type MandateData = {
   prices: MandatePrice[];
   foamTargets: FoamTargetsAnswer;
   /**
-   * Every rhythm the mandate writes ("AB/CD ou ABC selon le nombre d'archers" gives both), `[]` when it says none.
-   * Missing from readings made before the rhythm was asked. `rhythmOf` turns it into one.
+   * Every rhythm the mandate writes, `[]` when it says none. Missing from readings made before the rhythm was asked.
+   * `rhythmsOf` turns it into the competition's rhythms.
    */
   rhythms?: Rhythm[];
+  /**
+   * `true` when the rhythms are a choice for the same départs ("AB/CD ou ABC selon le nombre d'archers"), `false`
+   * when each is for its own départs ("samedi en AB, dimanche en AB/CD"). Missing from readings made before
+   * 2026-10-25: read as a choice, as they were then.
+   */
+  rhythmsAreAlternatives?: boolean;
   /** The mandate's own words for each answer, so an admin can check it in a second. */
   evidence: { departures: string | null; prices: string | null; foamTargets: string | null; rhythm?: string | null };
 };

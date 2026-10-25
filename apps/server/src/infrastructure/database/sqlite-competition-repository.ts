@@ -3,7 +3,7 @@ import type { Knex } from 'knex';
 
 import type { CompetitionRepository } from '../../domain/competition-repository.ts';
 import type { Competition, CompetitionStatus } from '../../domain/competition.ts';
-import { rhythmOf } from '../../domain/mandate.ts';
+import { rhythmsOf } from '../../domain/mandate.ts';
 
 type CompetitionRow = {
   ffta_id: string;
@@ -27,7 +27,8 @@ type CompetitionRow = {
   /** An admin's départs / prices (JSON): they replace the reading. */
   edited_departures: string | null;
   edited_prices: string | null;
-  edited_rhythm: Rhythm | null;
+  /** JSON list. */
+  edited_rhythms: string | null;
 };
 
 /** An admin's edit wins over the FFTA value: `competition_overrides` holds `NULL` for every field left alone. */
@@ -82,7 +83,7 @@ export class SqliteCompetitionRepository implements CompetitionRepository {
         'm.data as mandate_data',
         'o.departures as edited_departures',
         'o.prices as edited_prices',
-        'o.rhythm as edited_rhythm',
+        'o.rhythms as edited_rhythms',
         ...EDITABLE.map((column) => database.raw('coalesce(??, ??) as ??', [`o.${column}`, `c.${column}`, column])),
       );
   }
@@ -102,7 +103,7 @@ function toCompetition(row: CompetitionRow): Competition {
     status: row.status,
     hasParaTir: row.has_para_tir === 1,
     hasFoamTargets: row.has_foam_targets === 1,
-    rhythm: row.edited_rhythm ?? rhythmOf(mandate, row.discipline),
+    rhythms: row.edited_rhythms ? (JSON.parse(row.edited_rhythms) as Rhythm[]) : rhythmsOf(mandate, row.discipline),
     startDate: row.start_date,
     endDate: row.end_date,
     organizerClub: row.organizer_club,

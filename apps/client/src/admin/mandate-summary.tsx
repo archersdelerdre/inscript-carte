@@ -43,14 +43,14 @@ function pricesOverview(prices: MandatePrice[] | null): string {
 export function MandateSummary({ competition }: { competition: AdminCompetitionDto }) {
   const { departures, prices } = competition;
   if (!competition.mandateUrl) return null;
-  if (!departures && !prices && !competition.rhythm) {
+  if (!departures && !prices && competition.rhythms.length === 0) {
     return (
       <p className='text-muted-foreground text-sm'>Le mandat n’a pas encore été lu : départs et tarifs inconnus.</p>
     );
   }
   const departureCount = departures?.length ?? 0;
   const overview = [
-    competition.rhythm ? `Rythme ${competition.rhythm}` : 'Rythme non précisé',
+    competition.rhythms.length > 0 ? `Rythme ${competition.rhythms.join(' et ')}` : 'Rythme non précisé',
     departures ? `${departureCount} ${departureCount > 1 ? 'départs' : 'départ'}` : 'Départs non précisés',
     pricesOverview(prices),
   ].join(' · ');

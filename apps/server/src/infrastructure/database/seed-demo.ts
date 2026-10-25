@@ -77,7 +77,8 @@ type DemoCompetition = {
   mandate?: true | 'unread';
   /** Days before the start the mandate appeared; 60 when not given (an early mandate). */
   mandateDaysBefore?: number;
-  reading?: { departures: number; rhythms?: Rhythm[]; prices?: 'standard' | 'none' } | 'invalid';
+  /** `byDay`: each rhythm for its own day ("samedi en AB, dimanche en AB/CD"); otherwise a choice ("AB/CD ou ABC"). */
+  reading?: { departures: number; rhythms?: Rhythm[]; byDay?: boolean; prices?: 'standard' | 'none' } | 'invalid';
 };
 
 const COMPETITIONS: DemoCompetition[] = [
@@ -93,7 +94,7 @@ const COMPETITIONS: DemoCompetition[] = [
     position: [47.2975, -1.4914],
     paraTir: true,
     mandate: true,
-    reading: { departures: 4, rhythms: ['AB/CD', 'ABC'] },
+    reading: { departures: 4, rhythms: ['AB', 'AB/CD'], byDay: true },
   },
   {
     id: '90002',
@@ -274,7 +275,7 @@ const COMPETITIONS: DemoCompetition[] = [
     department: '35',
     position: [48.1173, -1.6778],
     mandate: true,
-    reading: { departures: 4, rhythms: ['AB/CD'] },
+    reading: { departures: 4, rhythms: ['AB/CD', 'ABC'] },
   },
   {
     id: '90019',
@@ -461,11 +462,14 @@ function mandateData(
     prices: prices.filter((price) => price.departures <= Math.max(reading.departures, 1)),
     foamTargets: 'not_mentioned',
     rhythms: reading.rhythms ?? [],
+    rhythmsAreAlternatives: !reading.byDay && (reading.rhythms?.length ?? 0) > 1,
     evidence: {
       departures: 'Greffe 30 min avant le tir (données de démonstration)',
       prices: reading.prices === 'none' ? null : 'Jeunes 8 €, adultes 12 € (données de démonstration)',
       foamTargets: null,
-      rhythm: reading.rhythms?.length ? `Rythme ${reading.rhythms.join(' ou ')}` : null,
+      rhythm: reading.rhythms?.length
+        ? `Rythme ${reading.rhythms.join(reading.byDay ? ' le premier jour, ' : ' ou ')}${reading.byDay ? ' le second' : ''}`
+        : null,
     },
   };
 }

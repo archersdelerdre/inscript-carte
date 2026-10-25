@@ -26,8 +26,8 @@ export type Competition = {
   readonly hasParaTir: boolean;
   /** Shot on foam targets ("cibles mousses"); not in the legacy data, `false` until the scraper fills it. */
   readonly hasFoamTargets: boolean;
-  /** From the checked mandate reading, or an admin's edit; `null` when not known. */
-  readonly rhythm: Rhythm | null;
+  /** From the checked mandate reading, or an admin's edit, in `RHYTHMS` order; `[]` when not known. */
+  readonly rhythms: readonly Rhythm[];
   readonly startDate: CalendarDate;
   readonly endDate: CalendarDate;
   readonly organizerClub: string | null;

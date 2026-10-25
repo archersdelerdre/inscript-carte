@@ -42,7 +42,9 @@ prices : les tarifs d'inscription par archer.
 
 foamTargets : "yes" seulement si le mandat dit que les cibles ou les buttes sont en mousse ; "no" s'il dit qu'elles sont en paille ou dans une autre matière ; "not_mentioned" sinon (le plus souvent). Un blason "trispot" n'est pas une cible en mousse.
 
-rhythms : tous les rythmes de tir que le mandat écrit, c'est-à-dire l'ordre de passage des archers sur une cible : "AB" (deux par deux), "ABC" (trois par trois) ou "AB/CD" (quatre archers par cible, en deux vagues : AB puis CD). On les trouve souvent écrits "rythme AB/CD", "tir en AB-CD", "ABC" ou "2 vagues". Donne-les tous, tels qu'écrits : "AB/CD ou ABC en fonction du nombre de tireurs" donne ["AB/CD", "ABC"]. Une liste vide si le mandat n'en dit rien.
+rhythms : tous les rythmes de tir que le mandat écrit pour les départs de ce concours, c'est-à-dire l'ordre de passage des archers sur une cible : "AB" (deux par deux), "ABC" (trois par trois) ou "AB/CD" (quatre archers par cible, en deux vagues : AB puis CD). On les trouve souvent écrits "rythme AB/CD", "tir en AB-CD", "ABC" ou "2 vagues", parfois dans le titre d'un jour ("SAMEDI – TIR en AB") ou dans une phrase à part ("les départs 1 à 4 sont en AB, les départs 5 et 6 en AB/CD"). Lis tout le mandat et donne-les tous, sans en oublier, chacun une seule fois. Une liste vide si le mandat n'en dit rien. Comme pour les départs, laisse de côté les rythmes des jours qui ne sont pas ceux de ce concours.
+
+rhythmsAreAlternatives : true quand les rythmes sont au choix pour les mêmes départs ("AB/CD ou ABC en fonction du nombre de tireurs" donne ["AB/CD", "ABC"] et true) ; false quand chacun est pour ses propres départs ("samedi en AB, dimanche en AB/CD" donne ["AB", "AB/CD"] et false), ou quand il n'y a qu'un seul rythme ou aucun.
 
 evidence : pour departures, prices, foamTargets et rhythm (les rythmes), les mots exacts du mandat qui le disent (une courte citation), ou null.`;
 

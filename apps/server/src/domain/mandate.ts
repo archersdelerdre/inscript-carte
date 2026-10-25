@@ -51,22 +51,22 @@ export const MandateAnswer = z.strictObject({
     .max(MAX_DEPARTURES * AGE_CATEGORIES.length),
   foamTargets: z.enum(FOAM_TARGETS_ANSWERS),
   rhythms: z.array(z.enum(RHYTHMS)).max(RHYTHMS.length),
+  rhythmsAreAlternatives: z.boolean(),
   evidence: z.strictObject({ departures: quote, prices: quote, foamTargets: quote, rhythm: quote }),
 }) satisfies z.ZodType<MandateData>;
 
 /**
- * The rhythm a reading gives, by the user's rules (2026-10-11), never asked to the LLM: AB/CD as soon as the mandate
- * names it ("AB/CD ou ABC selon le nombre d'archers"); an indoor "ABC" is AB; then one rhythm the discipline allows,
- * else none (nothing written, readings made before the rhythm was asked, off targets).
+ * The rhythms a reading gives, by the user's rules (2026-10-11, 2026-10-25), never asked to the LLM: only the rhythms
+ * the discipline allows (none off targets); every one when each is for its own départs ("samedi en AB, dimanche en
+ * AB/CD"), but when they are a choice ("AB/CD ou ABC selon le nombre d'archers"), AB/CD as soon as it is named, else
+ * the only one, else none. In `RHYTHMS` order.
  */
-export function rhythmOf(data: MandateData | null, discipline: Discipline): Rhythm | null {
+export function rhythmsOf(data: MandateData | null, discipline: Discipline): Rhythm[] {
   const allowed = allowedRhythms(discipline);
-  const written = new Set(
-    (data?.rhythms ?? []).map((rhythm) => (discipline === 'salle' && rhythm === 'ABC' ? 'AB' : rhythm)),
-  );
-  if (written.has('AB/CD') && allowed.includes('AB/CD')) return 'AB/CD';
-  const [only, ...others] = [...written].filter((rhythm) => allowed.includes(rhythm));
-  return only && others.length === 0 ? only : null;
+  const written = data?.rhythms ?? [];
+  const kept = RHYTHMS.filter((rhythm) => written.includes(rhythm) && allowed.includes(rhythm));
+  if (data?.rhythmsAreAlternatives === false || kept.length < 2) return kept;
+  return kept.includes('AB/CD') ? ['AB/CD'] : [];
 }
 
 export const mandateAnswerJsonSchema = z.toJSONSchema(MandateAnswer);

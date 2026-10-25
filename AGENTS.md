@@ -101,7 +101,7 @@ Inner layers never import outer ones. The domain may import types and rules from
   field, `NULL` = the FFTA value. Decided: an edit **always wins**, even after a later FFTA change, until an admin puts
   the FFTA value back. The scraper never writes there. `SqliteCompetitionRepository` merges them
   (`coalesce(o.x, c.x)`), so every reader sees the edited competition; the mandate reader reads the edited link and
-  dates. Edited départs / prices / rhythm replace the mandate reading. A mandate link the FFTA did not have gets its own
+  dates. Edited départs / prices / rhythms replace the mandate reading. A mandate link the FFTA did not have gets its own
   `mandate_added_on` (the club deadline's late-mandate rule).
 - Value lists are `CHECK` constraints. SQLite cannot change one: the migration copies the table (see `0008`). One
   active registration per (competition, archer, départ): a partial unique index that ignores `cancelled`.
@@ -229,7 +229,7 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   colors of the list on the left), each a button that shows those départs alone (a second click shows all), and on
   the right « À envoyer au club organisateur » with the amount; « Lu dans le mandat », a `<details>` closed by default
   with a one-line summary
-  (rhythm, départs, price range); then « Inscriptions · N départs en cours pour N archers », one toolbar (search, both
+  (rhythms, départs, price range); then « Inscriptions · N départs en cours pour N archers », one toolbar (search, both
   filters, Excel button) and the archer cards: name, category and badges on one line, then the reference; départ
   rows on a light grey band.
 - Concours (`competitions-page.tsx`, `AdminCompetitionOverview`): every upcoming competition, hidden ones included,
@@ -240,7 +240,7 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   `inArea` (area not remembered, Loire-Atlantique at start: user's choice), plus a problems filter.
 - Clicking a row opens a large modal (`competition-edit-dialog.tsx`, `CompetitionEdits`, route
   `/api/admin/competitions/:id/overrides`): problems and actions, then title, dates, discipline, status, para-tir,
-  cibles mousses, rhythm, mandate link, town, département, position (click on a lazy-loaded map), départs and prices,
+  cibles mousses, rhythms, mandate link, town, département, position (click on a lazy-loaded map), départs and prices,
   then the
   FFTA details read only. A field that differs from the FFTA shows « Modifié », the FFTA value and « Revenir à la
   valeur FFTA ». Saving replaces every edit with the fields that differ (`checkOverrides`). Closing with unsaved
@@ -282,17 +282,21 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     the times (`datedDepartures`, asked 2026-10-11): an earlier time than the départ before starts the next day, only
     when the day count matches; migration `0015` dated the readings stored before. Refused answers are kept as
     `invalid`, never used. Errors never fail the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
-  - **Rhythm** (asked 2026-10-11): one per competition, `AB` / `ABC` / `AB/CD`. Decided: the LLM only lists every
-    rhythm the mandate writes (`rhythms`, migration `0013` turned the old single answer into a list); the user's rules
-    are applied by the code (`rhythmOf`): **AB/CD as soon as it is named** ("AB/CD ou ABC selon le nombre
-    d'archers"); **indoors an ABC is AB**; then the one rhythm the discipline allows (indoors AB or AB/CD, outdoors
-    ABC or AB/CD, **none off targets**, `allowedRhythms`), else none. The edit modal and the filter offer only the
-    allowed ones and hide the field off targets; `checkOverrides` refuses the others. Readings made before the rhythm
-    was asked have none; edits in
-    `competition_overrides.rhythm` (migration `0011`). Decided: shown **like « Cibles mousses »** (a badge « Rythme
-    AB/CD » on the card, a line in « Lu dans le mandat »), and a « Rythme » filter that leaves out competitions whose
-    rhythm is not known. Each badge has its own color (user's request): sky Para-tir, lime Cibles mousses, solid red
-    Reporté, indigo AB, pink ABC, teal AB/CD (`competitions/rhythms.tsx`; the same dot in both « Rythme » menus).
+  - **Rhythm** (asked 2026-10-11, changed 2026-10-25): `AB` / `ABC` / `AB/CD`, **several per competition** when each
+    is for its own départs (« samedi en AB, dimanche en AB/CD »). Decided: the LLM only lists every rhythm the mandate
+    writes for the competition's days (`rhythms`) and says whether they are a choice for the same départs
+    (`rhythmsAreAlternatives`); the user's rules are applied by the code (`rhythmsOf`): only the rhythms the
+    discipline allows (indoors AB, ABC or AB/CD: **ABC indoors since 2026-10-25**; outdoors ABC or AB/CD; **none off
+    targets**, `allowedRhythms`); each one when they are per départ; for a choice ("AB/CD ou ABC selon le nombre
+    d'archers"), **AB/CD as soon as it is named**, else the only one, else none. Readings made before 2026-10-25 have
+    no `rhythmsAreAlternatives` and count as a choice (as they did); readings made before the rhythm was asked have
+    none. The edit modal (one checkbox per allowed rhythm; none ticked = the reading's) and the filter offer only the
+    allowed ones and hide the field off targets; `checkOverrides` refuses the others. Edits in
+    `competition_overrides.rhythms`, a JSON list (migration `0016`). Decided: shown **like « Cibles mousses »** (a
+    badge « Rythme AB/CD » per rhythm on the card, a line in « Lu dans le mandat »), and a « Rythme » filter that
+    keeps the competitions having that rhythm. Each badge has its own color (user's request): sky Para-tir, lime
+    Cibles mousses, solid red Reporté, indigo AB, pink ABC, teal AB/CD (`competitions/rhythms.tsx`; the same dot in
+    both « Rythme » menus).
 
 ## Places and geocoding
 

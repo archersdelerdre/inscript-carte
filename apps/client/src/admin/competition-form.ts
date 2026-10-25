@@ -6,6 +6,7 @@ import {
   DEPARTMENT_NAMES,
   DISCIPLINE_LABELS,
   hasPriceConflict,
+  RHYTHMS,
   type AgeCategory,
   type CompetitionFields,
   type CompetitionOverridesRequest,
@@ -69,7 +70,7 @@ export function normalize(fields: CompetitionFields): CompetitionFields {
     status: fields.status,
     hasParaTir: fields.hasParaTir,
     hasFoamTargets: fields.hasFoamTargets,
-    rhythm: fields.rhythm,
+    rhythms: RHYTHMS.filter((rhythm) => fields.rhythms.includes(rhythm)),
     mandateUrl: fields.mandateUrl?.trim() || null,
     town: fields.town.trim(),
     departmentCode: fields.departmentCode,
@@ -113,14 +114,15 @@ export function formToFields(form: FormState): CompetitionFields {
 type FieldKey = keyof CompetitionFields;
 
 /**
- * Fields whose form value is not FFTA's. `mandateUrl`, `position` and `rhythm` cannot be edited to nothing: empty is
+ * Fields whose form value is not FFTA's. `mandateUrl`, `position` and `rhythms` cannot be edited to nothing: empty is
  * "not edited".
  */
 export function editedKeys(form: FormState, ffta: CompetitionFields): FieldKey[] {
   const current = formToFields(form);
   const original = normalize(ffta);
   return (Object.keys(original) as FieldKey[]).filter((key) => {
-    if ((key === 'mandateUrl' || key === 'position' || key === 'rhythm') && current[key] === null) return false;
+    if ((key === 'mandateUrl' || key === 'position') && current[key] === null) return false;
+    if (key === 'rhythms' && current.rhythms.length === 0) return false;
     return JSON.stringify(current[key]) !== JSON.stringify(original[key]);
   });
 }
@@ -146,7 +148,7 @@ export type FormErrors = {
   mandateUrl?: string;
   departures?: string;
   prices?: string;
-  rhythm?: string;
+  rhythms?: string;
 };
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -173,8 +175,9 @@ export function validate(form: FormState, edited: readonly FieldKey[]): FormErro
   if (form.mandateUrl.trim() && !form.mandateUrl.trim().startsWith('https://')) {
     errors.mandateUrl = 'Le lien doit commencer par « https:// ».';
   }
-  if (has('rhythm') && fields.rhythm && !allowedRhythms(fields.discipline).includes(fields.rhythm)) {
-    errors.rhythm = `Le rythme ${fields.rhythm} n’existe pas pour cette discipline : choisissez-en un autre.`;
+  const refused = has('rhythms') ? fields.rhythms.find((r) => !allowedRhythms(fields.discipline).includes(r)) : null;
+  if (refused) {
+    errors.rhythms = `Le rythme ${refused} n’existe pas pour cette discipline : décochez-le.`;
   }
 
   if (has('departures') || datesEdited) {
@@ -252,8 +255,8 @@ export function describeFfta(key: FieldKey | 'dates', ffta: CompetitionFields): 
       return ffta.hasParaTir ? 'oui' : 'non';
     case 'hasFoamTargets':
       return ffta.hasFoamTargets ? 'oui' : 'non';
-    case 'rhythm':
-      return ffta.rhythm ?? 'non précisé';
+    case 'rhythms':
+      return ffta.rhythms.length > 0 ? ffta.rhythms.join(' et ') : 'non précisé';
     case 'mandateUrl':
       return ffta.mandateUrl ?? 'aucune';
     case 'town':

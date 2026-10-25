@@ -12,7 +12,7 @@ const competition = (overrides: Partial<Competition> = {}): Competition => ({
   status: 'scheduled',
   hasParaTir: false,
   hasFoamTargets: false,
-  rhythm: null,
+  rhythms: [],
   startDate: '2027-01-09',
   endDate: '2027-01-09',
   organizerClub: null,

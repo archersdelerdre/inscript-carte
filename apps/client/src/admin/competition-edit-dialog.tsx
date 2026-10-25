@@ -8,7 +8,6 @@ import {
   DISCIPLINES,
   DISCIPLINE_LABELS,
   categoriesLabel,
-  type Rhythm,
   type CompetitionEditDto,
   type CompetitionEditResponse,
   type CompetitionFields,
@@ -319,9 +318,9 @@ function CompetitionForm({
               value={form.discipline}
               onValueChange={(value) => {
                 const discipline = value as FormState['discipline'];
-                // A rhythm the new discipline cannot have goes back to the reading's (which is then ignored too).
-                const keepsRhythm = !form.rhythm || allowedRhythms(discipline).includes(form.rhythm);
-                patch(keepsRhythm ? { discipline } : { discipline, rhythm: null });
+                // Rhythms the new discipline cannot have are unticked (none left: back to the reading's).
+                const rhythms = form.rhythms.filter((rhythm) => allowedRhythms(discipline).includes(rhythm));
+                patch({ discipline, rhythms });
               }}
             >
               <SelectTrigger id='edit-discipline' className='w-full'>
@@ -379,29 +378,38 @@ function CompetitionForm({
           </div>
         </div>
 
-        {/* Only target competitions (Salle, Extérieur) are shot in turns. */}
+        {/* Only target competitions (Salle, Extérieur) are shot in turns. Several when each is for its own départs
+            (« samedi en AB, dimanche en AB/CD »). */}
         {allowedRhythms(form.discipline).length > 0 && (
-          <Field label='Rythme' htmlFor='edit-rhythm' error={errors.rhythm}>
-            <Select
-              value={form.rhythm ?? NO_RHYTHM}
-              onValueChange={(value) => patch({ rhythm: value === NO_RHYTHM ? null : (value as Rhythm) })}
-            >
-              <SelectTrigger id='edit-rhythm' className='w-full sm:w-64'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {/* An edit cannot remove the rhythm the mandate gives, only change it. */}
-                {ffta.rhythm === null && <SelectItem value={NO_RHYTHM}>Non précisé</SelectItem>}
-                {allowedRhythms(form.discipline).map((rhythm) => (
-                  <SelectItem key={rhythm} value={rhythm}>
-                    <RhythmDot rhythm={rhythm} />
-                    {rhythm}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {note('rhythm')}
-          </Field>
+          <fieldset className='grid content-start gap-1.5'>
+            <legend className='mb-1.5 text-sm font-medium'>Rythmes</legend>
+            <div className='flex flex-wrap gap-x-6 gap-y-1'>
+              {allowedRhythms(form.discipline).map((rhythm) => (
+                <Label key={rhythm} htmlFor={`edit-rhythm-${rhythm}`} className='min-h-10 cursor-pointer font-normal'>
+                  <Checkbox
+                    id={`edit-rhythm-${rhythm}`}
+                    checked={form.rhythms.includes(rhythm)}
+                    onCheckedChange={(checked) =>
+                      patch({
+                        rhythms:
+                          checked === true
+                            ? [...form.rhythms, rhythm]
+                            : form.rhythms.filter((chosen) => chosen !== rhythm),
+                      })
+                    }
+                  />
+                  <RhythmDot rhythm={rhythm} />
+                  {rhythm}
+                </Label>
+              ))}
+            </div>
+            <p className='text-muted-foreground text-sm'>
+              Cochez chaque rythme du concours, par exemple un par jour. Sans case cochée, le concours garde le rythme
+              lu dans le mandat.
+            </p>
+            {errors.rhythms && <FieldError>{errors.rhythms}</FieldError>}
+            {note('rhythms')}
+          </fieldset>
         )}
 
         <Field label='Lien du mandat' htmlFor='edit-mandate' error={errors.mandateUrl}>
@@ -488,8 +496,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     </section>
   );
 }
-
-const NO_RHYTHM = 'none';
 
 function Field({
   label,

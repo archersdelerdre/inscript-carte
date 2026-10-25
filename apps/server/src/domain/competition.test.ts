@@ -9,7 +9,7 @@ const competition: Competition = {
   status: 'scheduled',
   hasParaTir: true,
   hasFoamTargets: false,
-  rhythm: null,
+  rhythms: [],
   startDate: '2027-01-09',
   endDate: '2027-01-10',
   organizerClub: "Archers de l'Erdre",

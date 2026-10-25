@@ -18,7 +18,7 @@ function competition(
     status,
     hasParaTir: false,
     hasFoamTargets: false,
-    rhythm: null,
+    rhythms: [],
     startDate,
     endDate,
     organizerClub: null,

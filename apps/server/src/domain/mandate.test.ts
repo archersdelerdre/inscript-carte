@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import type { MandateDeparture } from '@inscript-carte/shared';
 
-import { checkMandateData, datedDepartures, mandateAnswerJsonSchema, rhythmOf } from './mandate.ts';
+import { checkMandateData, datedDepartures, mandateAnswerJsonSchema, rhythmsOf } from './mandate.ts';
 
 const COMPETITION = { startDate: '2026-10-31', endDate: '2026-11-01' };
 
@@ -20,6 +20,7 @@ const answer = (overrides: Record<string, unknown> = {}) => ({
   ],
   foamTargets: 'not_mentioned',
   rhythms: ['AB/CD'],
+  rhythmsAreAlternatives: false,
   evidence: { departures: null, prices: 'jeunes 7€ - adultes 10€', foamTargets: null, rhythm: 'Rythme AB/CD' },
   ...overrides,
 });
@@ -75,6 +76,7 @@ describe('checkMandateData', () => {
       { foamTargets: 'maybe' },
       { rhythms: ['ABCD'] },
       { rhythms: 'AB/CD' },
+      { rhythmsAreAlternatives: 'oui' },
       { extra: 'field' },
     ]) {
       expect(checkMandateData(answer(overrides), COMPETITION).ok).toBe(false);
@@ -85,13 +87,14 @@ describe('checkMandateData', () => {
   test('tells the LLM the same shape, with every field required and nothing else allowed', () => {
     expect(mandateAnswerJsonSchema).toMatchObject({
       type: 'object',
-      required: ['departures', 'prices', 'foamTargets', 'rhythms', 'evidence'],
+      required: ['departures', 'prices', 'foamTargets', 'rhythms', 'rhythmsAreAlternatives', 'evidence'],
       additionalProperties: false,
     });
   });
 });
 
-const reading = (rhythms?: string[]) => answer({ rhythms }) as never;
+const reading = (rhythms?: string[], rhythmsAreAlternatives?: boolean) =>
+  answer({ rhythms, rhythmsAreAlternatives }) as never;
 
 const tir = (number: number, registrationOpens: string | null, date: string | null = null): MandateDeparture => ({
   date,
@@ -130,25 +133,30 @@ describe('datedDepartures', () => {
   });
 });
 
-describe('rhythmOf', () => {
-  test('AB/CD as soon as the mandate names it, among others or not', () => {
-    // « AB/CD ou ABC en fonction du nombre de tireurs » (Guérande, salle).
-    expect(rhythmOf(reading(['AB/CD', 'ABC']), 'salle')).toBe('AB/CD');
-    expect(rhythmOf(reading(['AB', 'AB/CD']), 'exterieur')).toBe('AB/CD');
+describe('rhythmsOf', () => {
+  test('each for its own départs: every one the discipline allows', () => {
+    // « Samedi – tir en AB, dimanche – tir en AB/CD » (2026-10-25).
+    expect(rhythmsOf(reading(['AB/CD', 'AB'], false), 'salle')).toEqual(['AB', 'AB/CD']);
+    expect(rhythmsOf(reading(['AB', 'AB/CD'], false), 'exterieur')).toEqual(['AB/CD']);
+    // ABC is shot indoors too (2026-10-25).
+    expect(rhythmsOf(reading(['ABC']), 'salle')).toEqual(['ABC']);
+    expect(rhythmsOf(reading(['AB']), 'exterieur')).toEqual([]);
   });
 
-  test('indoors, an ABC is AB; outdoors it stays ABC; one rhythm the discipline allows, else none', () => {
-    expect(rhythmOf(reading(['ABC']), 'salle')).toBe('AB');
-    expect(rhythmOf(reading(['ABC', 'AB']), 'salle')).toBe('AB');
-    expect(rhythmOf(reading(['ABC']), 'exterieur')).toBe('ABC');
-    expect(rhythmOf(reading(['AB']), 'exterieur')).toBeNull();
-    expect(rhythmOf(reading(['AB', 'ABC']), 'exterieur')).toBe('ABC');
+  test('a choice: AB/CD as soon as it is named, else the only one, else none', () => {
+    // « AB/CD ou ABC en fonction du nombre de tireurs » (Guérande, salle).
+    expect(rhythmsOf(reading(['AB/CD', 'ABC'], true), 'salle')).toEqual(['AB/CD']);
+    expect(rhythmsOf(reading(['AB', 'AB/CD'], true), 'salle')).toEqual(['AB/CD']);
+    expect(rhythmsOf(reading(['AB', 'ABC'], true), 'exterieur')).toEqual(['ABC']);
+    expect(rhythmsOf(reading(['AB', 'ABC'], true), 'salle')).toEqual([]);
+    // Readings made before 2026-10-25 do not say: read as a choice, as they were.
+    expect(rhythmsOf(reading(['AB', 'AB/CD']), 'salle')).toEqual(['AB/CD']);
   });
 
   test('none when nothing is written, for readings made before, and off targets', () => {
-    expect(rhythmOf(reading([]), 'salle')).toBeNull();
-    expect(rhythmOf(reading(undefined), 'salle')).toBeNull();
-    expect(rhythmOf(null, 'salle')).toBeNull();
-    expect(rhythmOf(reading(['AB/CD']), 'campagne')).toBeNull();
+    expect(rhythmsOf(reading([]), 'salle')).toEqual([]);
+    expect(rhythmsOf(reading(undefined), 'salle')).toEqual([]);
+    expect(rhythmsOf(null, 'salle')).toEqual([]);
+    expect(rhythmsOf(reading(['AB/CD']), 'campagne')).toEqual([]);
   });
 });

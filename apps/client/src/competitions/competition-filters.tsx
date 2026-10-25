@@ -77,7 +77,7 @@ export type FilterableCompetition = Pick<
   | 'endDate'
   | 'clubArcherCount'
   | 'hasFoamTargets'
-  | 'rhythm'
+  | 'rhythms'
   | 'town'
   | 'mandateUrl'
 >;
@@ -91,7 +91,7 @@ export function matchesFilters(competition: FilterableCompetition, filters: Comp
   if (filters.withClubArchers && competition.clubArcherCount === 0) return false;
   if (filters.foamTargets && !competition.hasFoamTargets) return false;
   if (filters.withMandate && !competition.mandateUrl) return false;
-  if (filters.rhythm !== ALL && competition.rhythm !== filters.rhythm) return false;
+  if (filters.rhythm !== ALL && !competition.rhythms.includes(filters.rhythm)) return false;
   return matchesSearch(filters.town, competition.town);
 }
 
