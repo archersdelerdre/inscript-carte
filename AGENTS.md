@@ -307,9 +307,11 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   `region:<id>`, remembered, default 44)
   plus a town search (our own ARIA combobox, not `<datalist>`). Chosen filters show as removable chips on a second
   line, never inside the search field. All filtering happens in the browser: `GET /api/competitions` sends everything.
-- Cards: date block in the discipline color, badges, town with « Voir sur la carte » (icon only on phones), club
-  deadline, links "Mandat (PDF)" and "Détail FFTA", then "Voir les inscrits" (disabled when nobody) and "S'inscrire"
-  (before the deadline only). Actions ask to sign in first, then continue.
+- Cards (reworked 2026-10-25: easier to scan): date block in the discipline color, title, badges always on their own
+  line under it, discipline · club, town with « Voir sur la carte » (icon only on phones), the club deadline as one
+  line with an icon (green open, amber waiting for the mandate, grey closed; a red box when postponed), links
+  "Mandat (PDF)" and "Détail FFTA", then « Voir les N inscrits » (the count lives in the button; « Aucun inscrit »,
+  disabled, when nobody) and "S'inscrire" (before the deadline only). Actions ask to sign in first, then continue.
 - Hovering a card does nothing on the map; « Voir sur la carte » is the only link from list to map.
 - Map: OSM standard tiles (CARTO and Plan IGN rejected), one dot per position, red cluster bubbles, zoom bottom right,
   "© OpenStreetMap" bottom left in 10 px (required credit).

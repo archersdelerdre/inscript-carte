@@ -1,5 +1,14 @@
 import { DISCIPLINE_LABELS, type CompetitionDto } from '@inscript-carte/shared';
-import { ExternalLinkIcon, FileTextIcon, LocateFixedIcon, MapPinIcon, UsersIcon } from 'lucide-react';
+import {
+  CalendarCheckIcon,
+  CalendarXIcon,
+  ExternalLinkIcon,
+  FileTextIcon,
+  HourglassIcon,
+  LocateFixedIcon,
+  MapPinIcon,
+  UsersIcon,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,16 +41,17 @@ export function CompetitionCard({ competition, onShowOnMap }: CardProps) {
           <span className='text-sm'>au {formatDay(competition.endDate)}</span>
         )}
       </div>
-      <div className='flex min-w-0 flex-1 flex-col gap-1.5 p-3.5'>
-        <Heading competition={competition} />
+      <div className='flex min-w-0 flex-1 flex-col gap-2 p-3.5'>
+        <div className='grid gap-0.5'>
+          <Heading competition={competition} />
+          <p className='text-muted-foreground text-sm'>
+            {DISCIPLINE_LABELS[competition.discipline]}
+            {competition.organizerClub && ` · ${competition.organizerClub}`}
+          </p>
+        </div>
         <Place competition={competition} onShowOnMap={onShowOnMap} />
-        <p className='text-muted-foreground'>
-          {DISCIPLINE_LABELS[competition.discipline]}
-          {competition.organizerClub && ` · ${competition.organizerClub}`}
-        </p>
         <Deadline competition={competition} />
-        <RegistrationCount competition={competition} />
-        <div className='flex flex-wrap items-center gap-x-5 gap-y-2'>
+        <div className='flex flex-wrap items-center gap-x-5'>
           <Links competition={competition} />
         </div>
         <Actions competition={competition} />
@@ -64,7 +74,6 @@ export function CompetitionPopupItem({ competition }: { competition: Competition
         {competition.organizerClub && ` · ${competition.organizerClub}`}
       </p>
       <Deadline competition={competition} />
-      <RegistrationCount competition={competition} />
       <div className='flex flex-wrap gap-x-5'>
         <Links competition={competition} />
       </div>
@@ -73,16 +82,23 @@ export function CompetitionPopupItem({ competition }: { competition: Competition
   );
 }
 
+/** The badges always on their own line under the title, never beside it: the same place on every card. */
 function Heading({ competition }: { competition: CompetitionDto }) {
+  const hasBadges =
+    competition.hasParaTir || competition.hasFoamTargets || competition.rhythm !== null || competition.isPostponed;
   return (
-    <div className='flex flex-wrap items-center gap-2'>
+    <div className='grid gap-1.5'>
       <h3 className='leading-snug font-semibold'>{competition.title}</h3>
-      {competition.hasParaTir && <Badge className={PARA_TIR_BADGE}>Para-tir</Badge>}
-      {competition.hasFoamTargets && <Badge className={FOAM_TARGETS_BADGE}>Cibles mousses</Badge>}
-      {competition.rhythm && (
-        <Badge className={rhythmBadgeClass(competition.rhythm)}>Rythme {competition.rhythm}</Badge>
+      {hasBadges && (
+        <div className='flex flex-wrap items-center gap-1.5'>
+          {competition.isPostponed && <Badge className='bg-red-700 text-white'>Reporté</Badge>}
+          {competition.hasParaTir && <Badge className={PARA_TIR_BADGE}>Para-tir</Badge>}
+          {competition.hasFoamTargets && <Badge className={FOAM_TARGETS_BADGE}>Cibles mousses</Badge>}
+          {competition.rhythm && (
+            <Badge className={rhythmBadgeClass(competition.rhythm)}>Rythme {competition.rhythm}</Badge>
+          )}
+        </div>
       )}
-      {competition.isPostponed && <Badge className='bg-red-700 text-white'>Reporté</Badge>}
     </div>
   );
 }
@@ -117,37 +133,38 @@ function Deadline({ competition }: { competition: CompetitionDto }) {
       </p>
     );
   }
+  // One short line with an icon, in the same column as the town: the state is seen before it is read.
   if (competition.clubRegistrationDeadline < todayInParis()) {
     return (
-      <p className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
-        La date limite d'inscription par le club est passée. Vous pouvez peut-être encore vous inscrire directement
-        auprès de l'organisateur.
+      <p className='text-muted-foreground flex gap-2 text-sm'>
+        <CalendarXIcon className='size-4.5 shrink-0' />
+        Le club ne prend plus d'inscription : voyez directement avec l'organisateur.
       </p>
     );
   }
   if (!competition.mandateUrl) {
     return (
-      <p className='text-muted-foreground text-sm'>Le club prendra les inscriptions dès que le mandat sera publié.</p>
+      <p className='flex gap-2 text-sm text-amber-900'>
+        <HourglassIcon className='size-4.5 shrink-0' />
+        Le club prendra les inscriptions dès que le mandat sera publié.
+      </p>
     );
   }
   return (
-    <p className='text-muted-foreground text-sm'>
-      Inscription par le club jusqu'au {formatDay(competition.clubRegistrationDeadline)}
+    <p className='flex gap-2 text-sm text-green-900'>
+      <CalendarCheckIcon className='size-4.5 shrink-0' />
+      <span>
+        Inscription par le club jusqu'au{' '}
+        <strong className='font-semibold whitespace-nowrap'>{formatDay(competition.clubRegistrationDeadline)}</strong>
+      </span>
     </p>
   );
 }
 
-function RegistrationCount({ competition }: { competition: CompetitionDto }) {
-  // One archer on several départs counts once.
-  const count = competition.clubArcherCount;
-  return (
-    <p className='flex items-center gap-2 text-sm'>
-      <UsersIcon className='text-muted-foreground size-4.5 shrink-0' />
-      {count === 0
-        ? 'Aucun archer du club inscrit pour le moment'
-        : `${count} ${count > 1 ? 'archers inscrits' : 'archer inscrit'}`}
-    </p>
-  );
+/** The count lives in the button (one archer on several départs counts once). */
+function registrantsLabel(count: number): string {
+  if (count === 0) return 'Aucun inscrit';
+  return count > 1 ? `Voir les ${count} inscrits` : 'Voir 1 inscrit';
 }
 
 /** Bottom right of the card: the club registration actions. */
@@ -170,7 +187,8 @@ function Actions({ competition }: { competition: CompetitionDto }) {
         disabled={!hasRegistrants}
         onClick={() => showRegistrants(competition)}
       >
-        Voir les inscrits
+        <UsersIcon />
+        {registrantsLabel(competition.clubArcherCount)}
       </Button>
       {open && <Button onClick={() => register(competition)}>S'inscrire</Button>}
     </div>
