@@ -9,7 +9,7 @@ import {
   type Rhythm,
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { MapPinIcon, SearchIcon, SlidersHorizontalIcon, UsersIcon, XIcon } from 'lucide-react';
+import { FileTextIcon, MapPinIcon, SearchIcon, SlidersHorizontalIcon, UsersIcon, XIcon } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,8 @@ export type CompetitionFilters = {
   to: string;
   withClubArchers: boolean;
   foamTargets: boolean;
+  /** The club takes registrations only once the mandate is out. */
+  withMandate: boolean;
   /** Competitions whose rhythm is not known are left out once one is chosen. */
   rhythm: typeof ALL | Rhythm;
   town: string;
@@ -61,6 +63,7 @@ export const NO_FILTERS: CompetitionFilters = {
   to: '',
   withClubArchers: false,
   foamTargets: false,
+  withMandate: false,
   rhythm: ALL,
   town: '',
 };
@@ -68,7 +71,15 @@ export const NO_FILTERS: CompetitionFilters = {
 /** What the filters read: the public list and the admins' « Concours » table both have it. */
 export type FilterableCompetition = Pick<
   CompetitionDto,
-  'discipline' | 'hasParaTir' | 'startDate' | 'endDate' | 'clubArcherCount' | 'hasFoamTargets' | 'rhythm' | 'town'
+  | 'discipline'
+  | 'hasParaTir'
+  | 'startDate'
+  | 'endDate'
+  | 'clubArcherCount'
+  | 'hasFoamTargets'
+  | 'rhythm'
+  | 'town'
+  | 'mandateUrl'
 >;
 
 export function matchesFilters(competition: FilterableCompetition, filters: CompetitionFilters): boolean {
@@ -79,6 +90,7 @@ export function matchesFilters(competition: FilterableCompetition, filters: Comp
   if (filters.to && competition.startDate > filters.to) return false;
   if (filters.withClubArchers && competition.clubArcherCount === 0) return false;
   if (filters.foamTargets && !competition.hasFoamTargets) return false;
+  if (filters.withMandate && !competition.mandateUrl) return false;
   if (filters.rhythm !== ALL && competition.rhythm !== filters.rhythm) return false;
   return matchesSearch(filters.town, competition.town);
 }
@@ -188,6 +200,10 @@ export function CompetitionFilterBar({
   if (filters.foamTargets) {
     const text = 'Cibles mousses';
     chips.push({ key: 'foam', text, remove: () => change({ foamTargets: false }) });
+  }
+  if (filters.withMandate) {
+    const text = 'Avec un mandat';
+    chips.push({ key: 'mandate', text, remove: () => change({ withMandate: false }) });
   }
   if (filters.rhythm !== ALL) {
     const text = `Rythme ${filters.rhythm}`;
@@ -386,6 +402,15 @@ export function CompetitionFilterBar({
                 </p>
               )}
             </div>
+            <Label htmlFor='filter-mandate' className='min-h-10 cursor-pointer font-normal'>
+              <Checkbox
+                id='filter-mandate'
+                checked={filters.withMandate}
+                onCheckedChange={(checked) => change({ withMandate: checked === true })}
+              />
+              <FileTextIcon className='text-muted-foreground size-4.5 shrink-0' />
+              avec un mandat publié
+            </Label>
             <Label htmlFor='filter-club' className='min-h-10 cursor-pointer font-normal'>
               <Checkbox
                 id='filter-club'
