@@ -210,7 +210,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 - **« À envoyer au club organisateur »** (`AmountToSend` in `registrations-summary.tsx`, asked 2026-10-25), a tile: the
   sum of each archer's price for their paid départs (not "Plus de place" or "Annulée"), computed in the browser with
   the same `registrationPrice` as the Excel file. Ignores the panel filters. Archers without a fitting price are
-  counted apart with a warning, never guessed.
+  counted apart with a warning, never guessed. Below it, smaller, the forecast (asked by Loïc, 2026-10-25): « Une fois
+  tous les départs en cours payés : … », the same sum over every départ in progress, whatever its payment state.
 - **Prices by category** (asked 2026-10-11, migration `0012` converted the old `audience`): each `MandatePrice` names
   the FFTA categories it applies to (`categories`, U11 to S3). The LLM copies every price line as written ("Jeunes" =
   U11 to U21, "Adultes" = S1 to S3, "Tous" = all eight), even when a category is in two lines. The code picks, per

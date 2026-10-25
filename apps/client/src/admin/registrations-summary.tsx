@@ -84,22 +84,35 @@ export function RegistrationsSummary({ competition, going, isChosen, onChoose }:
   );
 }
 
-/** What the club owes the organizer: every archer's price for their paid départs, as in the Excel file. */
-function AmountToSend({ competition, going }: { competition: AdminCompetitionDto; going: AdminRegistrationDto[] }) {
-  const paid = going.filter((registration) => registration.paymentStatus === 'paid');
+/**
+ * The organizer's price for these départs: each archer's price for their départs among them, as in the Excel file.
+ * Archers the mandate gives no price for are counted apart, never guessed.
+ */
+function amountFor(prices: AdminCompetitionDto['prices'], departures: readonly AdminRegistrationDto[]) {
   const archers = new Map<string, { category: AgeCategory; departures: number }>();
-  for (const { licenceNumber, category } of paid) {
+  for (const { licenceNumber, category } of departures) {
     const archer = archers.get(licenceNumber);
     if (archer) archer.departures += 1;
     else archers.set(licenceNumber, { category, departures: 1 });
   }
   let total = 0;
   let unpriced = 0;
-  for (const { category, departures } of archers.values()) {
-    const price = registrationPrice(competition.prices, category, departures);
+  for (const { category, departures: count } of archers.values()) {
+    const price = registrationPrice(prices, category, count);
     if (price === null) unpriced += 1;
     else total += price;
   }
+  return { total: Math.round(total * 100) / 100, archerCount: archers.size, unpriced };
+}
+
+/**
+ * What the club owes the organizer for the paid départs, and smaller, what it will owe once every départ in progress
+ * is paid (asked by Loïc, 2026-10-25).
+ */
+function AmountToSend({ competition, going }: { competition: AdminCompetitionDto; going: AdminRegistrationDto[] }) {
+  const paid = going.filter((registration) => registration.paymentStatus === 'paid');
+  const now = amountFor(competition.prices, paid);
+  const forecast = amountFor(competition.prices, going);
 
   return (
     <div className='flex items-center gap-4'>
@@ -108,19 +121,25 @@ function AmountToSend({ competition, going }: { competition: AdminCompetitionDto
         <span className='text-muted-foreground'>
           {paid.length === 0
             ? 'Aucun départ payé pour le moment.'
-            : `${paid.length} ${paid.length > 1 ? 'départs payés' : 'départ payé'}, ${archers.size} ${archers.size > 1 ? 'archers' : 'archer'}`}
+            : `${paid.length} ${paid.length > 1 ? 'départs payés' : 'départ payé'}, ${now.archerCount} ${now.archerCount > 1 ? 'archers' : 'archer'}`}
         </span>
+        {competition.prices && going.length > paid.length && (
+          <span className='text-muted-foreground'>
+            Une fois tous les départs en cours payés :{' '}
+            <strong className='text-foreground font-semibold whitespace-nowrap'>{formatEuros(forecast.total)}</strong>
+          </span>
+        )}
         {!competition.prices && <span className='text-muted-foreground'>Le mandat ne donne pas de tarif lisible.</span>}
-        {competition.prices && unpriced > 0 && (
+        {competition.prices && forecast.unpriced > 0 && (
           <span className='text-amber-900'>
-            {unpriced > 1
-              ? `Le mandat ne donne pas de tarif pour ${unpriced} archers : leurs départs ne sont pas comptés.`
+            {forecast.unpriced > 1
+              ? `Le mandat ne donne pas de tarif pour ${forecast.unpriced} archers : leurs départs ne sont pas comptés.`
               : 'Le mandat ne donne pas de tarif pour 1 archer : ses départs ne sont pas comptés.'}
           </span>
         )}
       </div>
       <p className='rounded-lg bg-emerald-50 px-3 py-1.5 text-2xl font-semibold whitespace-nowrap text-emerald-900 tabular-nums'>
-        {competition.prices ? formatEuros(Math.round(total * 100) / 100) : '? €'}
+        {competition.prices ? formatEuros(now.total) : '? €'}
       </p>
     </div>
   );
