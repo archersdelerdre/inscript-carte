@@ -204,7 +204,7 @@ export function AdminCompetitions({ selectedId, onSelect, onSessionExpired }: Pr
         )}
       </aside>
 
-      <main className={cn('bg-muted/50 min-w-0 flex-1 overflow-y-auto', selectedId === null && 'max-md:hidden')}>
+      <main className={cn('bg-muted min-w-0 flex-1 overflow-y-auto', selectedId === null && 'max-md:hidden')}>
         {selectedId === null ? (
           <p className='text-muted-foreground p-6'>Choisissez un concours dans la liste.</p>
         ) : (

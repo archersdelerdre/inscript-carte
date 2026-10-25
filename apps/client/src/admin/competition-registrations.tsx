@@ -59,8 +59,8 @@ import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 import { PaymentDot, StatusBadge, StatusDot } from '@/registrations/status-badge';
 
-import { AmountToSend } from './amount-to-send';
 import { MandateSummary } from './mandate-summary';
+import { RegistrationsSummary, type TileFilter } from './registrations-summary';
 
 const ALL = 'all';
 const MAX_CLUB_NOTE_LENGTH = 500;
@@ -194,12 +194,26 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   );
   /** Same rule as the server: the shown départs the club still counts on. */
   const exported = shown.filter((registration) => SENT_STATUSES.includes(registration.status)).length;
+  /** The same, for the whole competition: the heading and the tiles do not follow the filters. */
+  const going = registrations.filter((registration) => SENT_STATUSES.includes(registration.status));
+  const archerCount = new Set(going.map((registration) => registration.licenceNumber)).size;
+
+  const isChosen = (filter: TileFilter) =>
+    'status' in filter
+      ? statusFilter === filter.status && paymentFilter === ALL
+      : paymentFilter === filter.paymentStatus && statusFilter === ALL;
+  /** A tile shows its départs alone; a second click shows everything again. */
+  function chooseTile(filter: TileFilter) {
+    const again = isChosen(filter);
+    setStatusFilter(!again && 'status' in filter ? filter.status : ALL);
+    setPaymentFilter(!again && 'paymentStatus' in filter ? filter.paymentStatus : ALL);
+  }
 
   return (
-    <div className='grid gap-4 p-4'>
-      <header className='grid gap-1'>
+    <div className='mx-auto grid max-w-6xl gap-8 p-4 md:p-8'>
+      <header className='grid gap-2'>
         <div className='flex flex-wrap items-baseline gap-x-4 gap-y-1'>
-          <h1 className='text-xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
+          <h1 className='text-2xl leading-snug font-semibold tracking-tight'>{competition.title}</h1>
           {competition.mandateUrl && (
             <a
               href={competition.mandateUrl}
@@ -215,7 +229,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
         <p className='text-muted-foreground'>
           {formatDateRange(competition.startDate, competition.endDate)} · {competition.town} (
           {competition.departmentCode}) · inscription par le club jusqu'au{' '}
-          {formatDay(competition.clubRegistrationDeadline)}
+          <strong className='text-foreground font-semibold'>{formatDay(competition.clubRegistrationDeadline)}</strong>
         </p>
         {competition.isCancelled && (
           <p className='w-fit rounded-md bg-red-50 px-3 py-2 text-sm text-red-900'>
@@ -224,98 +238,101 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
         )}
       </header>
 
-      <MandateSummary competition={competition} />
+      <div className='grid gap-4'>
+        <RegistrationsSummary competition={competition} going={going} isChosen={isChosen} onChoose={chooseTile} />
+        <MandateSummary competition={competition} />
+      </div>
 
-      <div className='grid gap-1'>
-        <div className='flex flex-wrap items-center gap-3'>
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
-            <SelectTrigger aria-label='Statut'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Tous les statuts</SelectItem>
-              {REGISTRATION_STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
-                  <StatusDot status={status} />
-                  {REGISTRATION_STATUS_LABELS[status]} ({competition.statusCounts[status]})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as typeof paymentFilter)}>
-            <SelectTrigger aria-label='Paiement'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Tous les paiements</SelectItem>
-              {PAYMENT_STATUSES.map((paymentStatus) => (
-                <SelectItem key={paymentStatus} value={paymentStatus}>
-                  <PaymentDot paymentStatus={paymentStatus} />
-                  {PAYMENT_STATUS_LABELS[paymentStatus]} (
-                  {registrations.filter((registration) => registration.paymentStatus === paymentStatus).length})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {/* On the right of the same row, with how many départs the file will have. */}
-          <div className='flex flex-wrap items-center gap-x-3 gap-y-1 md:ml-auto'>
-            <span className='text-muted-foreground text-sm'>
-              {exported === 0
-                ? 'Aucun départ pour le fichier Excel'
-                : `Le fichier Excel contiendra ${exported} ${exported > 1 ? 'départs' : 'départ'}`}
-            </span>
+      <section aria-labelledby='registrations-title' className='grid gap-4'>
+        <h2 id='registrations-title' className='text-lg font-semibold'>
+          Inscriptions{' '}
+          <span className='text-muted-foreground font-normal'>
+            · {going.length} {going.length > 1 ? 'départs en cours' : 'départ en cours'} pour {archerCount}{' '}
+            {archerCount > 1 ? 'archers' : 'archer'}
+          </span>
+        </h2>
+        {/* One toolbar for what narrows the list and for the file that follows the same filters. */}
+        <div className='bg-card grid gap-3 rounded-xl border p-4 shadow-sm'>
+          <div className='flex flex-wrap items-center gap-3'>
+            <div className='relative min-w-52 flex-1 basis-52'>
+              <SearchIcon className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2' />
+              <Input
+                type='search'
+                aria-label='Chercher un archer'
+                placeholder='Nom, licence ou référence'
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className='bg-background pl-10'
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+              <SelectTrigger aria-label='Statut'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Tous les statuts</SelectItem>
+                {REGISTRATION_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    <StatusDot status={status} />
+                    {REGISTRATION_STATUS_LABELS[status]} ({competition.statusCounts[status]})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as typeof paymentFilter)}>
+              <SelectTrigger aria-label='Paiement'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Tous les paiements</SelectItem>
+                {PAYMENT_STATUSES.map((paymentStatus) => (
+                  <SelectItem key={paymentStatus} value={paymentStatus}>
+                    <PaymentDot paymentStatus={paymentStatus} />
+                    {PAYMENT_STATUS_LABELS[paymentStatus]} (
+                    {registrations.filter((registration) => registration.paymentStatus === paymentStatus).length})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant='outline' onClick={() => void download()} disabled={exported === 0}>
               <DownloadIcon />
               Fichier Excel pour l'organisateur
             </Button>
           </div>
+          <p className='text-muted-foreground text-sm'>
+            {exported === 0
+              ? 'Aucun départ pour le fichier Excel avec ces filtres.'
+              : `Le fichier Excel contiendra ${exported} ${exported > 1 ? 'départs' : 'départ'} : ceux affichés avec ces filtres, jamais « Plus de place » ni « Annulée ».`}
+          </p>
         </div>
-        <p className='text-muted-foreground text-sm'>
-          Le fichier reprend les départs affichés avec ces filtres, jamais ceux « Plus de place » ni « Annulée ».
-        </p>
-      </div>
 
-      {/* Right under the Excel button: what goes with the file to the organizer. */}
-      <div className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='relative w-full max-w-md self-end'>
-          <SearchIcon className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2' />
-          <Input
-            type='search'
-            aria-label='Chercher un archer'
-            placeholder='Chercher un archer : nom, licence ou référence'
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className='bg-background pl-10'
-          />
-        </div>
-        <AmountToSend competition={competition} registrations={registrations} sentStatuses={SENT_STATUSES} />
-      </div>
-      {message && (
-        <p role='alert' className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
-          {message}
-        </p>
-      )}
-      {groups.length === 0 && (
-        <p className='text-muted-foreground'>
-          {query ? 'Aucun archer ne correspond à cette recherche.' : 'Aucune inscription avec ces filtres.'}
-        </p>
-      )}
+        {message && (
+          <p role='alert' className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
+            {message}
+          </p>
+        )}
+        {groups.length === 0 && (
+          <p className='text-muted-foreground'>
+            {query ? 'Aucun archer ne correspond à cette recherche.' : 'Aucune inscription avec ces filtres.'}
+          </p>
+        )}
 
-      <ul className='grid gap-3'>
-        {groups.map((group) => (
-          <li key={group.paymentReference}>
-            <ReferenceCard
-              group={group}
-              forceOpen={query.trim() !== ''}
-              onRowStatus={changeRowStatus}
-              onRowPayment={(registration, paymentStatus) => void updateRow(registration, { paymentStatus })}
-              onRowNote={setNoteFor}
-              onReferenceStatus={(status) => changeReferenceStatus(group, status)}
-              onReferencePayment={(paymentStatus) => void updateReference(group.paymentReference, { paymentStatus })}
-            />
-          </li>
-        ))}
-      </ul>
+        <ul className='grid gap-4'>
+          {groups.map((group) => (
+            <li key={group.paymentReference}>
+              <ReferenceCard
+                group={group}
+                forceOpen={query.trim() !== ''}
+                onRowStatus={changeRowStatus}
+                onRowPayment={(registration, paymentStatus) => void updateRow(registration, { paymentStatus })}
+                onRowNote={setNoteFor}
+                onReferenceStatus={(status) => changeReferenceStatus(group, status)}
+                onReferencePayment={(paymentStatus) => void updateReference(group.paymentReference, { paymentStatus })}
+              />
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {noteFor && (
         <NoteDialog
@@ -432,13 +449,8 @@ function ReferenceCard({
   const expanded = open || forceOpen;
 
   return (
-    <section className='bg-card overflow-hidden rounded-lg border shadow-sm'>
-      <header
-        className={cn(
-          'bg-muted/60 flex flex-wrap items-center justify-between gap-3 px-4 py-3',
-          expanded && 'border-b',
-        )}
-      >
+    <section className='bg-card overflow-hidden rounded-xl border shadow-sm'>
+      <header className={cn('flex flex-wrap items-center justify-between gap-3 px-5 py-4', expanded && 'border-b')}>
         <button
           type='button'
           aria-expanded={expanded}
@@ -451,14 +463,16 @@ function ReferenceCard({
               !expanded && '-rotate-90',
             )}
           />
-          <span className='grid min-w-0 gap-0.5'>
-            <span className='flex flex-wrap items-center gap-2'>
-              <span className='text-base leading-snug font-semibold'>{first.fullName}</span>
+          <span className='grid min-w-0 gap-1'>
+            <span className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+              <span className='text-lg leading-snug font-semibold'>{first.fullName}</span>
+              <span className='text-muted-foreground text-sm'>{categoryLabel(first.category, first.sex)}</span>
               {allPaid && (
                 <Badge className='bg-green-100 text-green-900'>
                   Tout est payé · {paidCount} {paidCount > 1 ? 'départs' : 'départ'}
                 </Badge>
               )}
+              {first.clubPaysRegistrations && <Badge className='bg-green-100 text-green-900'>Payé par le club</Badge>}
               {toRefund > 0 && (
                 <Badge className='bg-violet-100 text-violet-900'>
                   {toRefund > 1 ? `${toRefund} départs à rembourser` : '1 départ à rembourser'}
@@ -470,20 +484,25 @@ function ReferenceCard({
                   Covoiturage
                 </Badge>
               )}
-              {first.clubPaysRegistrations && <Badge className='bg-green-100 text-green-900'>Payé par le club</Badge>}
             </span>
-            <span className='text-muted-foreground text-sm'>
-              Réf. <strong className='text-foreground'>{group.paymentReference}</strong>
-              {paymentMethods.length > 0 && ` · ${paymentMethods.join(', ')}`} · licence {first.licenceNumber} ·{' '}
-              {categoryLabel(first.category, first.sex)}
+            <span className='text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm'>
+              <span
+                title='Référence de paiement'
+                className='bg-background text-foreground rounded border px-1.5 font-mono text-sm font-semibold'
+              >
+                {group.paymentReference}
+              </span>
+              {paymentMethods.length > 0 && <span>{paymentMethods.join(', ')}</span>}
+              <span aria-hidden>·</span>
+              <span>licence {first.licenceNumber}</span>
               {first.contact && (
                 <>
-                  {' · '}
+                  <span aria-hidden>·</span>
                   <span className='whitespace-nowrap'>{first.contact}</span>
                 </>
               )}
-              {' · inscrit le '}
-              <span className='whitespace-nowrap'>{formatDateTime(first.createdAt)}</span>
+              <span aria-hidden>·</span>
+              <span className='whitespace-nowrap'>inscrit le {formatDateTime(first.createdAt)}</span>
             </span>
           </span>
         </button>
@@ -522,9 +541,9 @@ function ReferenceCard({
       </header>
 
       {expanded && (
-        <ul className='divide-y'>
+        <ul className='bg-muted/40 divide-y'>
           {group.rows.map((registration) => (
-            <li key={registration.id} className='px-4 py-2.5'>
+            <li key={registration.id} className='px-5 py-3'>
               <DepartureRow
                 registration={registration}
                 onStatus={(status) => onRowStatus(registration, status)}

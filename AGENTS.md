@@ -207,7 +207,7 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 - **Excel file for the organizer** (`organizer-spreadsheet.ts`, layout of FFTA mandate grids): follows the panel's
   filters (the club usually sends only paid départs); never "Plus de place" or "Annulée". One line per archer and
   bow; Montant from the mandate prices (`registrationPrice`, `shared/src/pricing.ts`); empty when no price fits.
-- **« À envoyer au club organisateur »** (`amount-to-send.tsx`, asked 2026-10-25), a box under the Excel button: the
+- **« À envoyer au club organisateur »** (`AmountToSend` in `registrations-summary.tsx`, asked 2026-10-25), a tile: the
   sum of each archer's price for their paid départs (not "Plus de place" or "Annulée"), computed in the browser with
   the same `registrationPrice` as the Excel file. Ignores the panel filters. Archers without a fitting price are
   counted apart with a warning, never guessed.
@@ -217,7 +217,16 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   category and number of départs, the price naming the fewest categories (`pricesFor`: "U11 6 €" beats "Jeunes
   8 €"); only two equally specific prices with different amounts are refused (`hasPriceConflict`, also in the edit
   modal). `categoriesLabel` names a list ("Tous", "Adultes", "Jeunes (U13 à U21)", "U11, U15").
-- Below the competition title: "Mandat (PDF)" and « Lu dans le mandat » (départs and prices read).
+- A competition's page (`competition-registrations.tsx`, max 6xl wide, roomy: 32 px between blocks, white cards with
+  a shadow on the grey `bg-muted` page; the user found it cramped and low-contrast, 2026-10-25), top to bottom: title
+  with "Mandat (PDF)"; one compact bar (`registrations-summary.tsx`; the user rejected a box per number): « À
+  faire : » then a chip per task left (« 4 à transmettre », « 2 en attente de paiement », « 1 à rembourser », the
+  colors of the list on the left), each a button that shows those départs alone (a second click shows all), and on
+  the right « À envoyer au club organisateur » with the amount; « Lu dans le mandat », a `<details>` closed by default
+  with a one-line summary
+  (rhythm, départs, price range); then « Inscriptions · N départs en cours pour N archers », one toolbar (search, both
+  filters, Excel button) and the archer cards: name, category and badges on one line, then the reference; départ
+  rows on a light grey band.
 - Concours (`competitions-page.tsx`, `AdminCompetitionOverview`): every upcoming competition, hidden ones included,
   rendered 100 rows at a time (a sentinel loads more on scroll; phones are slow with ~1 800 rows). Decided: problems
   show as short badges (plus « Modifié » when edited). Problems (`problemsOf`): no place, gone from the FFTA list,

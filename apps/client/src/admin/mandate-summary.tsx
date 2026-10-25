@@ -1,4 +1,5 @@
 import { AGE_CATEGORIES, categoriesLabel, type AdminCompetitionDto, type MandatePrice } from '@inscript-carte/shared';
+import { ChevronRightIcon } from 'lucide-react';
 
 import { departureOptions } from '@/registrations/departures';
 
@@ -33,7 +34,19 @@ function priceList(prices: MandatePrice[]): string {
     .join(' · ');
 }
 
-/** What the scraper read in the mandate: the départs and the prices the Excel file uses. */
+/** "Tarifs de 6 € à 20 €" for the summary line. */
+function pricesOverview(prices: MandatePrice[] | null): string {
+  if (!prices || prices.length === 0) return 'Pas de tarif lisible';
+  const amounts = prices.map((price) => price.amountEuros);
+  const [lowest, highest] = [Math.min(...amounts), Math.max(...amounts)];
+  if (lowest === highest) return `Tarif ${formatEuros(lowest)}`;
+  return `Tarifs de ${formatEuros(lowest)} à ${formatEuros(highest)}`;
+}
+
+/**
+ * What the scraper read in the mandate: the départs and the prices the Excel file uses. Closed by default: a one-line
+ * summary is enough most of the time, the details are one click away.
+ */
 export function MandateSummary({ competition }: { competition: AdminCompetitionDto }) {
   const { departures, prices } = competition;
   if (!competition.mandateUrl) return null;
@@ -43,42 +56,50 @@ export function MandateSummary({ competition }: { competition: AdminCompetitionD
     );
   }
   const departureCount = departures?.length ?? 0;
+  const overview = [
+    competition.rhythm ? `Rythme ${competition.rhythm}` : 'Rythme non précisé',
+    departures ? `${departureCount} ${departureCount > 1 ? 'départs' : 'départ'}` : 'Départs non précisés',
+    pricesOverview(prices),
+  ].join(' · ');
 
   return (
-    <section aria-labelledby='mandate-summary' className='bg-card grid w-fit gap-3 rounded-lg border px-4 py-3'>
-      <h2 id='mandate-summary' className='font-semibold'>
-        Lu dans le mandat
-      </h2>
-      <p className='font-medium'>{competition.rhythm ? `Rythme ${competition.rhythm}` : 'Rythme non précisé'}</p>
-      <div className='grid gap-1'>
-        <p className='font-medium'>
-          {departures ? `${departureCount} ${departureCount > 1 ? 'départs' : 'départ'}` : 'Départs non précisés'}
-        </p>
-        {departures && (
-          <ul className='text-muted-foreground grid gap-0.5 text-sm'>
-            {departureOptions({ ...competition, departures }).map(({ number, name, details }) => (
-              <li key={number}>
-                Départ {number} · <span className='text-foreground'>{name}</span>
-                {details && ` · ${details}`}
-              </li>
-            ))}
-          </ul>
-        )}
+    <details className='group bg-card rounded-xl border shadow-sm'>
+      <summary className='flex min-h-12 cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 [&::-webkit-details-marker]:hidden'>
+        <ChevronRightIcon className='text-muted-foreground size-4.5 shrink-0 transition-transform group-open:rotate-90' />
+        <span className='font-semibold'>Lu dans le mandat</span>
+        <span className='text-muted-foreground text-sm'>{overview}</span>
+      </summary>
+      <div className='grid gap-x-10 gap-y-3 border-t px-4 py-3 md:grid-cols-[auto_auto] md:justify-start'>
+        <div className='grid content-start gap-1'>
+          <h3 className='font-medium'>Départs</h3>
+          {departures ? (
+            <ul className='text-muted-foreground grid gap-0.5 text-sm'>
+              {departureOptions({ ...competition, departures }).map(({ number, name, details }) => (
+                <li key={number}>
+                  Départ {number} · <span className='text-foreground'>{name}</span>
+                  {details && ` · ${details}`}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className='text-muted-foreground text-sm'>Le mandat ne précise pas les départs.</p>
+          )}
+        </div>
+        <div className='grid content-start gap-1'>
+          <h3 className='font-medium'>Tarifs</h3>
+          {prices ? (
+            <ul className='grid gap-0.5 text-sm'>
+              {priceGroups(prices).map(({ key, label, prices: own }) => (
+                <li key={key}>
+                  <span className='text-muted-foreground'>{label} :</span> {priceList(own)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className='text-muted-foreground text-sm'>Le mandat ne donne pas de tarif lisible.</p>
+          )}
+        </div>
       </div>
-      <div className='grid gap-1'>
-        <p className='font-medium'>Tarifs</p>
-        {prices ? (
-          <ul className='grid gap-0.5 text-sm'>
-            {priceGroups(prices).map(({ key, label, prices: own }) => (
-              <li key={key}>
-                <span className='text-muted-foreground'>{label} :</span> {priceList(own)}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className='text-muted-foreground text-sm'>Le mandat ne donne pas de tarif lisible.</p>
-        )}
-      </div>
-    </section>
+    </details>
   );
 }
