@@ -59,6 +59,7 @@ import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 import { PaymentDot, StatusBadge, StatusDot } from '@/registrations/status-badge';
 
+import { AmountToSend } from './amount-to-send';
 import { MandateSummary } from './mandate-summary';
 
 const ALL = 'all';
@@ -274,22 +275,26 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
         </p>
       </div>
 
+      {/* Right under the Excel button: what goes with the file to the organizer. */}
+      <div className='flex flex-wrap items-start justify-between gap-4'>
+        <div className='relative w-full max-w-md self-end'>
+          <SearchIcon className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2' />
+          <Input
+            type='search'
+            aria-label='Chercher un archer'
+            placeholder='Chercher un archer : nom, licence ou référence'
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className='bg-background pl-10'
+          />
+        </div>
+        <AmountToSend competition={competition} registrations={registrations} sentStatuses={SENT_STATUSES} />
+      </div>
       {message && (
         <p role='alert' className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
           {message}
         </p>
       )}
-      <div className='relative max-w-md'>
-        <SearchIcon className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2' />
-        <Input
-          type='search'
-          aria-label='Chercher un archer'
-          placeholder='Chercher un archer : nom, licence ou référence'
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className='bg-background pl-10'
-        />
-      </div>
       {groups.length === 0 && (
         <p className='text-muted-foreground'>
           {query ? 'Aucun archer ne correspond à cette recherche.' : 'Aucune inscription avec ces filtres.'}

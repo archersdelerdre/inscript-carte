@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { AgeCategory, MandatePrice } from '@inscript-carte/shared';
-
+import type { AgeCategory } from './ffta-category.ts';
+import type { MandatePrice } from './mandate.ts';
 import { registrationPrice } from './pricing.ts';
 
 const YOUTH: AgeCategory[] = ['U11', 'U13', 'U15', 'U18', 'U21'];

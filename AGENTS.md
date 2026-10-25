@@ -80,7 +80,7 @@ Migrations run when the server starts. There is no rollback command; to start ov
 Inner layers never import outer ones. The domain may import types and rules from `@inscript-carte/shared`.
 
 - `domain/`: `Competition` (`clubRegistrationDeadline`, `isPublic`), `Registration` (`isClubRegistrationOpen`,
-  `canWithdraw`), `Archer`, `member-list.ts`, `mandate.ts` (answer checks), `pricing.ts`, `CalendarDate` (`YYYY-MM-DD`
+  `canWithdraw`), `Archer`, `member-list.ts`, `mandate.ts` (answer checks), `CalendarDate` (`YYYY-MM-DD`
   strings), repository ports.
 - `application/`: use cases (`ClubRegistrations`, `AdminRegistrations`, `ClubMembers`, `AdminAccounts`, scraper
   runs, calendar sync, mandate reading…) and ports (`Clock` in Paris time…). Business errors are result codes
@@ -206,7 +206,11 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   and filters (status, payment).
 - **Excel file for the organizer** (`organizer-spreadsheet.ts`, layout of FFTA mandate grids): follows the panel's
   filters (the club usually sends only paid départs); never "Plus de place" or "Annulée". One line per archer and
-  bow; Montant from the mandate prices (`pricing.ts`); empty when no price fits.
+  bow; Montant from the mandate prices (`registrationPrice`, `shared/src/pricing.ts`); empty when no price fits.
+- **« À envoyer au club organisateur »** (`amount-to-send.tsx`, asked 2026-10-25), a box under the Excel button: the
+  sum of each archer's price for their paid départs (not "Plus de place" or "Annulée"), computed in the browser with
+  the same `registrationPrice` as the Excel file. Ignores the panel filters. Archers without a fitting price are
+  counted apart with a warning, never guessed.
 - **Prices by category** (asked 2026-10-11, migration `0012` converted the old `audience`): each `MandatePrice` names
   the FFTA categories it applies to (`categories`, U11 to S3). The LLM copies every price line as written ("Jeunes" =
   U11 to U21, "Adultes" = S1 to S3, "Tous" = all eight), even when a category is in two lines. The code picks, per

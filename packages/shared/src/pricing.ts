@@ -1,4 +1,5 @@
-import { pricesFor, type AgeCategory, type MandatePrice } from '@inscript-carte/shared';
+import type { AgeCategory } from './ffta-category.ts';
+import { pricesFor, type MandatePrice } from './mandate.ts';
 
 /**
  * What one archer pays for `departures` départs. The mandate's price for that number when it has one ("2 tirs

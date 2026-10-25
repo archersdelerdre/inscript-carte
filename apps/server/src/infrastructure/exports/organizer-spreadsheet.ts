@@ -4,6 +4,7 @@ import {
   CLUB_NAME,
   departureTitle,
   DISTANCE_LABELS,
+  registrationPrice,
   type AgeCategory,
 } from '@inscript-carte/shared';
 import writeXlsxFile, { type Cell, type Row } from 'write-excel-file/node';
@@ -11,7 +12,6 @@ import writeXlsxFile, { type Cell, type Row } from 'write-excel-file/node';
 import type { Responsible } from '../../domain/archer.ts';
 import { toFrenchDate } from '../../domain/calendar-date.ts';
 import { departureLabel, type Competition } from '../../domain/competition.ts';
-import { registrationPrice } from '../../domain/pricing.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 
 const EUROS = '#,##0.00 "€"';
