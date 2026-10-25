@@ -12,10 +12,12 @@ export type Archer = {
   readonly isActive: boolean;
   /** The club pays their registrations: new départs start as "nothing_due", no payment method asked. */
   readonly clubPaysRegistrations: boolean;
+  /** The member added a password (optional): the sign-in asks it after the birth date. Never the hash itself. */
+  readonly hasPassword: boolean;
 };
 
 /** What the FFTA export knows: it never carries the club's own flags. */
-export type ExportedMember = Omit<Archer, 'clubPaysRegistrations'>;
+export type ExportedMember = Omit<Archer, 'clubPaysRegistrations' | 'hasPassword'>;
 
 /** Stored only for the organizer's Excel file ("Responsable"), never shown in the app. */
 export type ArcherContact = {

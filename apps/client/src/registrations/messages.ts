@@ -12,20 +12,25 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   not_signed_in: 'Votre session a expiré. Merci de vous reconnecter.',
   invalid_credentials: 'Numéro de licence ou date de naissance incorrects. Vérifiez-les sur votre licence.',
   too_many_attempts: 'Trop de tentatives. Réessayez dans quelques minutes.',
+  password_required: 'Votre compte est protégé par un mot de passe : saisissez-le pour vous connecter.',
+  wrong_password: 'Mot de passe incorrect. En cas d’oubli, demandez à un responsable du club de le retirer.',
+  same_password: 'Choisissez un mot de passe différent de l’actuel.',
   registration_closed:
     "Le club ne prend pas d'inscription pour ce concours en ce moment : la date limite est passée, le mandat n'est pas encore publié ou le concours est reporté.",
   already_registered: "Vous êtes déjà inscrit sur l'un de ces départs.",
   cannot_withdraw:
     "Cette inscription ne peut plus être retirée ici : la date limite est passée ou le club l'a déjà transmise. Contactez le club.",
-  admin_sign_in_required: 'Votre session administrateur a expiré. Merci de retaper votre mot de passe.',
+  admin_sign_in_required: 'Vous n’avez plus accès à l’administration. Merci de vous reconnecter.',
   not_admin: "Vous n'avez pas accès à l'administration du club.",
   status_change_not_allowed: 'Une inscription annulée ne peut pas être réactivée : l’archer doit se réinscrire.',
   invalid_member_export: "Ce fichier n'est pas une liste de licenciés exportée de l'extranet FFTA.",
   password_change_required: 'Choisissez d’abord votre propre mot de passe.',
-  password_too_short: 'Le mot de passe doit avoir au moins 10 caractères.',
+  password_too_short: 'Ce mot de passe est trop court : choisissez-en un plus long.',
   cannot_change_self: 'Vous ne pouvez pas faire cette action sur votre propre compte.',
   member_inactive: 'Ce licencié ne fait plus partie du club : réactivez-le d’abord.',
   already_admin: 'Ce licencié est déjà administrateur.',
+  admin_needs_password:
+    'Un administrateur garde toujours un mot de passe : il sert aussi pour l’administration. Il peut le changer, pas le retirer.',
   scraper_busy: 'Une mise à jour du calendrier FFTA est déjà en cours. Attendez qu’elle se termine.',
   scraper_unavailable:
     'La mise à jour du calendrier FFTA n’est pas possible sur ce serveur (navigateur non installé). Prévenez la personne qui gère le serveur.',

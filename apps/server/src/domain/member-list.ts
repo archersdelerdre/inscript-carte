@@ -60,6 +60,8 @@ export interface MemberListRepository {
   all(): Promise<Archer[]>;
   /** `false` when no member has this licence number. */
   update(licenceNumber: string, changes: MemberChanges): Promise<boolean>;
+  /** For a member who forgot it; `false` when no member has this licence number. */
+  removePassword(licenceNumber: string): Promise<boolean>;
 }
 
 export type MemberChanges = Partial<Pick<Archer, 'isActive' | 'clubPaysRegistrations'>>;

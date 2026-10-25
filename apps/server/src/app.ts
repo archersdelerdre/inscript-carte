@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 
 import { AdminAccounts } from './application/admin-accounts.ts';
-import { AdminAuthentication } from './application/admin-authentication.ts';
 import { AdminCompetitionOverview } from './application/admin-competition-overview.ts';
 import { AdminRegistrations } from './application/admin-registrations.ts';
 import { Authentication } from './application/authentication.ts';
@@ -31,8 +30,8 @@ import { createRoutes } from './presentation/http/routes.ts';
  */
 const SIGN_IN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILED_SIGN_INS = { licence: 30, address: 200 };
-/** Admins are few and type a password they chose: a lower limit is still enough for typos. */
-const MAX_FAILED_ADMIN_SIGN_INS = { licence: 10, address: 50 };
+/** A chosen password, after the right birth date (admins always have one): a lower limit is still enough for typos. */
+const MAX_FAILED_PASSWORDS = { licence: 10, address: 50 };
 
 /**
  * Wires the application; the composition root for `main.ts` and the HTTP tests. `scraperRuns` comes from outside:
@@ -49,19 +48,14 @@ export function createApp(database: Knex, clock: Clock, scraperRuns: ScraperRuns
     listUpcomingCompetitions: new ListUpcomingCompetitions(competitions, registrations, clock),
     authentication: new Authentication(
       archers,
-      new SqliteSessionStore(database, 'sessions'),
+      admins,
+      new SqliteSessionStore(database),
       new InMemoryLoginAttemptLimiter(SIGN_IN_WINDOW_MS, MAX_FAILED_SIGN_INS),
+      new InMemoryLoginAttemptLimiter(SIGN_IN_WINDOW_MS, MAX_FAILED_PASSWORDS),
+      passwordHasher,
       clock,
     ),
     clubRegistrations: new ClubRegistrations(competitions, registrations, clock),
-    adminAuthentication: new AdminAuthentication(
-      archers,
-      admins,
-      new SqliteSessionStore(database, 'admin_sessions'),
-      passwordHasher,
-      new InMemoryLoginAttemptLimiter(SIGN_IN_WINDOW_MS, MAX_FAILED_ADMIN_SIGN_INS),
-      clock,
-    ),
     adminAccounts: new AdminAccounts(archers, admins, passwordHasher),
     adminRegistrations: new AdminRegistrations(competitions, registrations, archers, clock),
     adminCompetitionOverview: new AdminCompetitionOverview(

@@ -16,6 +16,7 @@ type ArcherRow = {
   birth_date: string;
   is_active: 0 | 1;
   club_pays_registrations: 0 | 1;
+  has_password: 0 | 1;
 };
 
 /** SQLite limits the number of values in one statement. */
@@ -103,16 +104,24 @@ export class SqliteMemberListRepository implements MemberListRepository {
       });
     return changed > 0;
   }
+
+  async removePassword(licenceNumber: string): Promise<boolean> {
+    const changed = await this.#database('archers')
+      .where({ licence_number: licenceNumber })
+      .update({ password_hash: null, updated_at: this.#database.fn.now() });
+    return changed > 0;
+  }
 }
 
 async function readArchers(database: Knex | Knex.Transaction): Promise<Archer[]> {
-  const rows = await database<ArcherRow>('archers').select(
+  const rows: ArcherRow[] = await database('archers').select(
     'licence_number',
     'full_name',
     'sex',
     'birth_date',
     'is_active',
     'club_pays_registrations',
+    database.raw('password_hash is not null as has_password'),
   );
   return rows.map((row) => ({
     licenceNumber: row.licence_number,
@@ -121,5 +130,6 @@ async function readArchers(database: Knex | Knex.Transaction): Promise<Archer[]>
     birthDate: row.birth_date,
     isActive: row.is_active === 1,
     clubPaysRegistrations: row.club_pays_registrations === 1,
+    hasPassword: row.has_password === 1,
   }));
 }

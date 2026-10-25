@@ -20,7 +20,7 @@ try {
     new BunPasswordHasher(),
   );
   if (await accounts.remove(licenceNumber)) {
-    console.log(`${licenceNumber} is no longer an admin; their admin sessions are closed.`);
+    console.log(`${licenceNumber} is no longer an admin; their admin panel is closed.`);
   } else {
     console.error(`${licenceNumber} is not an admin.`);
     process.exitCode = 1;

@@ -108,12 +108,15 @@ bun run db:seed-demo
 
 Le script ne fait rien si la base contient déjà des concours ou des membres : tu peux le lancer à chaque fois sans
 risque. Il ajoute des données **inventées**, aux dates calées sur aujourd'hui : 16 membres de tous âges (dont deux
-jeunes payés par le club et un parti du club), 24 concours de toutes les disciplines autour de Nantes et dans les
-départements voisins (para-tir, cibles mousses, reporté, annulé, sans lieu, terminé, mandats lus avec départs, tarifs
-et rythmes, un mandat refusé, un mandat pas encore lu), et des inscriptions dans tous les statuts et états de paiement.
+jeunes payés par le club, un parti du club et un qui a ajouté un mot de passe), 24 concours de toutes les disciplines
+autour de Nantes et dans les départements voisins (para-tir, cibles mousses, reporté, annulé, sans lieu, terminé,
+mandats lus avec départs, tarifs et rythmes, un mandat refusé, un mandat pas encore lu), et des inscriptions dans tous
+les statuts et états de paiement.
 
 Donne-lui ensuite les identifiants pour essayer : licence `0000001A`, date de naissance `01/01/1980`, mot de passe
-admin `demo-password-2026` (seulement sur sa machine, avec des données inventées).
+`demo-password-2026`, qui ouvre aussi l'administration (seulement sur sa machine, avec des données
+inventées). Pour un simple membre avec un mot de passe : licence `0000002B`, date de naissance `14/06/1972`, mot de
+passe `demo-membre-2026`.
 
 - Pour repartir de zéro : arrête l'application, supprime `apps/server/data/inscript-carte.sqlite` et les fichiers
   `-wal` et `-shm` à côté, relance le script.

@@ -1,23 +1,23 @@
-import { API_ROUTES, type AdminSessionResponse } from '@inscript-carte/shared';
+import { API_ROUTES, MIN_ADMIN_PASSWORD_LENGTH, type AdminSessionResponse } from '@inscript-carte/shared';
 import { cn } from 'cn';
-import { KeyRoundIcon, LogOutIcon, MapIcon, ShieldCheckIcon } from 'lucide-react';
+import { LogOutIcon, MapIcon, ShieldCheckIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { NewPasswordForm, PasswordButton } from '@/auth/password';
 import { useSession } from '@/auth/session';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
-import { ERROR_MESSAGES } from '@/registrations/messages';
 
 import { AdminCompetitions } from './admin-competitions';
-import { ChangePasswordDialog, ForcedPasswordChange } from './change-password';
 import { CompetitionsPage } from './competitions-page';
 import { MembersPage } from './members-page';
 import { ScraperPage } from './scraper-page';
 
 type Admin = AdminSessionResponse['admin'];
 type Section = 'registrations' | 'competitions' | 'members' | 'scraper';
+/** Why the panel is closed, as the server says it. */
+type Closed = 'not_signed_in' | 'not_admin' | 'password_required';
+type Access = { kind: 'loading' } | { kind: 'open'; admin: Admin } | { kind: 'closed'; reason: Closed };
 
 /** Each section is a page with its own address, so it can be bookmarked, reloaded and opened in a new tab. */
 const SECTIONS: Record<Section, { path: string; title: string }> = {
@@ -39,22 +39,33 @@ function competitionFromPath(pathname: string): string | null {
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
-/** The club secretary's pages, under `/admin`. The address says which page and which competition are open. */
+/**
+ * The club secretary's pages, under `/admin`. One sign-in (2026-10-25): the site session, opened with the password,
+ * opens the panel; there is no second step. The address says which page and which competition are open.
+ */
 export function AdminApp() {
-  /** `undefined` while the first check runs. */
-  const [admin, setAdmin] = useState<Admin | null | undefined>(undefined);
+  const { archer, signOut } = useSession();
+  const [access, setAccess] = useState<Access>({ kind: 'loading' });
   const [pathname, setPathname] = useState(normalizedPathname);
-  const [expired, setExpired] = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
-  /** Signed in, with their own password: the panel is open. */
-  const ready = admin && !admin.mustChangePassword;
   const section = sectionFromPath(pathname);
   const competitionId = section === 'registrations' ? competitionFromPath(pathname) : null;
 
+  // Stable identity: screens call it in their effects when the server says the access ended.
+  const checkAccess = useCallback(() => {
+    void api<AdminSessionResponse>(API_ROUTES.adminSession).then((result) => {
+      if (result.ok) return setAccess({ kind: 'open', admin: result.data.admin });
+      const reason = result.error === 'not_admin' || result.error === 'password_required' ? result.error : null;
+      setAccess({ kind: 'closed', reason: reason ?? 'not_signed_in' });
+    });
+  }, []);
+
+  // Again after every site sign-in, sign-out or password change.
+  const signedInAs = archer === undefined ? undefined : `${archer?.licenceNumber}:${archer?.hasPassword}`;
   useEffect(() => {
-    void api<AdminSessionResponse>(API_ROUTES.adminSession).then((result) =>
-      setAdmin(result.ok ? result.data.admin : null),
-    );
+    if (signedInAs !== undefined) checkAccess();
+  }, [signedInAs, checkAccess]);
+
+  useEffect(() => {
     // The browser's back and forward buttons change the page, or the competition shown.
     const onPopState = () => setPathname(location.pathname);
     addEventListener('popstate', onPopState);
@@ -77,17 +88,9 @@ export function AdminApp() {
     [navigate],
   );
 
-  // Stable identity: screens use it in their effects.
-  const sessionExpired = useCallback(() => {
-    setExpired(true);
-    setAdmin(null);
-  }, []);
-
-  async function signOut() {
-    await api(API_ROUTES.adminSession, { method: 'DELETE' });
-    setExpired(false);
-    setAdmin(null);
-  }
+  const admin = access.kind === 'open' ? access.admin : null;
+  /** Signed in, with their own password: the panel is open. */
+  const ready = admin !== null && !admin.mustChangePassword;
 
   return (
     <div className='flex h-svh flex-col'>
@@ -109,12 +112,7 @@ export function AdminApp() {
               <span className='max-sm:sr-only'>Retour à la carte</span>
             </a>
           </Button>
-          {ready && (
-            <Button variant='ghost' onClick={() => setChangingPassword(true)}>
-              <KeyRoundIcon />
-              <span className='max-sm:sr-only'>Mot de passe</span>
-            </Button>
-          )}
+          {ready && <PasswordButton />}
           {admin && (
             <Button variant='outline' onClick={() => void signOut()} title={`Connecté : ${admin.fullName}`}>
               <LogOutIcon />
@@ -124,50 +122,38 @@ export function AdminApp() {
         </div>
       </header>
 
-      {admin === undefined && <p className='text-muted-foreground p-4'>Chargement…</p>}
-      {admin === null && (
+      {access.kind === 'loading' && <p className='text-muted-foreground p-4'>Chargement…</p>}
+      {access.kind === 'closed' && (
         <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
-          <AdminSignIn
-            expired={expired}
-            onSignedIn={(signedIn) => {
-              setExpired(false);
-              setAdmin(signedIn);
-            }}
-          />
+          <PanelClosed reason={access.reason} />
         </div>
       )}
       {admin?.mustChangePassword && (
         <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
-          <ForcedPasswordChange
-            onChanged={() => setAdmin({ ...admin, mustChangePassword: false })}
-            onSessionExpired={sessionExpired}
-          />
+          <ForcedPasswordChange onChanged={checkAccess} />
         </div>
       )}
       {ready && section === 'registrations' && (
-        <AdminCompetitions selectedId={competitionId} onSelect={selectCompetition} onSessionExpired={sessionExpired} />
+        <AdminCompetitions selectedId={competitionId} onSelect={selectCompetition} onSessionExpired={checkAccess} />
       )}
       {ready && section === 'competitions' && (
         <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
           <CompetitionsPage
             onOpenRegistrations={selectCompetition}
             onOpenScraper={() => navigate(SECTIONS.scraper.path)}
-            onSessionExpired={sessionExpired}
+            onSessionExpired={checkAccess}
           />
         </div>
       )}
       {ready && section === 'members' && (
         <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
-          <MembersPage currentLicenceNumber={admin.licenceNumber} onSessionExpired={sessionExpired} />
+          <MembersPage currentLicenceNumber={admin.licenceNumber} onSessionExpired={checkAccess} />
         </div>
       )}
       {ready && section === 'scraper' && (
         <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
-          <ScraperPage onSessionExpired={sessionExpired} />
+          <ScraperPage onSessionExpired={checkAccess} />
         </div>
-      )}
-      {changingPassword && (
-        <ChangePasswordDialog onClose={() => setChangingPassword(false)} onSessionExpired={sessionExpired} />
       )}
     </div>
   );
@@ -202,71 +188,60 @@ function normalizedPathname(): string {
   return known ? current : SECTIONS.registrations.path;
 }
 
-/** Step 1: the member sign-in (licence + birth date). Step 2: the admin's personal password. */
-function AdminSignIn({ expired, onSignedIn }: { expired: boolean; onSignedIn: (admin: Admin) => void }) {
+const CARD = 'bg-card mx-auto mt-10 grid w-[calc(100%-2rem)] max-w-md gap-4 rounded-xl border p-6 shadow-sm';
+
+/** The panel is closed: says why, and the one thing to do. */
+function PanelClosed({ reason }: { reason: Closed }) {
   const { archer, withArcher, signOut } = useSession();
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState<string | null>(expired ? ERROR_MESSAGES.admin_sign_in_required : null);
-  const [sending, setSending] = useState(false);
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!password) return setMessage('Merci de taper votre mot de passe.');
-    setSending(true);
-    const result = await api<AdminSessionResponse>(API_ROUTES.adminSession, { method: 'POST', body: { password } });
-    setSending(false);
-    setPassword('');
-    if (result.ok) return onSignedIn(result.data.admin);
-    setMessage(result.error === 'invalid_credentials' ? 'Mot de passe incorrect.' : ERROR_MESSAGES[result.error]);
-  }
-
+  const signInAgain = () => void signOut().then(() => withArcher(() => {}));
   return (
-    <main className='bg-card mx-auto mt-10 grid w-[calc(100%-2rem)] max-w-md gap-4 rounded-xl border p-6 shadow-sm'>
+    <main className={CARD}>
       <h1 className='text-2xl font-semibold tracking-tight'>Espace du club</h1>
       <p className='text-muted-foreground'>
         Réservé aux responsables du club : suivi des inscriptions et des paiements.
       </p>
-
-      {archer === undefined && <p className='text-muted-foreground'>Chargement…</p>}
-      {archer === null && (
+      {reason === 'not_signed_in' && (
         <>
-          <p>Connectez-vous d'abord avec votre numéro de licence et votre date de naissance.</p>
+          <p>Connectez-vous avec votre numéro de licence, votre date de naissance et votre mot de passe.</p>
           <Button className='w-fit' onClick={() => withArcher(() => {})}>
             Se connecter
           </Button>
         </>
       )}
-      {archer && (
-        <form onSubmit={submit} className='grid gap-4' noValidate>
+      {reason === 'password_required' && (
+        <>
           <p>
-            Connecté : <strong>{archer.fullName}</strong>.{' '}
-            <button type='button' className='underline underline-offset-4' onClick={() => void signOut()}>
-              Ce n'est pas vous ?
-            </button>
+            Vous êtes connecté{archer?.sex === 'female' ? 'e' : ''} sans votre mot de passe. Pour ouvrir
+            l’administration, reconnectez-vous avec lui.
           </p>
-          {/* Lets password managers save the password with the licence number. */}
-          <input type='hidden' name='username' autoComplete='username' value={archer.licenceNumber} readOnly />
-          <div className='grid gap-2'>
-            <Label htmlFor='admin-password'>Mot de passe administrateur</Label>
-            <Input
-              id='admin-password'
-              type='password'
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete='current-password'
-              autoFocus
-            />
-          </div>
-          {message && (
-            <p role='alert' className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
-              {message}
-            </p>
-          )}
-          <Button type='submit' className='w-fit' disabled={sending}>
-            {sending ? 'Vérification…' : 'Entrer'}
+          <Button className='w-fit' onClick={signInAgain}>
+            Se reconnecter
           </Button>
-        </form>
+        </>
       )}
+      {reason === 'not_admin' && (
+        <>
+          <p>Vous n’avez pas accès à l’administration du club.</p>
+          <Button variant='outline' className='w-fit' onClick={signInAgain}>
+            Se connecter avec un autre compte
+          </Button>
+        </>
+      )}
+    </main>
+  );
+}
+
+/** First sign-in with a password generated by another admin: nothing else is shown until it is replaced. */
+function ForcedPasswordChange({ onChanged }: { onChanged: () => void }) {
+  return (
+    <main className={CARD}>
+      <h1 className='text-2xl font-semibold tracking-tight'>Choisissez votre mot de passe</h1>
+      <p className='text-muted-foreground'>
+        Vous vous êtes connecté avec le mot de passe donné par un autre responsable. Pour la sécurité du club,
+        choisissez maintenant un mot de passe que vous seul connaissez. Il servira pour le site et pour
+        l’administration.
+      </p>
+      <NewPasswordForm askCurrent={false} minLength={MIN_ADMIN_PASSWORD_LENGTH} inDialog={false} onSaved={onChanged} />
     </main>
   );
 }

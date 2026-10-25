@@ -105,9 +105,15 @@ function call(path: string, init: { method?: string; body?: unknown; cookie?: st
   });
 }
 
-/** « Rester connecté » ticked: several tests move the clock days ahead. */
-async function signIn(member: typeof ADULT): Promise<string> {
-  const response = await call('/api/session', { method: 'POST', body: { ...member, remember: true } });
+/**
+ * « Rester connecté » ticked: several tests move the clock days ahead. A member with a password gives it; the admin
+ * of `makeAdmin` gives `ADMIN_PASSWORD` when the sign-in asks (one password per person).
+ */
+async function signIn(member: typeof ADULT, password?: string): Promise<string> {
+  const attempt = (given?: string) =>
+    call('/api/session', { method: 'POST', body: { ...member, remember: true, ...(given && { password: given }) } });
+  let response = await attempt(password);
+  if (response.status === 401 && password === undefined) response = await attempt(ADMIN_PASSWORD);
   expect(response.status).toBe(200);
   return response.headers.get('set-cookie')!.split(';')[0]!;
 }
@@ -142,6 +148,7 @@ describe('sign-in', () => {
         birthYear: 1980,
         isAdmin: false,
         clubPaysRegistrations: false,
+        hasPassword: false,
       },
     });
 
@@ -188,6 +195,106 @@ describe('sign-in', () => {
     const response = await call('/api/session', { method: 'POST', body: ADULT });
     expect(response.status).toBe(429);
     expect(await response.json()).toEqual({ error: 'too_many_attempts' });
+  });
+});
+
+describe('member password', () => {
+  const PASSWORD = 'mon-arc-2026';
+  const putPassword = (cookie: string, body: object) => call('/api/me/password', { method: 'PUT', cookie, body });
+  const signInWith = (password?: string) =>
+    call('/api/session', { method: 'POST', body: { ...ADULT, remember: true, ...(password && { password }) } });
+
+  test('once added, it is asked after the birth date; the other devices are signed out', async () => {
+    const here = await signIn(ADULT);
+    const elsewhere = await signIn(ADULT);
+    expect((await putPassword(here, { currentPassword: null, newPassword: 'court' })).status).toBe(400);
+    expect((await putPassword(here, { currentPassword: null, newPassword: PASSWORD })).status).toBe(204);
+
+    expect(((await (await call('/api/session', { cookie: here })).json()) as SessionResponse).archer.hasPassword).toBe(
+      true,
+    );
+    expect((await call('/api/session', { cookie: elsewhere })).status).toBe(401);
+
+    // The right birth date alone is not enough anymore; a wrong one still says nothing of the password.
+    expect(await (await signInWith()).json()).toEqual({ error: 'password_required' });
+    expect(await (await signInWith('mauvais-mot')).json()).toEqual({ error: 'wrong_password' });
+    expect((await signInWith(PASSWORD)).status).toBe(200);
+    const wrongDate = await call('/api/session', {
+      method: 'POST',
+      body: { ...ADULT, birthDate: '1980-05-13', password: PASSWORD },
+    });
+    expect(await wrongDate.json()).toEqual({ error: 'invalid_credentials' });
+  });
+
+  test('changing or removing it asks the current one', async () => {
+    const cookie = await signIn(ADULT);
+    await putPassword(cookie, { currentPassword: null, newPassword: PASSWORD });
+    expect(await (await putPassword(cookie, { currentPassword: null, newPassword: 'autre-mot-2026' })).json()).toEqual({
+      error: 'wrong_password',
+    });
+    expect((await putPassword(cookie, { currentPassword: PASSWORD, newPassword: 'autre-mot-2026' })).status).toBe(204);
+
+    const remove = (currentPassword: string) =>
+      call('/api/me/password', { method: 'DELETE', cookie, body: { currentPassword } });
+    expect((await remove(PASSWORD)).status).toBe(401);
+    expect((await remove('autre-mot-2026')).status).toBe(204);
+    expect((await signInWith()).status).toBe(200);
+  });
+
+  test('after 10 wrong passwords, even the right one is refused for 15 minutes', async () => {
+    await putPassword(await signIn(ADULT), { currentPassword: null, newPassword: PASSWORD });
+    for (let attempt = 1; attempt <= 10; attempt++) await signInWith(`faux-${attempt}-mot`);
+    expect(await (await signInWith(PASSWORD)).json()).toEqual({ error: 'too_many_attempts' });
+  });
+
+  test('an admin removes a forgotten password, but not their own', async () => {
+    await putPassword(await signIn(YOUTH), { currentPassword: null, newPassword: PASSWORD });
+    await makeAdmin(ADULT);
+    const admin = await adminSignIn();
+    const remove = (licence: string) =>
+      call(`/api/admin/members/${licence}/password`, { method: 'DELETE', cookie: admin });
+    expect(await (await remove(ADULT.licenceNumber)).json()).toEqual({ error: 'cannot_change_self' });
+    expect((await remove(YOUTH.licenceNumber)).status).toBe(204);
+    expect((await call('/api/session', { method: 'POST', body: YOUTH })).status).toBe(200);
+  });
+
+  test('one password per person: an admin keeps the one they had, and can change it but not remove it', async () => {
+    await makeAdmin(ADULT);
+    const admin = await adminSignIn();
+    // A member who already has a password keeps it: no generated one, nothing to replace at the panel.
+    await putPassword(await signIn(YOUTH), { currentPassword: null, newPassword: 'mot-de-lou-2026' });
+    const granted = await call(`/api/admin/members/${YOUTH.licenceNumber}/admin`, { method: 'POST', cookie: admin });
+    expect(await granted.json()).toEqual({ password: null });
+    const youth = await signIn(YOUTH, 'mot-de-lou-2026');
+    const panel = (await (await call('/api/admin/session', { cookie: youth })).json()) as AdminSessionResponse;
+    expect(panel.admin.mustChangePassword).toBe(false);
+
+    // Changed from the site, it changes for the panel too, as long as an admin's must be.
+    expect((await putPassword(youth, { currentPassword: 'mot-de-lou-2026', newPassword: 'court-12' })).status).toBe(
+      400,
+    );
+    expect(
+      (await putPassword(youth, { currentPassword: 'mot-de-lou-2026', newPassword: 'nouveau-mot-lou' })).status,
+    ).toBe(204);
+    const oldPassword = { ...YOUTH, password: 'mot-de-lou-2026' };
+    expect(await (await call('/api/session', { method: 'POST', body: oldPassword })).json()).toEqual({
+      error: 'wrong_password',
+    });
+    expect((await call('/api/admin/competitions', { cookie: await signIn(YOUTH, 'nouveau-mot-lou') })).status).toBe(
+      200,
+    );
+
+    const removeOwn = await call('/api/me/password', {
+      method: 'DELETE',
+      cookie: youth,
+      body: { currentPassword: 'nouveau-mot-lou' },
+    });
+    expect(await removeOwn.json()).toEqual({ error: 'admin_needs_password' });
+    const removeByAdmin = await call(`/api/admin/members/${YOUTH.licenceNumber}/password`, {
+      method: 'DELETE',
+      cookie: admin,
+    });
+    expect(await removeByAdmin.json()).toEqual({ error: 'admin_needs_password' });
   });
 });
 
@@ -607,20 +714,25 @@ describe('withdrawal', () => {
 // The adult member is the admin; the youth is a member without admin rights.
 const ADMIN_PASSWORD = 'tir-a-l-arc-2026';
 
+/** One password per person: the admin's is their member password too. */
 async function makeAdmin(member: typeof ADULT) {
-  await database('admins').insert({
-    archer_licence_number: member.licenceNumber,
-    password_hash: await Bun.password.hash(ADMIN_PASSWORD),
-  });
+  await database('archers')
+    .where({ licence_number: member.licenceNumber })
+    .update({ password_hash: await Bun.password.hash(ADMIN_PASSWORD) });
+  await database('admins').insert({ archer_licence_number: member.licenceNumber });
 }
 
-async function adminSignIn(): Promise<string> {
-  const response = await call('/api/admin/session', {
-    method: 'POST',
-    cookie: await signIn(ADULT),
-    body: { password: ADMIN_PASSWORD },
-  });
-  expect(response.status).toBe(200);
+/** One sign-in: the site session opened with the admin's password opens the panel too. */
+function adminSignIn(): Promise<string> {
+  return signIn(ADULT, ADMIN_PASSWORD);
+}
+
+/** A site session opened with the birth date alone, before the admin had a password (an older session). */
+async function birthDateOnlySession(member: typeof ADULT): Promise<string> {
+  const passwordHash = await database('archers').where({ licence_number: member.licenceNumber }).first('password_hash');
+  await database('archers').where({ licence_number: member.licenceNumber }).update({ password_hash: null });
+  const response = await call('/api/session', { method: 'POST', body: { ...member, remember: true } });
+  await database('archers').where({ licence_number: member.licenceNumber }).update(passwordHash);
   return response.headers.get('set-cookie')!.split(';')[0]!;
 }
 
@@ -669,56 +781,23 @@ describe('admin sign-in', () => {
     expect(youth.archer.isAdmin).toBe(false);
   });
 
-  test('an admin signs in as a member, then with their password; the session ends at sign-out', async () => {
-    const response = await call('/api/admin/session', {
-      method: 'POST',
-      cookie: await signIn(ADULT),
-      body: { password: ADMIN_PASSWORD },
-    });
-    // Only sent to the admin API, never readable by scripts, never sent from another site.
-    expect(response.headers.get('set-cookie')).toMatch(/Path=\/api\/admin.*HttpOnly.*SameSite=Strict/i);
-    const cookie = response.headers.get('set-cookie')!.split(';')[0]!;
-
+  test('one sign-in: the site session opened with the password opens the panel, signing out closes it', async () => {
+    const cookie = await signIn(ADULT, ADMIN_PASSWORD);
     expect((await (await call('/api/admin/session', { cookie })).json()) as AdminSessionResponse).toEqual({
       admin: { licenceNumber: ADULT.licenceNumber, fullName: 'DUPONT JEANNE', mustChangePassword: false },
     });
-    expect((await call('/api/admin/session', { method: 'DELETE', cookie })).status).toBe(204);
+    expect((await call('/api/admin/competitions', { cookie })).status).toBe(200);
+    expect((await call('/api/session', { method: 'DELETE', cookie })).status).toBe(204);
     expect((await call('/api/admin/competitions', { cookie })).status).toBe(401);
   });
 
-  test('needs the member session first, the right password, and a member who is an admin', async () => {
-    const noMember = await call('/api/admin/session', { method: 'POST', body: { password: ADMIN_PASSWORD } });
-    expect(await noMember.json()).toEqual({ error: 'not_signed_in' });
-
-    const wrong = await call('/api/admin/session', {
-      method: 'POST',
-      cookie: await signIn(ADULT),
-      body: { password: 'not-the-password' },
-    });
-    expect(wrong.status).toBe(401);
-    expect(await wrong.json()).toEqual({ error: 'invalid_credentials' });
-
-    const member = await call('/api/admin/session', {
-      method: 'POST',
-      cookie: await signIn(YOUTH),
-      body: { password: ADMIN_PASSWORD },
-    });
-    expect(member.status).toBe(403);
-    expect(await member.json()).toEqual({ error: 'not_admin' });
-  });
-
-  test('after 10 wrong passwords, even the right one is refused for 15 minutes', async () => {
-    const member = await signIn(ADULT);
-    for (let attempt = 1; attempt <= 10; attempt++) {
-      await call('/api/admin/session', { method: 'POST', cookie: member, body: { password: `wrong-${attempt}` } });
-    }
-    const blocked = await call('/api/admin/session', {
-      method: 'POST',
-      cookie: member,
-      body: { password: ADMIN_PASSWORD },
-    });
-    expect(blocked.status).toBe(429);
-    expect(await blocked.json()).toEqual({ error: 'too_many_attempts' });
+  test('the panel says why it is closed: signed out, not an admin, or signed in without the password', async () => {
+    const bodyOf = async (cookie?: string) => (await call('/api/admin/session', { cookie })).json();
+    expect(await bodyOf()).toEqual({ error: 'not_signed_in' });
+    expect(await bodyOf(await signIn(YOUTH))).toEqual({ error: 'not_admin' });
+    const older = await birthDateOnlySession(ADULT);
+    expect(await bodyOf(older)).toEqual({ error: 'password_required' });
+    expect((await call('/api/admin/competitions', { cookie: older })).status).toBe(401);
   });
 
   test('an admin removed from the list, or who left the club, loses access at once', async () => {
@@ -732,10 +811,9 @@ describe('admin sign-in', () => {
     expect((await call('/api/admin/competitions', { cookie })).status).toBe(401);
   });
 
-  test('visitors and members (even the admin with only a member session) get nothing from the admin API', async () => {
+  test('visitors, members and an admin signed in without the password get nothing from the admin API', async () => {
     await registerBoth();
     const routes = [
-      ['GET', '/api/admin/session'],
       ['GET', '/api/admin/competitions'],
       ['GET', `/api/admin/competitions/${SALLE}/registrations`],
       ['GET', `/api/admin/competitions/${SALLE}/export`],
@@ -747,17 +825,21 @@ describe('admin sign-in', () => {
       ['PATCH', `/api/admin/members/${YOUTH.licenceNumber}`],
       ['POST', `/api/admin/members/${YOUTH.licenceNumber}/admin`],
       ['DELETE', `/api/admin/members/${YOUTH.licenceNumber}/admin`],
-      ['PUT', '/api/admin/session/password'],
+      ['DELETE', `/api/admin/members/${YOUTH.licenceNumber}/password`],
     ] as const;
-    for (const cookie of [undefined, await signIn(YOUTH), await signIn(ADULT)]) {
+    const refusals = [
+      [undefined, 401, 'admin_sign_in_required'],
+      [await signIn(YOUTH), 401, 'admin_sign_in_required'],
+      [await birthDateOnlySession(ADULT), 401, 'admin_sign_in_required'],
+    ] as const;
+    for (const [cookie, status, reason] of refusals) {
       for (const [method, path] of routes) {
         const response = await call(path, {
           method,
           cookie,
           body: method === 'PATCH' ? { status: 'full' } : undefined,
         });
-        expect([path, response.status]).toEqual([path, 401]);
-        expect(await response.json()).toEqual({ error: 'admin_sign_in_required' });
+        expect([path, response.status, await response.json()]).toEqual([path, status, { error: reason }]);
       }
     }
     expect(await database('registrations').pluck('status')).toEqual(['received', 'received', 'received']);
@@ -1166,6 +1248,7 @@ describe('member list', () => {
   });
 
   test('admins see every member, those who left included, with the category of the season but no birth date', async () => {
+    await database('archers').where({ licence_number: YOUTH.licenceNumber }).update({ password_hash: 'hash' });
     const response = await call('/api/admin/members', { cookie });
     const text = await response.text();
     for (const member of [ADULT, YOUTH, DEPARTED]) expect(text).not.toContain(member.birthDate);
@@ -1178,6 +1261,7 @@ describe('member list', () => {
         isActive: false,
         isAdmin: false,
         clubPaysRegistrations: false,
+        hasPassword: false,
       },
       {
         licenceNumber: ADULT.licenceNumber,
@@ -1187,6 +1271,8 @@ describe('member list', () => {
         isActive: true,
         isAdmin: true,
         clubPaysRegistrations: false,
+        // The admin's password is their member password.
+        hasPassword: true,
       },
       {
         licenceNumber: YOUTH.licenceNumber,
@@ -1196,6 +1282,7 @@ describe('member list', () => {
         isActive: true,
         isAdmin: false,
         clubPaysRegistrations: false,
+        hasPassword: true,
       },
     ]);
   });
@@ -1245,16 +1332,6 @@ describe('member list', () => {
   });
 });
 
-async function adminCookieOf(member: typeof ADULT, password: string): Promise<string> {
-  const response = await call('/api/admin/session', {
-    method: 'POST',
-    cookie: await signIn(member),
-    body: { password },
-  });
-  expect(response.status).toBe(200);
-  return response.headers.get('set-cookie')!.split(';')[0]!;
-}
-
 describe('member actions', () => {
   let cookie: string;
   beforeEach(async () => {
@@ -1277,31 +1354,36 @@ describe('member actions', () => {
     const { password } = (await granted.json()) as GrantAdminResponse;
     expect(password).toMatch(/^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$/);
 
-    const youth = await adminCookieOf(YOUTH, password);
+    // Signing in with the generated password opens the panel, but only to replace it.
+    const youth = await signIn(YOUTH, password!);
     const session = (await (await call('/api/admin/session', { cookie: youth })).json()) as AdminSessionResponse;
     expect(session.admin.mustChangePassword).toBe(true);
     const blocked = await call('/api/admin/competitions', { cookie: youth });
     expect(blocked.status).toBe(403);
     expect(await blocked.json()).toEqual({ error: 'password_change_required' });
 
-    // The generated password was typed moments ago: the first change only asks for the new one.
-    const change = (body: unknown) => call('/api/admin/session/password', { method: 'PUT', cookie: youth, body });
-    expect(await (await change({ currentPassword: null, newPassword: 'court' })).json()).toEqual({
+    // Typed moments ago: the first change only asks for the new one, as long as an admin's, and not the same.
+    const change = (cookie: string, body: unknown) => call('/api/me/password', { method: 'PUT', cookie, body });
+    expect(await (await change(youth, { currentPassword: null, newPassword: 'court' })).json()).toEqual({
       error: 'password_too_short',
     });
-    expect((await change({ currentPassword: null, newPassword: password })).status).toBe(400);
-    expect((await change({ currentPassword: null, newPassword: 'mon-nouveau-mdp' })).status).toBe(204);
-
+    expect(await (await change(youth, { currentPassword: null, newPassword: password })).json()).toEqual({
+      error: 'same_password',
+    });
+    // Not from an older session, opened with the birth date alone before the rights were given.
+    const older = await birthDateOnlySession(YOUTH);
+    expect((await change(older, { currentPassword: null, newPassword: 'mon-nouveau-mdp' })).status).toBe(401);
+    expect((await change(youth, { currentPassword: null, newPassword: 'mon-nouveau-mdp' })).status).toBe(204);
     expect((await call('/api/admin/competitions', { cookie: youth })).status).toBe(200);
-    const again = await adminCookieOf(YOUTH, 'mon-nouveau-mdp');
-    const after = (await (await call('/api/admin/session', { cookie: again })).json()) as AdminSessionResponse;
-    expect(after.admin.mustChangePassword).toBe(false);
 
     // Later changes ask for the current password again.
-    const later = (body: unknown) => call('/api/admin/session/password', { method: 'PUT', cookie: again, body });
-    expect((await later({ currentPassword: null, newPassword: 'encore-un-autre' })).status).toBe(401);
-    expect((await later({ currentPassword: 'wrong-password', newPassword: 'encore-un-autre' })).status).toBe(401);
-    expect((await later({ currentPassword: 'mon-nouveau-mdp', newPassword: 'encore-un-autre' })).status).toBe(204);
+    expect((await change(youth, { currentPassword: null, newPassword: 'encore-un-autre' })).status).toBe(401);
+    expect((await change(youth, { currentPassword: 'wrong-password', newPassword: 'encore-un-autre' })).status).toBe(
+      401,
+    );
+    expect((await change(youth, { currentPassword: 'mon-nouveau-mdp', newPassword: 'encore-un-autre' })).status).toBe(
+      204,
+    );
   });
 
   test('admin rights are given only to active members who are not admins yet', async () => {
@@ -1310,9 +1392,9 @@ describe('member actions', () => {
     expect((await grant('9999999Z')).status).toBe(404);
   });
 
-  test("removing admin rights ends that admin's sessions, but nobody can remove their own", async () => {
+  test('removing admin rights closes the panel at once, but nobody can remove their own', async () => {
     const { password } = (await (await grant(YOUTH.licenceNumber)).json()) as GrantAdminResponse;
-    const youth = await adminCookieOf(YOUTH, password);
+    const youth = await signIn(YOUTH, password!);
     const revoke = (licence: string) => call(`/api/admin/members/${licence}/admin`, { method: 'DELETE', cookie });
 
     const self = await revoke(ADULT.licenceNumber);
@@ -1320,7 +1402,7 @@ describe('member actions', () => {
     expect(await self.json()).toEqual({ error: 'cannot_change_self' });
 
     expect((await revoke(YOUTH.licenceNumber)).status).toBe(204);
-    expect((await call('/api/admin/session', { cookie: youth })).status).toBe(401);
+    expect(await (await call('/api/admin/session', { cookie: youth })).json()).toEqual({ error: 'not_admin' });
     expect((await revoke(YOUTH.licenceNumber)).status).toBe(404);
   });
 

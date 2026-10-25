@@ -28,6 +28,8 @@ import { SqliteArcherRepository } from './sqlite-archer-repository.ts';
 
 const ADMIN_LICENCE = '0000001A';
 const ADMIN_PASSWORD = 'demo-password-2026';
+/** A member who added a password (made up), to try the sign-in with it and its removal by an admin. */
+const MEMBER_WITH_PASSWORD = { licence: '0000002B', birthDate: '14/06/1972', password: 'demo-membre-2026' };
 const YOUTH: AgeCategory[] = ['U11', 'U13', 'U15', 'U18', 'U21'];
 const ADULTS: AgeCategory[] = ['S1', 'S2', 'S3'];
 
@@ -588,10 +590,20 @@ async function seed(): Promise<void> {
     new BunPasswordHasher(),
   );
   await admins.setPassword(ADMIN_LICENCE, ADMIN_PASSWORD);
+  await new SqliteArcherRepository(database).savePasswordHash(
+    MEMBER_WITH_PASSWORD.licence,
+    await new BunPasswordHasher().hash(MEMBER_WITH_PASSWORD.password),
+  );
 
   console.log(
     `Demo data added: ${ARCHERS.length} members, ${COMPETITIONS.length} competitions, ` +
       `${REGISTRATIONS.reduce((total, { departures }) => total + departures.length, 0)} registrations.`,
   );
-  console.log(`Sign in: licence ${ADMIN_LICENCE}, birth date 01/01/1980, admin password ${ADMIN_PASSWORD}.`);
+  console.log(
+    `Sign in: licence ${ADMIN_LICENCE}, birth date 01/01/1980, password ${ADMIN_PASSWORD} (it opens the panel too).`,
+  );
+  console.log(
+    `A member with a password: licence ${MEMBER_WITH_PASSWORD.licence}, birth date ${MEMBER_WITH_PASSWORD.birthDate}, ` +
+      `password ${MEMBER_WITH_PASSWORD.password}.`,
+  );
 }

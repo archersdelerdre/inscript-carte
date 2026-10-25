@@ -17,9 +17,18 @@ import { createAdminRoutes, type AdminHttpDependencies } from './admin-routes.ts
 import { error, isHttps, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
 import { toCompetitionDto, toMyRegistrationDto, toSignedInArcher } from './presenters.ts';
 
+/** The only session: the site's, which opens the admin panel too for an admin signed in with the password. */
 const SESSION_COOKIE = 'session';
 
-export type HttpDependencies = Omit<AdminHttpDependencies, 'signedInArcher'> & {
+const PASSWORD_STATUS = {
+  wrong_password: 401,
+  too_many_attempts: 429,
+  password_too_short: 400,
+  same_password: 400,
+  admin_needs_password: 409,
+} as const;
+
+export type HttpDependencies = Omit<AdminHttpDependencies, 'adminAccess'> & {
   listUpcomingCompetitions: ListUpcomingCompetitions;
   authentication: Authentication;
   clubRegistrations: ClubRegistrations;
@@ -57,12 +66,22 @@ export function createRoutes({
       },
       POST: async (request: BunRequest, server: ClientAddressSource) => {
         const body = await readJson(request);
-        if (typeof body?.licenceNumber !== 'string' || typeof body.birthDate !== 'string') {
+        if (
+          typeof body?.licenceNumber !== 'string' ||
+          typeof body.birthDate !== 'string' ||
+          (body.password !== undefined && typeof body.password !== 'string')
+        ) {
           return error('invalid_request', 400);
         }
         const clientAddress = server.requestIP(request)?.address ?? 'unknown';
         const remember = body.remember === true;
-        const result = await authentication.signIn(body.licenceNumber, body.birthDate, clientAddress, remember);
+        const result = await authentication.signIn(
+          body.licenceNumber,
+          body.birthDate,
+          body.password ?? null,
+          clientAddress,
+          remember,
+        );
         if (!result.ok) return error(result.reason, result.reason === 'too_many_attempts' ? 429 : 401);
 
         request.cookies.set(SESSION_COOKIE, result.token, {
@@ -131,6 +150,43 @@ export function createRoutes({
         return result.ok ? new Response(null, { status: 204 }) : error(result.reason, STATUS_BY_REASON[result.reason]);
       },
     },
-    ...createAdminRoutes({ ...adminDependencies, signedInArcher }),
+
+    [API_ROUTES.myPassword]: {
+      PUT: async (request: BunRequest, server: ClientAddressSource) => {
+        const archer = await signedInArcher(request);
+        const token = request.cookies.get(SESSION_COOKIE);
+        if (!archer || !token) return error('not_signed_in', 401);
+        const body = await readJson(request);
+        const currentPassword = body?.currentPassword;
+        if (
+          typeof body?.newPassword !== 'string' ||
+          (currentPassword !== null && typeof currentPassword !== 'string')
+        ) {
+          return error('invalid_request', 400);
+        }
+        const clientAddress = server.requestIP(request)?.address ?? 'unknown';
+        const result = await authentication.changePassword(
+          archer,
+          token,
+          currentPassword,
+          body.newPassword,
+          clientAddress,
+        );
+        return result.ok ? new Response(null, { status: 204 }) : error(result.reason, PASSWORD_STATUS[result.reason]);
+      },
+      DELETE: async (request: BunRequest, server: ClientAddressSource) => {
+        const archer = await signedInArcher(request);
+        if (!archer) return error('not_signed_in', 401);
+        const body = await readJson(request);
+        if (typeof body?.currentPassword !== 'string') return error('invalid_request', 400);
+        const clientAddress = server.requestIP(request)?.address ?? 'unknown';
+        const result = await authentication.removePassword(archer, body.currentPassword, clientAddress);
+        return result.ok ? new Response(null, { status: 204 }) : error(result.reason, PASSWORD_STATUS[result.reason]);
+      },
+    },
+    ...createAdminRoutes({
+      ...adminDependencies,
+      adminAccess: (request) => authentication.adminAccess(request.cookies.get(SESSION_COOKIE) ?? null),
+    }),
   };
 }

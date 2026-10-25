@@ -27,6 +27,8 @@ type SessionContextValue = {
   signOut: () => Promise<void>;
   /** After an API call answered `not_signed_in`: forget the archer. */
   sessionExpired: () => void;
+  /** After the archer added, changed or removed their password (« Mot de passe » in the header). */
+  setHasPassword: (hasPassword: boolean) => void;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -61,10 +63,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setArcher(null);
   }, []);
   const sessionExpired = useCallback(() => setArcher(null), []);
+  const setHasPassword = useCallback(
+    (hasPassword: boolean) => setArcher((current) => current && { ...current, hasPassword }),
+    [],
+  );
 
   const value = useMemo<SessionContextValue>(
-    () => ({ archer, withArcher, signOut, sessionExpired }),
-    [archer, withArcher, signOut, sessionExpired],
+    () => ({ archer, withArcher, signOut, sessionExpired, setHasPassword }),
+    [archer, withArcher, signOut, sessionExpired, setHasPassword],
   );
 
   return (
@@ -102,6 +108,9 @@ function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
   const [remember, setRemember] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  /** Shown once the server said this account has a password (`password_required`). */
+  const [askPassword, setAskPassword] = useState(false);
+  const [password, setPassword] = useState('');
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -111,20 +120,26 @@ function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
       !isoBirthDate && 'votre date de naissance (jour/mois/année, par exemple 12/05/1980)',
     ].filter(Boolean);
     if (missing.length > 0) return setMessage(`Merci d'indiquer ${missing.join(' et ')}.`);
+    if (askPassword && !password) return setMessage('Merci d’indiquer votre mot de passe.');
 
     setSending(true);
     const result = await api<SessionResponse>(API_ROUTES.session, {
       method: 'POST',
-      body: { licenceNumber, birthDate: isoBirthDate, remember },
+      body: { licenceNumber, birthDate: isoBirthDate, remember, ...(askPassword && { password }) },
     });
     setSending(false);
-    if (!result.ok) return setMessage(ERROR_MESSAGES[result.error]);
+    if (!result.ok) {
+      if (result.error === 'password_required') setAskPassword(true);
+      if (result.error === 'wrong_password') setPassword('');
+      return setMessage(ERROR_MESSAGES[result.error]);
+    }
 
     // The licence number is public, so it may stay on the device, but only when the archer asked to stay signed in.
     // The birth date never does.
     if (remember) localStorage.setItem(LICENCE_STORAGE_KEY, result.data.archer.licenceNumber);
     else localStorage.removeItem(LICENCE_STORAGE_KEY);
     setBirthDate('');
+    setPassword('');
     setMessage(null);
     onSignedIn(result.data.archer);
   }
@@ -163,6 +178,19 @@ function SignInDialog({ open, onOpenChange, onSignedIn }: SignInDialogProps) {
               autoComplete='bday'
             />
           </div>
+          {askPassword && (
+            <div className='grid gap-2'>
+              <Label htmlFor='member-password'>Mot de passe</Label>
+              <Input
+                id='member-password'
+                type='password'
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete='current-password'
+                autoFocus
+              />
+            </div>
+          )}
           <div className='grid gap-1'>
             <Label htmlFor='remember-me' className='min-h-10 cursor-pointer'>
               <Checkbox

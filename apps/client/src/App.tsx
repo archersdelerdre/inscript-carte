@@ -3,6 +3,7 @@ import { cn } from 'cn';
 import { ListIcon, LogInIcon, MapIcon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { PasswordButton } from '@/auth/password';
 import { useSession } from '@/auth/session';
 import { TargetLogo } from '@/components/target-logo';
 import { Button } from '@/components/ui/button';
@@ -98,6 +99,7 @@ export function App() {
           </span>
           <div className='ml-auto flex shrink-0 items-center gap-2'>
             <AdminButton />
+            <PasswordButton />
             <MyRegistrationsButton />
           </div>
         </header>

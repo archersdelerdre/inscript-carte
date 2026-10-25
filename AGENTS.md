@@ -46,7 +46,7 @@ From the root: `bun run dev` (server `:3998`, client `:5173`, Vite proxies `/api
 | `db:add-admin <licence>` / `db:remove-admin <licence>` | give admin rights (password typed hidden) / remove them |
 | `db:import-legacy-events <events.json>` | import the old app's competitions |
 | `db:relocate [--dry-run]` | locate every upcoming competition again |
-| `db:seed-demo` | fill an **empty** development database with made-up members, competitions, mandate readings and registrations (dates follow today); does nothing when the database has data. Admin `0000001A`, birth date 01/01/1980, password `demo-password-2026` |
+| `db:seed-demo` | fill an **empty** development database with made-up members, competitions, mandate readings and registrations (dates follow today); does nothing when the database has data. Admin `0000001A`, birth date 01/01/1980, password `demo-password-2026`; member with a password `0000002B`, 14/06/1972, `demo-membre-2026` |
 | `scrape [--dry-run] [--max-details N] [--max-mandates N]` | one FFTA run by hand (needs `CHROME_PATH`) |
 | `mandate:read <url> <start> [end]` | read one mandate with the LLM and print it, writes nothing |
 | `mandate:reread-all [--limit N] [--ids a,b]` | read every upcoming mandate again (or only those ids), same files included (after a prompt change); not during a calendar update |
@@ -89,13 +89,14 @@ Inner layers never import outer ones. The domain may import types and rules from
   export, password hashing (argon2id).
 - `presentation/http/`: `routes.ts` (members), `admin-routes.ts`, presenters (DTOs). `app.ts` wires everything; it is
   used by `main.ts` and `app.test.ts`.
-- Every `/api/admin/*` route except the sign-in answers `401 admin_sign_in_required` without an admin session, and
-  `403 password_change_required` while the admin still has a generated password.
+- Every `/api/admin/*` route but `GET /api/admin/session` answers `401 admin_sign_in_required` without admin access
+  (signed out, not an admin, or signed in without the password; that route says which: `not_signed_in`, `not_admin`,
+  `password_required`), and `403 password_change_required` while the admin still has a generated password.
 
 ## Database
 
 - Tables: `competitions` (PK `ffta_id`), `archers` (PK `licence_number`), `registrations` (one row per départ),
-  `sessions`, `admins`, `admin_sessions`, `member_imports`, `scraper_runs`, `competition_mandates`,
+  `sessions`, `admins`, `member_imports`, `scraper_runs`, `competition_mandates`,
   `competition_overrides`.
 - **Admin edits** (`competition_overrides`, migration `0010`): one row per edited competition, one column per editable
   field, `NULL` = the FFTA value. Decided: an edit **always wins**, even after a later FFTA change, until an admin puts
@@ -128,11 +129,28 @@ Inner layers never import outer ones. The domain may import types and rules from
   180-day cookie and the licence number kept on the device; not ticked,
   a browser-session cookie and a 12-hour session on the server. The header shows « Se connecter », or « Mon suivi »
   with a green dot. Decided: no name in the header (the user found it useless).
-- Admins: decided, **two steps**: member sign-in, then a personal password (`admins` table). 10 wrong passwords per
-  licence, 50 per address, per 15 min. Session 1 year, cookie `admin_session` (`Path=/api/admin`, `SameSite=Strict`).
-  "Nommer admin" generates a password (`XXXX-XXXX-XXXX`) shown once; the new admin must replace it before anything
-  else (decided: the giver never knows the password in use); that forced change does not ask for the old one.
-  Nobody can remove their own rights or deactivate themselves. Leaving the club ends admin access at once.
+- **Optional member password** (asked by members, 2026-10-25; `archers.password_hash`, argon2id, migration `0017`,
+  never touched by the import). Added, changed or removed with the « Mot de passe » button in the header, left of
+  « Mon suivi » (the user's choice; `auth/password.tsx`, at least
+  `MIN_MEMBER_PASSWORD_LENGTH` = 8 characters; changing or removing asks the current one). Once set, the sign-in asks
+  it **after** a right birth date (`password_required`, then the dialog shows the field; `wrong_password`); a wrong
+  birth date still says nothing about it. 10 wrong passwords per licence, 50 per address, per 15 min (a separate,
+  stricter limiter). Adding or changing it signs the member's other devices out. A member who forgot it: an admin
+  removes it from the "⋯" menu (« Retirer son mot de passe », badge « Mot de passe » in the list), never their own,
+  never an admin's (`admin_needs_password`).
+- Admins: decided (2026-10-25), **one sign-in and one password per person**. Migration `0017` moved the admins'
+  password to `archers.password_hash`, dropped `admins.password_hash` and the admin sessions (`admins` keeps who is an
+  admin and `must_change_password`), and added `sessions.opened_with_password`. A site session opened with the
+  password opens the panel (`Authentication.adminAccess`, checked on every request, so removing rights or leaving the
+  club closes it at once); one opened with the birth date alone (before the password existed) gets « Se reconnecter ».
+  No admin cookie: the site cookie (`SameSite=Lax`) and its duration serve both. « Se déconnecter » in the panel signs
+  out of the site. An admin's password: at least 10 characters, changed with the same « Mot de passe » button (site
+  and panel; signs the other devices out), never removable. "Nommer admin" keeps the member's password when they have
+  one; otherwise it generates one (`XXXX-XXXX-XXXX`) shown once, and the new admin, once signed in with it, must
+  replace it before anything else in the panel (decided: the giver never knows the password in use); that forced
+  change does not ask for the old one when the session was opened with the password. Removing admin rights leaves
+  the password to the member. An admin who forgot theirs: `db:add-admin` sets a new one. Nobody can remove their own
+  rights or deactivate themselves.
 
 ## Registration
 

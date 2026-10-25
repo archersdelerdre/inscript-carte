@@ -17,9 +17,9 @@ import {
 import type { BunRequest } from 'bun';
 
 import type { AdminAccounts } from '../../application/admin-accounts.ts';
-import type { AdminAuthentication } from '../../application/admin-authentication.ts';
 import type { AdminCompetitionOverview } from '../../application/admin-competition-overview.ts';
 import type { AdminRegistrations, UpdateResult } from '../../application/admin-registrations.ts';
+import type { AdminAccess } from '../../application/authentication.ts';
 import type { ClubMembers } from '../../application/club-members.ts';
 import type { CompetitionEdits } from '../../application/competition-edits.ts';
 import type { ScraperRuns } from '../../application/scraper-runs.ts';
@@ -27,7 +27,7 @@ import type { Archer, ExportedMember, Responsible } from '../../domain/archer.ts
 import type { Competition } from '../../domain/competition.ts';
 import type { RegistrationDetails } from '../../domain/registration-repository.ts';
 import { MemberExportError } from '../../infrastructure/members/ffta-member-export.ts';
-import { error, isHttps, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
+import { error, readJson, STATUS_BY_REASON, type ClientAddressSource } from './http.ts';
 import {
   toAdminCompetitionDto,
   toAdminMemberDto,
@@ -38,18 +38,14 @@ import {
 } from './presenters.ts';
 import { createScraperEvents } from './scraper-events.ts';
 
-const ADMIN_COOKIE = 'admin_session';
-/** The admin cookie is only sent to the admin API. */
-const ADMIN_COOKIE_PATH = '/api/admin';
 /** The FFTA export of 108 members is about 20 KB. */
 const MAX_MEMBER_EXPORT_BYTES = 5 * 1024 * 1024;
 
 const isBooleanOrMissing = (value: unknown) => value === undefined || typeof value === 'boolean';
 
 export type AdminHttpDependencies = {
-  /** The member session: the first step of the admin sign-in. */
-  signedInArcher: (request: BunRequest) => Promise<Archer | null>;
-  adminAuthentication: AdminAuthentication;
+  /** From the site session: the one sign-in opens the panel too (`Authentication.adminAccess`). */
+  adminAccess: (request: BunRequest) => Promise<AdminAccess>;
   adminAccounts: AdminAccounts;
   adminRegistrations: AdminRegistrations;
   adminCompetitionOverview: AdminCompetitionOverview;
@@ -65,8 +61,7 @@ export type AdminHttpDependencies = {
 };
 
 export function createAdminRoutes({
-  signedInArcher,
-  adminAuthentication,
+  adminAccess,
   adminAccounts,
   adminRegistrations,
   adminCompetitionOverview,
@@ -77,18 +72,18 @@ export function createAdminRoutes({
   organizerSpreadsheet,
 }: AdminHttpDependencies) {
   /**
-   * Every admin route but the sign-in goes through this check first. An admin with a generated password only reaches
-   * the routes that let them replace it (`whilePasswordChangeRequired`).
+   * Every admin route but `adminSession` goes through this check first. Whatever closed the panel (signed out, not an
+   * admin, signed in without the password), the answer is the same: the panel asks `adminSession` why. An admin with
+   * a generated password reaches none: they replace it first, with the site's password route.
    */
   function asAdmin<Request extends BunRequest>(
     handler: (request: Request, admin: Archer, server: ClientAddressSource) => Promise<Response>,
-    { whilePasswordChangeRequired = false } = {},
   ) {
     return async (request: Request, server: ClientAddressSource) => {
-      const signedIn = await adminAuthentication.signedInAdmin(request.cookies.get(ADMIN_COOKIE) ?? null);
-      if (!signedIn) return error('admin_sign_in_required', 401);
-      if (signedIn.mustChangePassword && !whilePasswordChangeRequired) return error('password_change_required', 403);
-      return handler(request, signedIn.archer, server);
+      const access = await adminAccess(request);
+      if (!access.ok) return error('admin_sign_in_required', 401);
+      if (access.mustChangePassword) return error('password_change_required', 403);
+      return handler(request, access.archer, server);
     };
   }
 
@@ -104,78 +99,15 @@ export function createAdminRoutes({
 
   return {
     [API_ROUTES.adminSession]: {
+      /** Says why the panel is closed: not signed in, not an admin, or signed in without the password. */
       GET: async (request: BunRequest) => {
-        const signedIn = await adminAuthentication.signedInAdmin(request.cookies.get(ADMIN_COOKIE) ?? null);
-        if (!signedIn) return error('admin_sign_in_required', 401);
-        const { archer, mustChangePassword } = signedIn;
+        const access = await adminAccess(request);
+        if (!access.ok) return error(access.reason, access.reason === 'not_admin' ? 403 : 401);
+        const { archer, mustChangePassword } = access;
         return Response.json({
           admin: { licenceNumber: archer.licenceNumber, fullName: archer.fullName, mustChangePassword },
         } satisfies AdminSessionResponse);
       },
-      POST: async (request: BunRequest, server: ClientAddressSource) => {
-        const member = await signedInArcher(request);
-        if (!member) return error('not_signed_in', 401);
-        const body = await readJson(request);
-        if (typeof body?.password !== 'string') return error('invalid_request', 400);
-
-        const clientAddress = server.requestIP(request)?.address ?? 'unknown';
-        const result = await adminAuthentication.signIn(member, body.password, clientAddress);
-        if (!result.ok) {
-          return error(
-            result.reason,
-            { not_admin: 403, invalid_credentials: 401, too_many_attempts: 429 }[result.reason],
-          );
-        }
-        request.cookies.set(ADMIN_COOKIE, result.token, {
-          httpOnly: true,
-          sameSite: 'strict',
-          secure: isHttps(request),
-          path: ADMIN_COOKIE_PATH,
-          expires: result.expiresAt,
-        });
-        return Response.json({
-          admin: {
-            licenceNumber: member.licenceNumber,
-            fullName: member.fullName,
-            mustChangePassword: result.mustChangePassword,
-          },
-        } satisfies AdminSessionResponse);
-      },
-      DELETE: async (request: BunRequest) => {
-        await adminAuthentication.signOut(request.cookies.get(ADMIN_COOKIE) ?? null);
-        request.cookies.delete({ name: ADMIN_COOKIE, path: ADMIN_COOKIE_PATH });
-        return new Response(null, { status: 204 });
-      },
-    },
-
-    [API_ROUTES.adminPassword]: {
-      PUT: asAdmin(
-        async (request: BunRequest, admin, server) => {
-          const body = await readJson(request);
-          const currentPassword = body?.currentPassword ?? null;
-          if (
-            (currentPassword !== null && typeof currentPassword !== 'string') ||
-            typeof body?.newPassword !== 'string'
-          ) {
-            return error('invalid_request', 400);
-          }
-          const clientAddress = server.requestIP(request)?.address ?? 'unknown';
-          const result = await adminAuthentication.changePassword(
-            admin,
-            currentPassword,
-            body.newPassword,
-            clientAddress,
-          );
-          if (result.ok) return new Response(null, { status: 204 });
-          return error(
-            result.reason,
-            { invalid_credentials: 401, too_many_attempts: 429, password_too_short: 400, invalid_request: 400 }[
-              result.reason
-            ],
-          );
-        },
-        { whilePasswordChangeRequired: true },
-      ),
     },
 
     [API_ROUTES.adminCompetitions]: {
@@ -310,6 +242,13 @@ export function createAdminRoutes({
       }),
       DELETE: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminMemberAdminRights>, admin) => {
         const result = await adminAccounts.revoke(admin, request.params.licenceNumber);
+        return result.ok ? new Response(null, { status: 204 }) : error(result.reason, STATUS_BY_REASON[result.reason]);
+      }),
+    },
+
+    [API_ROUTES.adminMemberPassword]: {
+      DELETE: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminMemberPassword>, admin) => {
+        const result = await clubMembers.removePassword(admin, request.params.licenceNumber);
         return result.ok ? new Response(null, { status: 204 }) : error(result.reason, STATUS_BY_REASON[result.reason]);
       }),
     },

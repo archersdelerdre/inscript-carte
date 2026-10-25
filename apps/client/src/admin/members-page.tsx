@@ -20,6 +20,7 @@ import {
   CopyIcon,
   EllipsisVerticalIcon,
   SearchIcon,
+  KeyRoundIcon,
   ShieldOffIcon,
   ShieldPlusIcon,
   UploadIcon,
@@ -101,7 +102,14 @@ type Props = {
   onSessionExpired: () => void;
 };
 
-type MemberAction = 'deactivate' | 'reactivate' | 'clubPays' | 'clubStopsPaying' | 'grant' | 'revoke';
+type MemberAction =
+  | 'deactivate'
+  | 'reactivate'
+  | 'clubPays'
+  | 'clubStopsPaying'
+  | 'grant'
+  | 'revoke'
+  | 'removePassword';
 
 /** Every club member in a table, with their actions, and the update of the list from the FFTA extranet export. */
 export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
@@ -141,10 +149,13 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
       const response = await api<GrantAdminResponse>(apiPath(API_ROUTES.adminMemberAdminRights, { licenceNumber }), {
         method: 'POST',
       });
-      if (response.ok) setGranted({ member, password: response.data.password });
+      // `null`: the member already had a password, it stays for both.
+      if (response.ok && response.data.password) setGranted({ member, password: response.data.password });
       result = response;
     } else if (action === 'revoke') {
       result = await api(apiPath(API_ROUTES.adminMemberAdminRights, { licenceNumber }), { method: 'DELETE' });
+    } else if (action === 'removePassword') {
+      result = await api(apiPath(API_ROUTES.adminMemberPassword, { licenceNumber }), { method: 'DELETE' });
     } else {
       result = await api(apiPath(API_ROUTES.adminMember, { licenceNumber }), {
         method: 'PATCH',
@@ -270,6 +281,13 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
                       {member.clubPaysRegistrations && (
                         <Badge className='ml-2 bg-green-100 text-green-900'>Payé par le club</Badge>
                       )}
+                      {/* An admin always has one (it is also their panel password): no need to say it. */}
+                      {member.hasPassword && !member.isAdmin && (
+                        <Badge className='ml-2 bg-zinc-100 text-zinc-800'>
+                          <KeyRoundIcon />
+                          Mot de passe
+                        </Badge>
+                      )}
                     </td>
                     <td className='px-3 py-2 whitespace-nowrap tabular-nums'>{member.licenceNumber}</td>
                     <td className='px-3 py-2 whitespace-nowrap'>{categoryLabel(member.category, member.sex)}</td>
@@ -306,6 +324,13 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
                                 ? 'Le club ne paie plus ses inscriptions'
                                 : 'Le club paie ses inscriptions'}
                             </DropdownMenuItem>
+                            {/* For a member who forgot it: back to the birth date alone. Never an admin's. */}
+                            {member.hasPassword && !member.isAdmin && (
+                              <DropdownMenuItem onSelect={() => setPending({ action: 'removePassword', member })}>
+                                <KeyRoundIcon />
+                                Retirer son mot de passe
+                              </DropdownMenuItem>
+                            )}
                             {member.isAdmin ? (
                               <DropdownMenuItem
                                 variant='destructive'
@@ -402,15 +427,22 @@ function confirmation(action: MemberAction, member: AdminMemberDto): { title: st
     case 'grant':
       return {
         title: `Nommer ${member.fullName} ${female ? 'administratrice' : 'administrateur'} ?`,
-        text:
-          `${They} verra toutes les inscriptions et les coordonnées des licenciés. Un mot de passe provisoire va être ` +
-          `créé : vous devrez le lui donner. À sa première connexion, ${they} choisira le sien.`,
+        text: member.hasPassword
+          ? `${They} verra toutes les inscriptions et les coordonnées des licenciés. ${They} garde son mot de passe : il servira aussi pour l’administration.`
+          : `${They} verra toutes les inscriptions et les coordonnées des licenciés. Un mot de passe provisoire va être ` +
+            `créé : vous devrez le lui donner. Il servira pour le site et l’administration, et ${they} le remplacera par le sien à sa première connexion à l’administration.`,
         button: 'Oui, nommer admin',
       };
     case 'revoke':
       return {
         title: `Retirer les droits d’administrateur de ${member.fullName} ?`,
         text: `${They} est déconnecté${e} de l’administration tout de suite. ${They} reste licencié${e} et peut toujours s’inscrire.`,
+        button: 'Oui, retirer',
+      };
+    case 'removePassword':
+      return {
+        title: `Retirer le mot de passe de ${member.fullName} ?`,
+        text: `${They} pourra de nouveau se connecter avec son numéro de licence et sa date de naissance seulement, puis choisir un nouveau mot de passe dans « Mon suivi ». À faire seulement à sa demande, par exemple en cas d’oubli.`,
         button: 'Oui, retirer',
       };
   }
@@ -467,9 +499,9 @@ function GrantedPasswordDialog({
           {password}
         </p>
         <p className='text-sm'>
-          Pour se connecter, {member.sex === 'female' ? 'elle' : 'il'} devra aller sur la page d’administration,
-          s’identifier avec son numéro de licence et sa date de naissance, puis taper ce mot de passe. L’application lui
-          demandera ensuite d’en choisir un nouveau.
+          Pour se connecter, {member.sex === 'female' ? 'elle' : 'il'} tapera son numéro de licence, sa date de
+          naissance et ce mot de passe, puis le même mot de passe sur la page d’administration. L’application lui
+          demandera ensuite d’en choisir un nouveau, qui servira partout.
         </p>
         <DialogFooter>
           <Button

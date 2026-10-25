@@ -18,6 +18,10 @@ export type ClubMember = { archer: Archer; category: AgeCategory; isAdmin: boole
 
 export type UpdateMemberResult = { ok: true } | { ok: false; reason: 'not_found' | 'cannot_change_self' };
 
+export type RemovePasswordResult =
+  | { ok: true }
+  | { ok: false; reason: 'not_found' | 'cannot_change_self' | 'admin_needs_password' };
+
 /** The club member list: imported from the FFTA export (admin page or command line), listed for admins. */
 export class ClubMembers {
   readonly #members: MemberListRepository;
@@ -65,5 +69,15 @@ export class ClubMembers {
   async update(by: Archer, licenceNumber: string, changes: MemberChanges): Promise<UpdateMemberResult> {
     if (licenceNumber === by.licenceNumber) return { ok: false, reason: 'cannot_change_self' };
     return (await this.#members.update(licenceNumber, changes)) ? { ok: true } : { ok: false, reason: 'not_found' };
+  }
+
+  /**
+   * For a member who forgot their password: back to the birth date alone. Not their own (their header button does it),
+   * nor an admin's: the panel needs it (`db:add-admin` gives a forgetful admin a new one).
+   */
+  async removePassword(by: Archer, licenceNumber: string): Promise<RemovePasswordResult> {
+    if (licenceNumber === by.licenceNumber) return { ok: false, reason: 'cannot_change_self' };
+    if (await this.#admins.find(licenceNumber)) return { ok: false, reason: 'admin_needs_password' };
+    return (await this.#members.removePassword(licenceNumber)) ? { ok: true } : { ok: false, reason: 'not_found' };
   }
 }

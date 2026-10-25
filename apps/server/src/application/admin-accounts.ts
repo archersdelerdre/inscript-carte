@@ -15,12 +15,15 @@ export type SetAdminPasswordResult =
   | { ok: false; reason: 'unknown_member' | 'password_too_short' };
 
 export type GrantAdminResult =
-  | { ok: true; password: string }
-  | { ok: false; reason: 'not_found' | 'member_inactive' | 'already_admin' };
+  /** `password`: the generated one, `null` when the member already has their own (it stays, for both). */
+  { ok: true; password: string | null } | { ok: false; reason: 'not_found' | 'member_inactive' | 'already_admin' };
 
 export type RevokeAdminResult = { ok: true } | { ok: false; reason: 'not_found' | 'cannot_change_self' };
 
-/** Who is an admin: from the command line (own password) or from the panel (generated password). */
+/**
+ * Who is an admin: from the command line (own password) or from the panel. One password per person (the user's
+ * choice, 2026-10-25): an admin's password is their member password, asked at both sign-ins.
+ */
 export class AdminAccounts {
   readonly #archers: ArcherRepository;
   readonly #admins: AdminRepository;
@@ -38,31 +41,35 @@ export class AdminAccounts {
     if (!archer?.isActive) return { ok: false, reason: 'unknown_member' };
     if (password.length < MIN_ADMIN_PASSWORD_LENGTH) return { ok: false, reason: 'password_too_short' };
     const created = (await this.#admins.find(archer.licenceNumber)) === null;
-    await this.#admins.save(archer.licenceNumber, {
-      passwordHash: await this.#hasher.hash(password),
-      mustChangePassword: false,
-    });
+    await this.#archers.savePasswordHash(archer.licenceNumber, await this.#hasher.hash(password));
+    await this.#admins.save(archer.licenceNumber, { mustChangePassword: false });
     return { ok: true, created };
   }
 
   /**
-   * Panel: the server generates the password, shown once to the admin who grants the rights. The new admin must
-   * replace it at first sign-in, so the one who granted the rights never knows the password in use.
+   * Panel. A member who already has a password keeps it. Otherwise the server generates one, shown once to the admin
+   * who grants the rights; the new admin must replace it at first sign-in to the panel, so the one who granted the
+   * rights never knows the password in use.
    */
   async grant(licenceNumber: string): Promise<GrantAdminResult> {
     const archer = await this.#archers.findByLicenceNumber(licenceNumber);
     if (!archer) return { ok: false, reason: 'not_found' };
     if (!archer.isActive) return { ok: false, reason: 'member_inactive' };
     if (await this.#admins.find(archer.licenceNumber)) return { ok: false, reason: 'already_admin' };
+    if (archer.hasPassword) {
+      await this.#admins.save(archer.licenceNumber, { mustChangePassword: false });
+      return { ok: true, password: null };
+    }
     const password = generatePassword();
-    await this.#admins.save(archer.licenceNumber, {
-      passwordHash: await this.#hasher.hash(password),
-      mustChangePassword: true,
-    });
+    await this.#archers.savePasswordHash(archer.licenceNumber, await this.#hasher.hash(password));
+    await this.#admins.save(archer.licenceNumber, { mustChangePassword: true });
     return { ok: true, password };
   }
 
-  /** Panel: an admin cannot remove their own rights (the club would risk having no admin left). */
+  /**
+   * Panel: an admin cannot remove their own rights (the club would risk having no admin left). The password stays: it
+   * is still the member's.
+   */
   async revoke(by: Archer, licenceNumber: string): Promise<RevokeAdminResult> {
     if (licenceNumber === by.licenceNumber) return { ok: false, reason: 'cannot_change_self' };
     return (await this.#admins.remove(licenceNumber)) ? { ok: true } : { ok: false, reason: 'not_found' };
@@ -72,7 +79,7 @@ export class AdminAccounts {
     return (await this.#admins.find(licenceNumber)) !== null;
   }
 
-  /** Command line. Also ends their admin sessions. `false` when the member was not an admin. */
+  /** Command line. Their panel closes at once. `false` when the member was not an admin. */
   async remove(licenceNumber: string): Promise<boolean> {
     return this.#admins.remove(licenceNumber.trim().toUpperCase());
   }

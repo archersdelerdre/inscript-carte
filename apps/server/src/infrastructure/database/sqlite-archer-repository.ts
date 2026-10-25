@@ -11,6 +11,7 @@ type ArcherRow = {
   birth_date: string;
   is_active: 0 | 1;
   club_pays_registrations: 0 | 1;
+  password_hash: string | null;
 };
 
 export class SqliteArcherRepository implements ArcherRepository {
@@ -30,6 +31,7 @@ export class SqliteArcherRepository implements ArcherRepository {
           birthDate: row.birth_date,
           isActive: row.is_active === 1,
           clubPaysRegistrations: row.club_pays_registrations === 1,
+          hasPassword: row.password_hash !== null,
         }
       : null;
   }
@@ -39,5 +41,18 @@ export class SqliteArcherRepository implements ArcherRepository {
       .where({ licence_number: licenceNumber })
       .first('email', 'phone');
     return { email: row?.email ?? null, phone: row?.phone ?? null };
+  }
+
+  async passwordHash(licenceNumber: string): Promise<string | null> {
+    const row: { password_hash: string | null } | undefined = await this.#database('archers')
+      .where({ licence_number: licenceNumber })
+      .first('password_hash');
+    return row?.password_hash ?? null;
+  }
+
+  async savePasswordHash(licenceNumber: string, passwordHash: string | null): Promise<void> {
+    await this.#database('archers')
+      .where({ licence_number: licenceNumber })
+      .update({ password_hash: passwordHash, updated_at: this.#database.fn.now() });
   }
 }

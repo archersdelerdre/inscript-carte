@@ -51,6 +51,7 @@ export function toSignedInArcher(archer: Archer, isAdmin: boolean): SignedInArch
     birthYear: birthYear(archer),
     isAdmin,
     clubPaysRegistrations: archer.clubPaysRegistrations,
+    hasPassword: archer.hasPassword,
   };
 }
 
@@ -184,6 +185,7 @@ export function toAdminMemberDto({ archer, category, isAdmin }: ClubMember): Adm
     isActive: archer.isActive,
     isAdmin,
     clubPaysRegistrations: archer.clubPaysRegistrations,
+    hasPassword: archer.hasPassword,
   };
 }
 
