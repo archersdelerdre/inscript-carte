@@ -125,6 +125,11 @@ function Deadline({ competition }: { competition: CompetitionDto }) {
       </p>
     );
   }
+  if (!competition.mandateUrl) {
+    return (
+      <p className='text-muted-foreground text-sm'>Le club prendra les inscriptions dès que le mandat sera publié.</p>
+    );
+  }
   return (
     <p className='text-muted-foreground text-sm'>
       Inscription par le club jusqu'au {formatDay(competition.clubRegistrationDeadline)}
@@ -148,7 +153,11 @@ function RegistrationCount({ competition }: { competition: CompetitionDto }) {
 /** Bottom right of the card: the club registration actions. */
 function Actions({ competition }: { competition: CompetitionDto }) {
   const { register, showRegistrants } = useRegistrationActions();
-  const open = !competition.isPostponed && competition.clubRegistrationDeadline >= todayInParis();
+  // Same rule as the server: no registration before the mandate is out.
+  const open =
+    !competition.isPostponed &&
+    competition.mandateUrl !== null &&
+    competition.clubRegistrationDeadline >= todayInParis();
   const hasRegistrants = competition.clubArcherCount > 0;
   // Nothing to see and nothing to do: no buttons at all.
   if (!open && !hasRegistrants) return null;

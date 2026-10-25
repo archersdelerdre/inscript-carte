@@ -150,7 +150,7 @@ Inner layers never import outer ones. The domain may import types and rules from
 - **One payment reference per archer and competition** (`R-0001`, club-wide counter): later départs reuse it, even if
   the first ones were withdrawn.
 - **Club deadline** (`clubRegistrationDeadline`), last day included. Decided:
-  - no mandate: 7 days before the start;
+  - no mandate: 7 days before the start (still used for withdrawals and payments when a link goes away);
   - with a mandate: the later of 14 days before the start and 2 days after the day the mandate appeared, but never
     after 7 days before the start;
   - a link stored before that day was tracked (`mandate_added_on` `NULL`) counts as early (14 days).
@@ -166,6 +166,9 @@ Inner layers never import outer ones. The domain may import types and rules from
   competition's on a one-day competition; « Jour non précisé » last).
 - Postponed competitions (`status = 'postponed'`): a solid red « Reporté » badge and a red notice on the card; no
   « S'inscrire », and the server refuses registrations (`isClubRegistrationOpen` needs `scheduled`). Asked by Hervé.
+- Decided (2026-10-25): **no registration before the mandate is out** (`isClubRegistrationOpen` needs a
+  `mandateUrl`, the edited one included). The competition stays visible; its card says « Le club prendra les
+  inscriptions dès que le mandat sera publié. » and has no « S'inscrire ».
 - « Ajouter à mon agenda » (success screen and "Mon suivi", hidden once the competition is over): Google Agenda link
   or an `.ics` built in the browser (`registrations/calendar.ts`). Decided: one event **per day**, merging that day's
   départs, from the first greffe to the last estimated end (shooting + 3 h, else greffe + 4 h), floating local times;

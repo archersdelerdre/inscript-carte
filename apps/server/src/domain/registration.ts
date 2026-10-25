@@ -50,9 +50,16 @@ export type NewRegistration = {
   readonly paymentStatus: PaymentStatus;
 };
 
-/** The club takes requests until its deadline, included; never while the competition is postponed or cancelled. */
+/**
+ * The club takes requests until its deadline, included, and only once the mandate is out: before it, nobody knows
+ * the départs or the prices. Never while the competition is postponed or cancelled.
+ */
 export function isClubRegistrationOpen(competition: Competition, today: CalendarDate): boolean {
-  return competition.status === 'scheduled' && today <= clubRegistrationDeadline(competition);
+  return (
+    competition.status === 'scheduled' &&
+    competition.mandateUrl !== null &&
+    today <= clubRegistrationDeadline(competition)
+  );
 }
 
 /** Once the club has sent the registration to the organizer, only the club can change it. */

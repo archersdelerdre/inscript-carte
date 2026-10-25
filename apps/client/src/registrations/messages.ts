@@ -12,7 +12,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   not_signed_in: 'Votre session a expiré. Merci de vous reconnecter.',
   invalid_credentials: 'Numéro de licence ou date de naissance incorrects. Vérifiez-les sur votre licence.',
   too_many_attempts: 'Trop de tentatives. Réessayez dans quelques minutes.',
-  registration_closed: "La date limite d'inscription par le club est passée.",
+  registration_closed:
+    "Le club ne prend pas d'inscription pour ce concours en ce moment : la date limite est passée, le mandat n'est pas encore publié ou le concours est reporté.",
   already_registered: "Vous êtes déjà inscrit sur l'un de ces départs.",
   cannot_withdraw:
     "Cette inscription ne peut plus être retirée ici : la date limite est passée ou le club l'a déjà transmise. Contactez le club.",

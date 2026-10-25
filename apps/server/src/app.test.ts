@@ -29,12 +29,13 @@ import { ScraperRuns } from './application/scraper-runs.ts';
 import { createDatabase } from './infrastructure/database/connection.ts';
 import { SqliteScraperRunStore } from './infrastructure/database/sqlite-scraper-run-store.ts';
 
-// Made-up members and competitions. Today is 6 Oct 2026; without a mandate, club deadlines are 7 days before the start.
+// Made-up members and competitions. Today is 6 Oct 2026. The club takes registrations only once the mandate is out;
+// a mandate link whose day is unknown counts as early: the deadline is 14 days before the start.
 const ADULT = { licenceNumber: '0123456A', birthDate: '1980-05-12' };
 const YOUTH = { licenceNumber: '7654321B', birthDate: '2012-03-03' };
 const DEPARTED = { licenceNumber: '1111111C', birthDate: '1975-01-01' };
-const SALLE = '90001'; // starts 2027-01-09, no mandate: deadline 2027-01-02
-const EXTERIEUR = '90002'; // starts 2027-05-01
+const SALLE = '90001'; // starts 2027-01-09, mandate out: deadline 2026-12-26
+const EXTERIEUR = '90002'; // starts 2027-05-01, mandate out
 const SOON = '90003'; // starts 2026-10-12, no mandate: deadline 2026-10-05, already closed
 
 let database: Knex;
@@ -43,7 +44,7 @@ const clock = { day: '2026-10-06', today: () => clock.day, now: () => new Date(`
 /** The scraper runs the server asked to start: no process is launched in tests. */
 let launched: number[];
 
-function competitionRow(ffta_id: string, discipline: string, start_date: string) {
+function competitionRow(ffta_id: string, discipline: string, start_date: string, mandate_url: string | null = null) {
   return {
     ffta_id,
     title: `Concours ${ffta_id}`,
@@ -56,6 +57,7 @@ function competitionRow(ffta_id: string, discipline: string, start_date: string)
     // The public list leaves out competitions without a place.
     latitude: 47.21,
     longitude: -1.55,
+    mandate_url,
   };
 }
 
@@ -68,8 +70,8 @@ beforeEach(async () => {
   database = createDatabase(':memory:');
   await database.migrate.latest();
   await database('competitions').insert([
-    competitionRow(SALLE, 'salle', '2027-01-09'),
-    competitionRow(EXTERIEUR, 'exterieur', '2027-05-01'),
+    competitionRow(SALLE, 'salle', '2027-01-09', 'https://extranet.ffta.fr/salle.pdf'),
+    competitionRow(EXTERIEUR, 'exterieur', '2027-05-01', 'https://extranet.ffta.fr/exterieur.pdf'),
     competitionRow(SOON, 'salle', '2026-10-12'),
   ]);
   await database('archers').insert([
@@ -209,7 +211,7 @@ describe('registration', () => {
       departures: [1, 2],
       category: 'S2',
       paymentReference: 'R-0001',
-      paymentDeadline: '2027-01-02',
+      paymentDeadline: '2026-12-26',
       paymentStatus: 'to_pay',
     });
 
@@ -349,11 +351,11 @@ describe('registration', () => {
     const closed = await call(`/api/competitions/${SOON}/registrations`, { method: 'POST', cookie, body: form() });
     expect(await closed.json()).toEqual({ error: 'registration_closed' });
 
-    clock.day = '2027-01-02';
+    clock.day = '2026-12-26';
     expect(
       (await call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie, body: form() })).status,
     ).toBe(201);
-    clock.day = '2027-01-03';
+    clock.day = '2026-12-27';
     expect(
       (
         await call(`/api/competitions/${SALLE}/registrations`, {
@@ -367,6 +369,14 @@ describe('registration', () => {
 
   test('is closed while the competition is postponed', async () => {
     await database('competitions').where({ ffta_id: SALLE }).update({ status: 'postponed' });
+    const cookie = await signIn(ADULT);
+    const response = await call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie, body: form() });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'registration_closed' });
+  });
+
+  test('is closed until the mandate is out, even well before the deadline', async () => {
+    await database('competitions').where({ ffta_id: SALLE }).update({ mandate_url: null });
     const cookie = await signIn(ADULT);
     const response = await call(`/api/competitions/${SALLE}/registrations`, { method: 'POST', cookie, body: form() });
     expect(response.status).toBe(409);
@@ -552,7 +562,7 @@ describe('withdrawal', () => {
     await database('registrations').where({ id: second!.id }).update({ status: 'sent_to_organizer' });
     expect((await call(`/api/me/registrations/${second!.id}`, { method: 'DELETE', cookie })).status).toBe(409);
 
-    clock.day = '2027-01-03';
+    clock.day = '2026-12-27';
     const late = await call(`/api/me/registrations/${first!.id}`, { method: 'DELETE', cookie });
     expect(await late.json()).toEqual({ error: 'cannot_withdraw' });
   });
@@ -1434,6 +1444,7 @@ describe('competition edits', () => {
   test('a mandate link the FFTA did not have opens the late-mandate window from the day it was given', async () => {
     await makeAdmin(ADULT);
     const cookie = await adminSignIn();
+    await database('competitions').where({ ffta_id: SALLE }).update({ mandate_url: null });
     // Today is 2026-10-06; SALLE starts 2027-01-09: early, so 14 days before.
     await call(overridesPath, { method: 'PUT', cookie, body: { mandateUrl: 'https://extranet.ffta.fr/m.pdf' } });
     expect(await publicSalle()).toMatchObject({
