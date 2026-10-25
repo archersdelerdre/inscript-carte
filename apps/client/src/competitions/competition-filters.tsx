@@ -250,7 +250,7 @@ export function CompetitionFilterBar({
         </Button>
 
         {/* `relative` places the town suggestions under the whole pill. */}
-        <div className='border-input focus-within:border-ring focus-within:ring-ring/50 relative flex h-10 min-w-0 flex-1 items-center rounded-full border focus-within:ring-3'>
+        <div className='border-input focus-within:border-ring focus-within:ring-ring/50 bg-background relative flex h-10 min-w-0 flex-1 items-center rounded-full border focus-within:ring-3'>
           <Select value={department} onValueChange={onDepartmentChange}>
             <SelectTrigger
               aria-label='Département ou région'

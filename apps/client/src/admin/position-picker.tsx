@@ -24,7 +24,7 @@ export default function PositionPicker({ position, onChange }: Props) {
       zoom={position ? 13 : 5}
       zoomControl={false}
       attributionControl={false}
-      className='isolate h-72 w-full rounded-lg border'
+      className='isolate h-72 w-full rounded-xl border'
     >
       <TileLayer
         url='https://tile.openstreetmap.org/{z}/{x}/{y}.png'

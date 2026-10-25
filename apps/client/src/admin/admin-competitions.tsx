@@ -157,7 +157,7 @@ export function AdminCompetitions({ selectedId, onSelect, onSessionExpired }: Pr
     <div className='flex min-h-0 flex-1'>
       <aside
         className={cn(
-          'flex min-w-0 flex-col gap-4 overflow-y-auto p-4 max-md:flex-1 md:w-90 md:shrink-0 md:border-r 2xl:w-105',
+          'bg-muted/30 flex min-w-0 flex-col gap-4 overflow-y-auto p-4 max-md:flex-1 md:w-90 md:shrink-0 md:border-r 2xl:w-105',
           selectedId !== null && 'max-md:hidden',
         )}
       >
@@ -270,8 +270,8 @@ function CompetitionItem({
       onClick={onSelect}
       aria-current={selected ? 'true' : undefined}
       className={cn(
-        'bg-card flex w-full gap-3 rounded-lg border p-3 text-left shadow-xs transition-shadow hover:shadow-md',
-        selected && 'border-primary bg-primary/5 ring-primary ring-1',
+        'flex w-full gap-3 rounded-xl border p-3 text-left shadow-sm transition-shadow hover:shadow-md',
+        selected ? 'border-primary ring-primary bg-red-50 ring-1' : 'bg-card',
       )}
     >
       {/* Date block in the discipline color, like the cards of the public list. */}

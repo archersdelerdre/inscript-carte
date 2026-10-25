@@ -126,7 +126,7 @@ export function AdminApp() {
 
       {admin === undefined && <p className='text-muted-foreground p-4'>Chargement…</p>}
       {admin === null && (
-        <div className='min-h-0 flex-1 overflow-y-auto'>
+        <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
           <AdminSignIn
             expired={expired}
             onSignedIn={(signedIn) => {
@@ -137,7 +137,7 @@ export function AdminApp() {
         </div>
       )}
       {admin?.mustChangePassword && (
-        <div className='min-h-0 flex-1 overflow-y-auto'>
+        <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
           <ForcedPasswordChange
             onChanged={() => setAdmin({ ...admin, mustChangePassword: false })}
             onSessionExpired={sessionExpired}
@@ -148,7 +148,7 @@ export function AdminApp() {
         <AdminCompetitions selectedId={competitionId} onSelect={selectCompetition} onSessionExpired={sessionExpired} />
       )}
       {ready && section === 'competitions' && (
-        <div className='min-h-0 flex-1 overflow-y-auto'>
+        <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
           <CompetitionsPage
             onOpenRegistrations={selectCompetition}
             onOpenScraper={() => navigate(SECTIONS.scraper.path)}
@@ -157,12 +157,12 @@ export function AdminApp() {
         </div>
       )}
       {ready && section === 'members' && (
-        <div className='min-h-0 flex-1 overflow-y-auto'>
+        <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
           <MembersPage currentLicenceNumber={admin.licenceNumber} onSessionExpired={sessionExpired} />
         </div>
       )}
       {ready && section === 'scraper' && (
-        <div className='min-h-0 flex-1 overflow-y-auto'>
+        <div className='bg-muted min-h-0 flex-1 overflow-y-auto'>
           <ScraperPage onSessionExpired={sessionExpired} />
         </div>
       )}
@@ -221,7 +221,7 @@ function AdminSignIn({ expired, onSignedIn }: { expired: boolean; onSignedIn: (a
   }
 
   return (
-    <main className='mx-auto grid w-full max-w-md gap-4 p-4 pt-10'>
+    <main className='bg-card mx-auto mt-10 grid w-[calc(100%-2rem)] max-w-md gap-4 rounded-xl border p-6 shadow-sm'>
       <h1 className='text-2xl font-semibold tracking-tight'>Espace du club</h1>
       <p className='text-muted-foreground'>
         Réservé aux responsables du club : suivi des inscriptions et des paiements.

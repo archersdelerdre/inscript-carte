@@ -581,7 +581,7 @@ function DeparturesEditor({ form, patch, error }: EditorProps) {
             <span className='w-10' />
           </div>
           {rows.map((row, index) => (
-            <div key={row.key} className={`grid gap-2 rounded-lg border p-3 sm:border-0 sm:p-0 ${columns}`}>
+            <div key={row.key} className={`grid gap-2 rounded-xl border p-3 sm:border-0 sm:p-0 ${columns}`}>
               <div className='grid gap-1'>
                 <Label htmlFor={`departure-${row.key}-label`} className='sm:sr-only'>
                   Nom du départ {index + 1}
@@ -689,7 +689,7 @@ function PricesEditor({ form, patch, error }: EditorProps) {
             <span className='w-10' />
           </div>
           {rows.map((row, index) => (
-            <div key={row.key} className={`grid gap-2 rounded-lg border p-3 sm:border-0 sm:p-0 ${columns}`}>
+            <div key={row.key} className={`grid gap-2 rounded-xl border p-3 sm:border-0 sm:p-0 ${columns}`}>
               <fieldset className='grid gap-1'>
                 <legend className='mb-1 text-sm font-medium sm:sr-only'>Catégories du tarif {index + 1}</legend>
                 <div className='flex flex-wrap gap-1'>

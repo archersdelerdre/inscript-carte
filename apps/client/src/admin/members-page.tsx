@@ -167,7 +167,7 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
   const leftCount = members?.filter((member) => !member.isActive).length ?? 0;
 
   return (
-    <main className='mx-auto grid w-full max-w-5xl content-start gap-4 p-4'>
+    <main className='mx-auto grid w-full max-w-5xl content-start gap-4 p-4 md:p-8'>
       <header className='flex flex-wrap items-start justify-between gap-3'>
         <div className='grid gap-1'>
           <h1 className='text-xl font-semibold tracking-tight'>Licenciés</h1>
@@ -236,9 +236,9 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
             {shown.length} {shown.length > 1 ? 'licenciés affichés' : 'licencié affiché'}
           </p>
           {/* Scrolls sideways on phones instead of squeezing the columns. */}
-          <div className='overflow-x-auto rounded-lg border'>
+          <div className='bg-card overflow-x-auto rounded-xl border shadow-sm'>
             <table className='w-full min-w-160 border-collapse text-left'>
-              <thead className='bg-muted whitespace-nowrap'>
+              <thead className='bg-muted/50 border-b whitespace-nowrap'>
                 <tr>
                   <th scope='col' className='px-3 py-2 font-semibold'>
                     Nom

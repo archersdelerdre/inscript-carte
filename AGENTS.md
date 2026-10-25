@@ -326,6 +326,11 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 - Map: OSM standard tiles (CARTO and Plan IGN rejected), one dot per position, red cluster bubbles, zoom bottom right,
   "© OpenStreetMap" bottom left in 10 px (required credit).
 - FFTA titles are shown as they come (often in capitals). Labels: "Salle 18m" (no space). App accent: red.
+- One box style everywhere (the user's choice, 2026-10-25, from the registrations page): content areas are grey
+  (`bg-muted`; the side lists, public and admin, lighter `bg-muted/30`: the user's choice), boxes on them are
+  `bg-card rounded-xl border shadow-sm` (`Card` has it built in), roomy (`p-4`, pages
+  `p-4 md:p-8`). Fields are white (`bg-background` in `Input`, `SelectTrigger`, outline `Toggle`), so they read on
+  grey. Alerts (`rounded-md bg-amber-50`…) and popovers keep their own style.
 
 ## Accessibility (older and disabled members)
 

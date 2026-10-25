@@ -108,7 +108,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
         {[...byCompetition.values()].map((rows) => {
           const [first] = rows as [MyRegistrationDto, ...MyRegistrationDto[]];
           return (
-            <section key={first.competitionId} className='grid gap-2 rounded-lg border p-3'>
+            <section key={first.competitionId} className='grid gap-2 rounded-xl border p-4 shadow-sm'>
               {/* The chip goes after the title, or at the start of the next line when it does not fit. */}
               <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
                 <h3 className='leading-snug font-semibold'>

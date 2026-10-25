@@ -125,7 +125,7 @@ function RegistrantItem({
   // The day is the group's heading: only the départ and its times here.
   const options = departureOptions(competition, { showDay: false });
   return (
-    <li className='rounded-md border px-3 py-2'>
+    <li className='rounded-xl border px-4 py-3 shadow-sm'>
       <p className='flex flex-wrap items-center gap-2 font-medium'>
         {registrant.fullName}
         {registrant.carpool && (

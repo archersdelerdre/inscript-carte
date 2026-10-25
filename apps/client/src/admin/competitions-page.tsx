@@ -159,7 +159,7 @@ export function CompetitionsPage({ onOpenRegistrations, onOpenScraper, onSession
 
   return (
     // Centered and not wider than this: long lines across a big screen are hard to follow.
-    <div className='mx-auto grid w-full max-w-7xl gap-4 p-4'>
+    <div className='mx-auto grid w-full max-w-7xl gap-4 p-4 md:p-8'>
       <header className='grid gap-1'>
         <h1 className='text-xl font-semibold tracking-tight'>Concours</h1>
         <p className='text-muted-foreground'>
@@ -210,9 +210,9 @@ export function CompetitionsPage({ onOpenRegistrations, onOpenScraper, onSession
             {shown.length} {shown.length > 1 ? 'concours affichés' : 'concours affiché'}
           </p>
           {/* Scrolls sideways on phones instead of squeezing the columns. */}
-          <div className='overflow-x-auto rounded-lg border'>
+          <div className='bg-card overflow-x-auto rounded-xl border shadow-sm'>
             <table className='w-full min-w-240 border-collapse text-left'>
-              <thead className='bg-muted whitespace-nowrap'>
+              <thead className='bg-muted/50 border-b whitespace-nowrap'>
                 <tr>
                   <th scope='col' className='px-3 py-2 font-semibold'>
                     Date

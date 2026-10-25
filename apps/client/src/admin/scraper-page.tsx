@@ -96,7 +96,7 @@ export function ScraperPage({ onSessionExpired }: Props) {
   const latest = status.recent[0];
 
   return (
-    <div className='mx-auto grid max-w-3xl gap-6 p-4'>
+    <div className='mx-auto grid max-w-3xl gap-6 p-4 md:p-8'>
       <header className='grid gap-1'>
         <h1 className='text-xl font-semibold tracking-tight'>Calendrier FFTA</h1>
         <p className='text-muted-foreground'>
@@ -152,7 +152,10 @@ function CurrentRun({ run, listPages }: { run: ScraperRunDto; listPages: number 
   if (progress?.step === 'mandates') remaining = (progress.total - progress.done) * SECONDS_PER_MANDATE * 1000;
 
   return (
-    <section aria-labelledby='current-run' className='bg-card grid gap-4 rounded-xl border-2 border-sky-300 p-4'>
+    <section
+      aria-labelledby='current-run'
+      className='bg-card grid gap-4 rounded-xl border-2 border-sky-300 p-4 shadow-sm'
+    >
       <div className='grid gap-1'>
         <h2 id='current-run' className='flex items-center gap-2 text-lg font-semibold'>
           <span aria-hidden className='relative flex size-3'>
@@ -327,7 +330,7 @@ function StartButtons({ busy, firstRun, onStart }: StartButtonsProps) {
 
   return (
     <div className='grid gap-4 sm:grid-cols-2'>
-      <section className='bg-card grid content-between gap-3 rounded-xl border p-4'>
+      <section className='bg-card grid content-between gap-3 rounded-xl border p-4 shadow-sm'>
         <div className='grid gap-1'>
           <h2 className='font-semibold'>Tout le calendrier</h2>
           <p className='text-muted-foreground text-sm'>Relit tout le calendrier de la FFTA.</p>
@@ -341,7 +344,7 @@ function StartButtons({ busy, firstRun, onStart }: StartButtonsProps) {
         </Button>
       </section>
 
-      <form onSubmit={startOne} className='bg-card grid content-between gap-3 rounded-xl border p-4'>
+      <form onSubmit={startOne} className='bg-card grid content-between gap-3 rounded-xl border p-4 shadow-sm'>
         <div className='grid gap-2'>
           <h2 className='font-semibold'>Un seul concours</h2>
           <Label htmlFor='scraper-competition' className='text-muted-foreground text-sm font-normal'>
@@ -410,7 +413,7 @@ function History({ runs }: { runs: ScraperStatusResponse['recent'] }) {
       <h2 id='scraper-history' className='font-semibold'>
         Dernières mises à jour
       </h2>
-      <ul className='bg-card divide-y rounded-xl border'>
+      <ul className='bg-card divide-y rounded-xl border shadow-sm'>
         {runs.map((run) => {
           const duration = run.finishedAt && new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime();
           return (
