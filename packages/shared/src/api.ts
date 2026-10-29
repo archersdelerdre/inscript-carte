@@ -119,6 +119,8 @@ export type CompetitionDto = {
   /** Always set: competitions whose place is unknown are not in the public list. */
   position: GeoPosition;
   mandateUrl: string | null;
+  /** The organizer takes registrations on Inscript'Arc: the member registers there first. */
+  inscriptarcUrl: string | null;
   /**
    * The départs read in the mandate, in order: départ N is the Nth. `null` when the mandate was not read (or lists
    * none): the form then offers 1 to `DEFAULT_DEPARTURE_COUNT`.
@@ -266,6 +268,7 @@ export type AdminCompetitionDto = {
   town: string;
   departmentCode: string;
   mandateUrl: string | null;
+  inscriptarcUrl: string | null;
   rhythms: Rhythm[];
   /** What the mandate says, from a checked reading of its current link; `null` when not read or not given. */
   departures: MandateDeparture[] | null;
@@ -344,6 +347,8 @@ export type CompetitionFields = {
   /** `[]` when not known. An edit cannot remove every rhythm, only change them. */
   rhythms: Rhythm[];
   mandateUrl: string | null;
+  /** From the mandate reading; an edit cannot remove it, only change it. */
+  inscriptarcUrl: string | null;
   town: string;
   departmentCode: string;
   position: GeoPosition | null;
@@ -383,8 +388,9 @@ export type CompetitionEditDto = {
 export type CompetitionEditResponse = { competition: CompetitionEditDto };
 
 /**
- * Replaces every edit of the competition: a field left out goes back to the FFTA value. `mandateUrl` and `position`
- * cannot be edited to `null` (no "no mandate", no "no place"); `departures` / `prices` given as `[]` mean none.
+ * Replaces every edit of the competition: a field left out goes back to the FFTA value. `mandateUrl`,
+ * `inscriptarcUrl` and `position` cannot be edited to `null` (no "no mandate", no "no place"); `departures` /
+ * `prices` given as `[]` mean none.
  */
 export type CompetitionOverridesRequest = Partial<CompetitionFields>;
 

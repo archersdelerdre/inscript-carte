@@ -6,6 +6,7 @@ import {
   DEPARTMENT_NAMES,
   DISCIPLINE_LABELS,
   hasPriceConflict,
+  INSCRIPTARC_URL_PATTERN,
   RHYTHMS,
   type AgeCategory,
   type CompetitionFields,
@@ -28,8 +29,9 @@ export type DepartureRow = {
 
 export type PriceRow = { key: number; categories: AgeCategory[]; departures: string; amount: string };
 
-export type FormState = Omit<CompetitionFields, 'mandateUrl' | 'departures' | 'prices'> & {
+export type FormState = Omit<CompetitionFields, 'mandateUrl' | 'inscriptarcUrl' | 'departures' | 'prices'> & {
   mandateUrl: string;
+  inscriptarcUrl: string;
   departures: DepartureRow[];
   prices: PriceRow[];
 };
@@ -44,6 +46,7 @@ export function fieldsToForm(fields: CompetitionFields): FormState {
   return {
     ...fields,
     mandateUrl: fields.mandateUrl ?? '',
+    inscriptarcUrl: fields.inscriptarcUrl ?? '',
     departures: (fields.departures ?? []).map((departure) => ({
       key: nextRowKey(),
       label: departure.label,
@@ -72,6 +75,7 @@ export function normalize(fields: CompetitionFields): CompetitionFields {
     hasFoamTargets: fields.hasFoamTargets,
     rhythms: RHYTHMS.filter((rhythm) => fields.rhythms.includes(rhythm)),
     mandateUrl: fields.mandateUrl?.trim() || null,
+    inscriptarcUrl: fields.inscriptarcUrl?.trim() || null,
     town: fields.town.trim(),
     departmentCode: fields.departmentCode,
     position: fields.position && { latitude: fields.position.latitude, longitude: fields.position.longitude },
@@ -97,6 +101,7 @@ export function formToFields(form: FormState): CompetitionFields {
   return normalize({
     ...form,
     mandateUrl: form.mandateUrl,
+    inscriptarcUrl: form.inscriptarcUrl,
     departures: form.departures.map((row) => ({
       date: row.date,
       label: row.label,
@@ -114,14 +119,14 @@ export function formToFields(form: FormState): CompetitionFields {
 type FieldKey = keyof CompetitionFields;
 
 /**
- * Fields whose form value is not FFTA's. `mandateUrl`, `position` and `rhythms` cannot be edited to nothing: empty is
- * "not edited".
+ * Fields whose form value is not FFTA's. `mandateUrl`, `inscriptarcUrl`, `position` and `rhythms` cannot be edited to
+ * nothing: empty is "not edited".
  */
 export function editedKeys(form: FormState, ffta: CompetitionFields): FieldKey[] {
   const current = formToFields(form);
   const original = normalize(ffta);
   return (Object.keys(original) as FieldKey[]).filter((key) => {
-    if ((key === 'mandateUrl' || key === 'position') && current[key] === null) return false;
+    if ((key === 'mandateUrl' || key === 'inscriptarcUrl' || key === 'position') && current[key] === null) return false;
     if (key === 'rhythms' && current.rhythms.length === 0) return false;
     return JSON.stringify(current[key]) !== JSON.stringify(original[key]);
   });
@@ -146,6 +151,7 @@ export type FormErrors = {
   dates?: string;
   town?: string;
   mandateUrl?: string;
+  inscriptarcUrl?: string;
   departures?: string;
   prices?: string;
   rhythms?: string;
@@ -174,6 +180,10 @@ export function validate(form: FormState, edited: readonly FieldKey[]): FormErro
   }
   if (form.mandateUrl.trim() && !form.mandateUrl.trim().startsWith('https://')) {
     errors.mandateUrl = 'Le lien doit commencer par « https:// ».';
+  }
+  if (form.inscriptarcUrl.trim() && !INSCRIPTARC_URL_PATTERN.test(form.inscriptarcUrl.trim())) {
+    errors.inscriptarcUrl =
+      'Le lien doit être celui d’une page Inscript’Arc, par exemple « https://club-salle.inscriptarc.fr/ ».';
   }
   const refused = has('rhythms') ? fields.rhythms.find((r) => !allowedRhythms(fields.discipline).includes(r)) : null;
   if (refused) {
@@ -259,6 +269,8 @@ export function describeFfta(key: FieldKey | 'dates', ffta: CompetitionFields): 
       return ffta.rhythms.length > 0 ? ffta.rhythms.join(' et ') : 'non précisé';
     case 'mandateUrl':
       return ffta.mandateUrl ?? 'aucune';
+    case 'inscriptarcUrl':
+      return ffta.inscriptarcUrl ?? 'aucun lien dans le mandat';
     case 'town':
       return ffta.town;
     case 'departmentCode':

@@ -50,6 +50,7 @@ type OverrideRow = {
   /** JSON list, `NULL` when not edited. */
   rhythms: string | null;
   mandate_url: string | null;
+  inscriptarc_url: string | null;
   mandate_added_on: string | null;
   town: string | null;
   department_code: string | null;
@@ -95,6 +96,7 @@ export class SqliteCompetitionOverrideRepository implements CompetitionOverrideR
       hasFoamTargets: row.has_foam_targets === 1,
       rhythms: rhythmsOf(mandate, row.discipline),
       mandateUrl: row.mandate_url,
+      inscriptarcUrl: mandate?.inscriptarcUrl ?? null,
       town: row.town,
       departmentCode: row.department_code,
       position:
@@ -147,6 +149,7 @@ export class SqliteCompetitionOverrideRepository implements CompetitionOverrideR
       has_foam_targets: overrides.hasFoamTargets ?? null,
       rhythms: overrides.rhythms ? JSON.stringify(overrides.rhythms) : null,
       mandate_url: overrides.mandateUrl ?? null,
+      inscriptarc_url: overrides.inscriptarcUrl ?? null,
       mandate_added_on: mandateAddedOn,
       town: overrides.town ?? null,
       department_code: overrides.departmentCode ?? null,
@@ -177,6 +180,7 @@ function overridesOf(row: OverrideRow): CompetitionOverrides {
     hasFoamTargets: flag(row.has_foam_targets),
     rhythms: row.rhythms ? JSON.parse(row.rhythms) : undefined,
     mandateUrl: row.mandate_url ?? undefined,
+    inscriptarcUrl: row.inscriptarc_url ?? undefined,
     town: row.town ?? undefined,
     departmentCode: row.department_code ?? undefined,
     position:

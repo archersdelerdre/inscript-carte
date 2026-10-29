@@ -18,6 +18,7 @@ const competition: Competition = {
   position: { latitude: 47.297, longitude: -1.49 },
   mandateUrl: null,
   mandateAddedOn: null,
+  inscriptarcUrl: null,
   departures: null,
   prices: null,
   missingSince: null,

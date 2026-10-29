@@ -37,6 +37,8 @@ export type Competition = {
   readonly mandateUrl: string | null;
   /** The day a scraper run first saw `mandateUrl`; `null` without one, or for a link stored before it was tracked. */
   readonly mandateAddedOn: CalendarDate | null;
+  /** The organizer takes registrations on Inscript'Arc: from the checked mandate reading, or an admin's edit. */
+  readonly inscriptarcUrl: string | null;
   /** The départs the mandate lists, in order (départ N is the Nth); `null` when no checked reading has any. */
   readonly departures: readonly MandateDeparture[] | null;
   /** The registration prices the mandate lists; `null` when no checked reading has any. */

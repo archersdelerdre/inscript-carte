@@ -5,6 +5,7 @@ import {
   DEPARTMENT_NAMES,
   DISCIPLINES,
   hasPriceConflict,
+  INSCRIPTARC_URL_PATTERN,
   RHYTHMS,
   type CompetitionFields,
 } from '@inscript-carte/shared';
@@ -20,7 +21,7 @@ const time = z
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
   .nullable();
 
-/** What an admin may send. `mandateUrl` and `position` cannot be removed, only changed. */
+/** What an admin may send. `mandateUrl`, `inscriptarcUrl` and `position` cannot be removed, only changed. */
 const Overrides = z.strictObject({
   title: z.string().trim().min(1).max(MAX_TEXT).optional(),
   startDate: day.optional(),
@@ -37,6 +38,7 @@ const Overrides = z.strictObject({
     .transform((rhythms) => RHYTHMS.filter((rhythm) => rhythms.includes(rhythm)))
     .optional(),
   mandateUrl: z.string().trim().startsWith('https://').max(500).optional(),
+  inscriptarcUrl: z.string().trim().max(500).regex(INSCRIPTARC_URL_PATTERN).optional(),
   town: z.string().trim().min(1).max(MAX_TEXT).optional(),
   departmentCode: z
     .string()

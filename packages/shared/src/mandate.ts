@@ -100,4 +100,12 @@ export type MandateData = {
   rhythmsAreAlternatives?: boolean;
   /** The mandate's own words for each answer, so an admin can check it in a second. */
   evidence: { departures: string | null; prices: string | null; foamTargets: string | null; rhythm?: string | null };
+  /**
+   * The competition's Inscript'Arc page, found in the mandate's text by the code (`inscriptarcUrlOf`), never asked to
+   * the LLM. Missing from readings made before 2026-10-29.
+   */
+  inscriptarcUrl?: string | null;
 };
+
+/** A competition page on Inscript'Arc, the online registration site some organizers use: `https://<name>.inscriptarc.fr/…`. */
+export const INSCRIPTARC_URL_PATTERN = /^https:\/\/[a-z0-9-]+\.inscriptarc\.fr(\/\S*)?$/i;

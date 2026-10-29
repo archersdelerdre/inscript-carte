@@ -1363,7 +1363,8 @@ describe('member actions', () => {
     expect(await blocked.json()).toEqual({ error: 'password_change_required' });
 
     // Typed moments ago: the first change only asks for the new one, as long as an admin's, and not the same.
-    const change = (cookie: string, body: unknown) => call('/api/me/password', { method: 'PUT', cookie, body });
+    const change = (siteCookie: string, body: unknown) =>
+      call('/api/me/password', { method: 'PUT', cookie: siteCookie, body });
     expect(await (await change(youth, { currentPassword: null, newPassword: 'court' })).json()).toEqual({
       error: 'password_too_short',
     });
@@ -1604,6 +1605,36 @@ describe('competition edits', () => {
     expect(await rhythms()).toEqual([]);
     await put({ rhythms: ['AB/CD', 'AB'] });
     expect(await rhythms()).toEqual(['AB', 'AB/CD']);
+  });
+
+  test('the Inscript’Arc page comes from the mandate reading, and an edit wins; only an Inscript’Arc page', async () => {
+    const link = 'https://extranet.ffta.fr/i.pdf';
+    const page = 'https://club-salle.inscriptarc.fr/';
+    await database('competitions').where({ ffta_id: SALLE }).update({ mandate_url: link });
+    await database('competition_mandates').insert({
+      ffta_id: SALLE,
+      mandate_url: link,
+      status: 'parsed',
+      data: JSON.stringify({
+        departures: [],
+        prices: [],
+        foamTargets: 'not_mentioned',
+        evidence: {},
+        inscriptarcUrl: page,
+      }),
+      read_at: new Date().toISOString(),
+    });
+    expect((await publicSalle())?.inscriptarcUrl).toBe(page);
+
+    await makeAdmin(ADULT);
+    const cookie = await adminSignIn();
+    const put = (body: object) => call(overridesPath, { method: 'PUT', cookie, body });
+    expect((await put({ inscriptarcUrl: 'https://www.helloasso.com/club' })).status).toBe(400);
+    expect((await put({ inscriptarcUrl: null })).status).toBe(400);
+    expect((await put({ inscriptarcUrl: 'https://club-salle2027.inscriptarc.fr/' })).status).toBe(204);
+    expect((await publicSalle())?.inscriptarcUrl).toBe('https://club-salle2027.inscriptarc.fr/');
+    const { competition } = (await (await call(overridesPath, { cookie })).json()) as CompetitionEditResponse;
+    expect(competition.ffta.inscriptarcUrl).toBe(page);
   });
 });
 

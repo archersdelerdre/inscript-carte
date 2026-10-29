@@ -196,6 +196,11 @@ Inner layers never import outer ones. The domain may import types and rules from
   départs, from the first greffe to the last estimated end (shooting + 3 h, else greffe + 4 h), floating local times;
   a whole-day event when the mandate gives no times.
 - A départ shows as "Départ 2 · Après-midi" (`departureTitle`) when the mandate names it; the number always stays.
+- **Inscript'Arc** (asked 2026-10-29): some organizers take registrations on `https://<name>.inscriptarc.fr/`
+  (17 mandates out of 116 that day). Decided: **not put forward** (the user rejected a big button): one line on the
+  card under the club deadline, « Inscription possible aussi sur Inscript'Arc » (link), and in the form a box « Pour
+  aller plus vite, vous pouvez vous inscrire directement sur la page Inscript'Arc du concours. ». The admin
+  registrations page links « Inscriptions sur Inscript'Arc » next to « Mandat (PDF) ». Club rules do not change.
 
 ## Statuses and payments
 
@@ -300,6 +305,12 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     the times (`datedDepartures`, asked 2026-10-11): an earlier time than the départ before starts the next day, only
     when the day count matches; migration `0015` dated the readings stored before. Refused answers are kept as
     `invalid`, never used. Errors never fail the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
+  - **Inscript'Arc link**: found by the code, not the LLM (`inscriptarcUrlOf`: the first `<name>.inscriptarc.fr` in
+    the PDF's text other than `www`, kept as `https://<name>.inscriptarc.fr/`; the text writes it loosely, « https
+    ://x.inscriptarc.fr, »). Stored in the reading's `data.inscriptarcUrl` of a `parsed` reading only (an invalid LLM
+    answer loses it; a scanned mandate has no text). Readings made before 2026-10-29 have none: run
+    `mandate:reread-all` once after deploying. An admin edit (`competition_overrides.inscriptarc_url`, migration
+    `0018`, only an `inscriptarc.fr` page, `INSCRIPTARC_URL_PATTERN`) wins and cannot remove it, only change it.
   - **Rhythm** (asked 2026-10-11, changed 2026-10-25): `AB` / `ABC` / `AB/CD`, **several per competition** when each
     is for its own départs (« samedi en AB, dimanche en AB/CD »). Decided: the LLM only lists every rhythm the mandate
     writes for the competition's days (`rhythms`) and says whether they are a choice for the same départs

@@ -27,6 +27,7 @@ function competition(
     position: { latitude: 47.21, longitude: -1.55 },
     mandateUrl: null,
     mandateAddedOn: null,
+    inscriptarcUrl: null,
     departures: null,
     prices: null,
     missingSince: null,

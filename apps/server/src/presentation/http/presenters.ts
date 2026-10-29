@@ -38,6 +38,7 @@ export function toCompetitionDto({ competition, clubArcherCount }: UpcomingCompe
     departmentCode: competition.departmentCode,
     position: competition.position,
     mandateUrl: competition.mandateUrl,
+    inscriptarcUrl: competition.inscriptarcUrl,
     departures: competition.departures ? [...competition.departures] : null,
     clubArcherCount,
   };
@@ -102,6 +103,7 @@ export function toAdminCompetitionDto({
     town: competition.town,
     departmentCode: competition.departmentCode,
     mandateUrl: competition.mandateUrl,
+    inscriptarcUrl: competition.inscriptarcUrl,
     rhythms: [...competition.rhythms],
     departures: competition.departures ? [...competition.departures] : null,
     prices: competition.prices ? [...competition.prices] : null,

@@ -195,6 +195,16 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
           </>
         ) : (
           <form onSubmit={submit} className='grid gap-5' noValidate>
+            {competition.inscriptarcUrl && (
+              <p role='note' className='rounded-md bg-sky-50 px-3 py-2 text-sky-900'>
+                L'organisateur prend aussi les inscriptions sur Inscript'Arc. Pour aller plus vite, vous pouvez vous
+                inscrire directement sur{' '}
+                <a href={competition.inscriptarcUrl} target='_blank' rel='noopener' className='font-medium underline'>
+                  la page Inscript'Arc du concours
+                </a>
+                .
+              </p>
+            )}
             <p className='bg-muted rounded-md px-3 py-2'>
               {archer.fullName} · <span className='text-muted-foreground'>Catégorie</span> {category}
             </p>

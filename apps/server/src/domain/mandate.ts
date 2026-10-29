@@ -115,6 +115,19 @@ export function checkMandateData(
 }
 
 /**
+ * The competition's Inscript'Arc page when the mandate's text names one: 17 mandates out of 116 on 2026-10-29, each
+ * time the page to register on. Only the site's name is kept, as the text writes links loosely
+ * ("https ://vincennes-salle.inscriptarc.fr,"). The site's home page (`www`) is not a competition.
+ */
+export function inscriptarcUrlOf(text: string): string | null {
+  for (const [, name] of text.matchAll(/([a-z0-9-]+)\.inscriptarc\.fr/gi)) {
+    const site = name!.toLowerCase();
+    if (site !== 'www') return `https://${site}.inscriptarc.fr/`;
+  }
+  return null;
+}
+
+/**
  * Gives each départ its day when the mandate says none ("Tir 1, Tir 2, Tir 3" over a weekend), from the times: the
  * départs come in order, and a time earlier than the one before ("14 h 30" then "8 h 00") starts the next day. Only
  * when it holds together: no départ dated, a time on every one, and as many days found as the competition has.

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import type { MandateDeparture } from '@inscript-carte/shared';
 
-import { checkMandateData, datedDepartures, mandateAnswerJsonSchema, rhythmsOf } from './mandate.ts';
+import { checkMandateData, datedDepartures, inscriptarcUrlOf, mandateAnswerJsonSchema, rhythmsOf } from './mandate.ts';
 
 const COMPETITION = { startDate: '2026-10-31', endDate: '2026-11-01' };
 
@@ -90,6 +90,22 @@ describe('checkMandateData', () => {
       required: ['departures', 'prices', 'foamTargets', 'rhythms', 'rhythmsAreAlternatives', 'evidence'],
       additionalProperties: false,
     });
+  });
+});
+
+describe('inscriptarcUrlOf', () => {
+  test('finds the competition’s page however the mandate writes it (real mandates, 2026-10-29)', () => {
+    const page = 'https://vincennes-salle.inscriptarc.fr/';
+    expect(inscriptarcUrlOf('par internet : https ://vincennes-salle.inscriptarc.fr, soit par courrier')).toBe(page);
+    expect(inscriptarcUrlOf('Inscriptions : VINCENNES-SALLE.inscriptarc.fr')).toBe(page);
+    expect(inscriptarcUrlOf('Voir www.inscriptarc.fr puis https://vincennes-salle.inscriptarc.fr/inscription')).toBe(
+      page,
+    );
+  });
+
+  test('nothing without a competition page: the site’s home page alone, or no link at all', () => {
+    expect(inscriptarcUrlOf('Inscriptions sur Inscript’Arc : https://www.inscriptarc.fr')).toBeNull();
+    expect(inscriptarcUrlOf('Inscriptions par mail à concours@club.fr')).toBeNull();
   });
 });
 

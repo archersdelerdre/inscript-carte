@@ -17,6 +17,7 @@ import * as clubPaysRegistrations from './0014-club-pays-registrations.ts';
 import * as dateDepartures from './0015-date-departures.ts';
 import * as rhythmOverridesList from './0016-rhythm-overrides-list.ts';
 import * as memberPassword from './0017-member-password.ts';
+import * as inscriptarcUrl from './0018-inscriptarc-url.ts';
 
 /** Listed explicitly so migrations survive `bun build`. Append new ones at the end; never rename. */
 const migrations: Record<string, Knex.Migration> = {
@@ -37,6 +38,7 @@ const migrations: Record<string, Knex.Migration> = {
   '0015-date-departures': dateDepartures,
   '0016-rhythm-overrides-list': rhythmOverridesList,
   '0017-member-password': memberPassword,
+  '0018-inscriptarc-url': inscriptarcUrl,
 };
 
 export const migrationSource: Knex.MigrationSource<string> = {

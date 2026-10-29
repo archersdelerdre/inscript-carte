@@ -21,6 +21,7 @@ const competition = (overrides: Partial<Competition> = {}): Competition => ({
   position: { latitude: 47.21, longitude: -1.55 },
   mandateUrl: LINK,
   mandateAddedOn: null,
+  inscriptarcUrl: null,
   departures: [{ date: null, label: 'Matin', registrationOpens: null, shootingStarts: null }],
   prices: [{ categories: ['S1'], departures: 1, amountEuros: 10 }],
   missingSince: null,

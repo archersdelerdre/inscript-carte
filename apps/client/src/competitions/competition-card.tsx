@@ -5,6 +5,7 @@ import {
   ExternalLinkIcon,
   FileTextIcon,
   HourglassIcon,
+  InfoIcon,
   LocateFixedIcon,
   MapPinIcon,
   UsersIcon,
@@ -153,13 +154,26 @@ function Deadline({ competition }: { competition: CompetitionDto }) {
     );
   }
   return (
-    <p className='flex gap-2 text-sm text-green-900'>
-      <CalendarCheckIcon className='size-4.5 shrink-0' />
-      <span>
-        Inscription par le club jusqu'au{' '}
-        <strong className='font-semibold whitespace-nowrap'>{formatDay(competition.clubRegistrationDeadline)}</strong>
-      </span>
-    </p>
+    <>
+      <p className='flex gap-2 text-sm text-green-900'>
+        <CalendarCheckIcon className='size-4.5 shrink-0' />
+        <span>
+          Inscription par le club jusqu'au{' '}
+          <strong className='font-semibold whitespace-nowrap'>{formatDay(competition.clubRegistrationDeadline)}</strong>
+        </span>
+      </p>
+      {competition.inscriptarcUrl && (
+        <p className='flex gap-2 text-sm text-sky-900'>
+          <InfoIcon className='size-4.5 shrink-0' />
+          <span className='truncate'>
+            Inscription possible aussi sur{' '}
+            <a href={competition.inscriptarcUrl} target='_blank' rel='noopener' className='font-medium underline'>
+              Inscript'Arc
+            </a>
+          </span>
+        </p>
+      )}
+    </>
   );
 }
 

@@ -1,7 +1,7 @@
 import type { MandateCounts } from '@inscript-carte/shared';
 
 import type { CalendarDate } from '../domain/calendar-date.ts';
-import { checkMandateData } from '../domain/mandate.ts';
+import { checkMandateData, inscriptarcUrlOf } from '../domain/mandate.ts';
 import type { Clock } from './ports/clock.ts';
 import type { MandateExtractor, MandateFetcher, MandateStore, PendingMandate } from './ports/mandates.ts';
 
@@ -132,7 +132,8 @@ export class ReadMandates {
     const reading = { ...saved, model: answer.model, costUsd: answer.costUsd, readAt: this.#clock.now() };
     if (check.ok) {
       counts.read++;
-      await this.#store.save({ ...reading, status: 'parsed', data: check.data, problems: [] });
+      const data = { ...check.data, inscriptarcUrl: inscriptarcUrlOf(document.text) };
+      await this.#store.save({ ...reading, status: 'parsed', data, problems: [] });
       return null;
     }
     counts.invalid++;

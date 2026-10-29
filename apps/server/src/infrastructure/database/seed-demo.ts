@@ -79,8 +79,13 @@ type DemoCompetition = {
   mandate?: true | 'unread';
   /** Days before the start the mandate appeared; 60 when not given (an early mandate). */
   mandateDaysBefore?: number;
-  /** `byDay`: each rhythm for its own day ("samedi en AB, dimanche en AB/CD"); otherwise a choice ("AB/CD ou ABC"). */
-  reading?: { departures: number; rhythms?: Rhythm[]; byDay?: boolean; prices?: 'standard' | 'none' } | 'invalid';
+  /**
+   * `byDay`: each rhythm for its own day ("samedi en AB, dimanche en AB/CD"); otherwise a choice ("AB/CD ou ABC").
+   * `inscriptarc`: the organizer takes registrations on Inscript'Arc (a made-up page).
+   */
+  reading?:
+    | { departures: number; rhythms?: Rhythm[]; byDay?: boolean; prices?: 'standard' | 'none'; inscriptarc?: string }
+    | 'invalid';
 };
 
 const COMPETITIONS: DemoCompetition[] = [
@@ -107,7 +112,7 @@ const COMPETITIONS: DemoCompetition[] = [
     department: '44',
     position: [47.2184, -1.5536],
     mandate: true,
-    reading: { departures: 2, rhythms: ['AB'] },
+    reading: { departures: 2, rhythms: ['AB'], inscriptarc: 'https://exemple-salle.inscriptarc.fr/' },
   },
   {
     id: '90003',
@@ -473,6 +478,7 @@ function mandateData(
         ? `Rythme ${reading.rhythms.join(reading.byDay ? ' le premier jour, ' : ' ou ')}${reading.byDay ? ' le second' : ''}`
         : null,
     },
+    inscriptarcUrl: reading.inscriptarc ?? null,
   };
 }
 

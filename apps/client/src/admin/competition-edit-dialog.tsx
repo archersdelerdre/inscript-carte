@@ -424,6 +424,19 @@ function CompetitionForm({
           />
           {note('mandateUrl')}
         </Field>
+
+        <Field label='Lien Inscript’Arc' htmlFor='edit-inscriptarc' error={errors.inscriptarcUrl}>
+          <Input
+            id='edit-inscriptarc'
+            type='url'
+            inputMode='url'
+            placeholder='https://…inscriptarc.fr/'
+            value={form.inscriptarcUrl}
+            aria-invalid={Boolean(errors.inscriptarcUrl)}
+            onChange={(event) => patch({ inscriptarcUrl: event.target.value })}
+          />
+          {note('inscriptarcUrl')}
+        </Field>
       </Section>
 
       <Section title='Lieu'>

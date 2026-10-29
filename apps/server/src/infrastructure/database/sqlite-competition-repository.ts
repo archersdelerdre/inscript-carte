@@ -29,6 +29,7 @@ type CompetitionRow = {
   edited_prices: string | null;
   /** JSON list. */
   edited_rhythms: string | null;
+  edited_inscriptarc_url: string | null;
 };
 
 /** An admin's edit wins over the FFTA value: `competition_overrides` holds `NULL` for every field left alone. */
@@ -84,6 +85,7 @@ export class SqliteCompetitionRepository implements CompetitionRepository {
         'o.departures as edited_departures',
         'o.prices as edited_prices',
         'o.rhythms as edited_rhythms',
+        'o.inscriptarc_url as edited_inscriptarc_url',
         ...EDITABLE.map((column) => database.raw('coalesce(??, ??) as ??', [`o.${column}`, `c.${column}`, column])),
       );
   }
@@ -113,6 +115,7 @@ function toCompetition(row: CompetitionRow): Competition {
       row.latitude === null || row.longitude === null ? null : { latitude: row.latitude, longitude: row.longitude },
     mandateUrl: row.mandate_url,
     mandateAddedOn: row.mandate_added_on,
+    inscriptarcUrl: row.edited_inscriptarc_url ?? mandate?.inscriptarcUrl ?? null,
     departures: departures?.length ? departures : null,
     prices: prices?.length ? prices : null,
     missingSince: row.missing_since,

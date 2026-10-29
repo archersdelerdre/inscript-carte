@@ -23,6 +23,7 @@ import {
   CarIcon,
   ChevronDownIcon,
   DownloadIcon,
+  ExternalLinkIcon,
   FileTextIcon,
   MessageSquareTextIcon,
   PencilIcon,
@@ -223,6 +224,17 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
             >
               <FileTextIcon className='size-4' />
               Mandat (PDF)
+            </a>
+          )}
+          {competition.inscriptarcUrl && (
+            <a
+              href={competition.inscriptarcUrl}
+              target='_blank'
+              rel='noopener'
+              className='text-primary inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline'
+            >
+              <ExternalLinkIcon className='size-4' />
+              Inscriptions sur Inscript'Arc
             </a>
           )}
         </div>
