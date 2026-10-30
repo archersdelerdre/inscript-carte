@@ -302,9 +302,12 @@ export type CompetitionProblem =
   | { kind: 'mandate_failed'; willRetry: boolean; details: string[] }
   /** The LLM answered, the checks refused it. */
   | { kind: 'mandate_refused'; willRetry: boolean; details: string[] }
-  /** Read, but without départs (the form offers 1 to 4) or without prices (no amount in the Excel file). */
+  /**
+   * Read, but without départs (the form offers 1 to 4) or without prices (no amount in the Excel file). `details`:
+   * why the prices were left out, when the reading had some that contradicted each other.
+   */
   | { kind: 'mandate_without_departures' }
-  | { kind: 'mandate_without_prices' };
+  | { kind: 'mandate_without_prices'; details: string[] };
 
 export type CompetitionOverviewDto = {
   id: string;

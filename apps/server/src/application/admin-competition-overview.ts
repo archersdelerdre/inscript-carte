@@ -68,7 +68,7 @@ export function problemsOf(competition: Competition, reading: MandateReadingStat
     problems.push({ kind: 'mandate_unread' });
   } else if (reading.status === 'parsed') {
     if (!competition.departures) problems.push({ kind: 'mandate_without_departures' });
-    if (!competition.prices) problems.push({ kind: 'mandate_without_prices' });
+    if (!competition.prices) problems.push({ kind: 'mandate_without_prices', details: reading.problems });
   } else {
     problems.push({
       kind: reading.status === 'failed' ? 'mandate_failed' : 'mandate_refused',

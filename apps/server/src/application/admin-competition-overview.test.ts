@@ -60,7 +60,7 @@ test('a good reading without départs or prices is flagged; a complete one is no
   const parsed = { mandateUrl: LINK, status: 'parsed' as const, attempts: 1, problems: [] };
   expect(problemsOf(competition({ departures: null, prices: null }), parsed)).toEqual([
     { kind: 'mandate_without_departures' },
-    { kind: 'mandate_without_prices' },
+    { kind: 'mandate_without_prices', details: [] },
   ]);
   expect(problemsOf(competition(), parsed)).toEqual([]);
 });

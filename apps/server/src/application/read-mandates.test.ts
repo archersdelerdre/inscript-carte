@@ -21,12 +21,17 @@ const goodAnswer = (foamTargets = 'not_mentioned') => ({
   rhythmsAreAlternatives: false,
   evidence: { departures: null, prices: '1 tir 9 €, 2 tirs 16 €', foamTargets: null, rhythm: 'en ABC' },
 });
+/** Two amounts for one adult départ: the checks drop every price. */
+const conflictingAnswer = () => ({
+  ...goodAnswer(),
+  prices: [...goodAnswer().prices, { categories: ['S1', 'S2', 'S3'], departures: 1, amountEuros: 15 }],
+});
 
 let database: Knex;
 let store: SqliteMandateStore;
 /** What each mandate link downloads to: its file's hash, or an error. */
 let files: Record<string, string | Error>;
-/** The LLM's answer for each file hash. */
+/** The LLM's answer for each file hash; a list gives one answer per call, in order. */
 let answers: Record<string, unknown>;
 let llmCalls: string[];
 
@@ -40,7 +45,12 @@ const fetcher: MandateFetcher = {
 const extractor: MandateExtractor = {
   extract: async (document) => {
     llmCalls.push(document.sha256);
-    return { answer: answers[document.sha256], model: 'z-ai/glm-5.3-flash', costUsd: 0.0013 };
+    const answer = answers[document.sha256];
+    return {
+      answer: Array.isArray(answer) ? answer.shift() : answer,
+      model: 'z-ai/glm-5.3-flash',
+      costUsd: 0.0013,
+    };
   },
 };
 const read = (options: { fftaIds?: string[]; limit?: number; force?: boolean } = {}) =>
@@ -157,6 +167,20 @@ test('an answer the checks refuse is kept as it came, never as data, and the foa
   expect(await database('competitions').pluck('has_foam_targets')).toEqual([1]);
 });
 
+test('an answer refused or with prices that contradict each other is asked once more; the better one is kept', async () => {
+  await database('competitions').insert([competition('1'), competition('2')]);
+  files = { [urlOf('1')]: 'hash-1', [urlOf('2')]: 'hash-2' };
+  answers = { 'hash-1': [conflictingAnswer(), goodAnswer()], 'hash-2': [conflictingAnswer(), 'Voici le mandat…'] };
+
+  expect(await read()).toMatchObject({ read: 2, invalid: 0, costUsd: 0.0052 });
+  expect(JSON.parse((await mandateRow('1')).data).prices).toEqual(goodAnswer().prices);
+  // Wrong twice: the départs and the rest stay, every price goes, and the reading says why.
+  const row = await mandateRow('2');
+  expect(row).toMatchObject({ status: 'parsed' });
+  expect(JSON.parse(row.data)).toMatchObject({ prices: [], departures: goodAnswer().departures });
+  expect(row.problems).toContain('aucun tarif n’est gardé');
+});
+
 test('reads at most `limit` mandates, soonest first, and one competition when asked', async () => {
   await database('competitions').insert([
     competition('later', { start_date: '2027-01-09', end_date: '2027-01-09' }),
@@ -182,7 +206,7 @@ test('an admin can have a mandate read again, same file included; a failed re-re
   expect(llmCalls).toEqual(['hash-1', 'hash-1']);
   expect(JSON.parse((await mandateRow('1')).data).foamTargets).toBe('yes');
 
-  // Refused, then not downloadable: the good reading stays, and the run says so.
+  // Refused, prices that contradict each other, then not downloadable: the good reading stays, and the run says so.
   const problems: string[] = [];
   const again = (options: { force: boolean }) =>
     new ReadMandates(fetcher, extractor, store, clock).run({
@@ -195,10 +219,13 @@ test('an admin can have a mandate read again, same file included; a failed re-re
     'hash-1': { ...goodAnswer(), prices: [{ categories: ['S1', 'S2', 'S3'], departures: 1, amountEuros: 900 }] },
   };
   expect(await again({ force: true })).toMatchObject({ invalid: 1 });
+  answers = { 'hash-1': [conflictingAnswer(), conflictingAnswer()] };
+  expect(await again({ force: true })).toMatchObject({ invalid: 1 });
   files = { [urlOf('1')]: new Error('the FFTA server answers 500') };
   expect(await again({ force: true })).toMatchObject({ failed: 1 });
   expect(await mandateRow('1')).toMatchObject({ status: 'parsed' });
-  expect(JSON.parse((await mandateRow('1')).data).foamTargets).toBe('yes');
+  expect(JSON.parse((await mandateRow('1')).data)).toMatchObject({ foamTargets: 'yes', prices: goodAnswer().prices });
+  expect(problems).toHaveLength(3);
   expect(problems.every((problem) => problem.endsWith('La lecture précédente du mandat est gardée.'))).toBe(true);
 
   // Without the request, a good reading is left alone.

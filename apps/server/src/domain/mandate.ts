@@ -71,15 +71,21 @@ export function rhythmsOf(data: MandateData | null, discipline: Discipline): Rhy
 
 export const mandateAnswerJsonSchema = z.toJSONSchema(MandateAnswer);
 
-export type MandateCheck = { ok: true; data: MandateData } | { ok: false; problems: string[] };
+/** `problems`: what was left out of a kept reading (its prices, when they contradict each other). */
+export type MandateCheck = { ok: true; data: MandateData; problems: string[] } | { ok: false; problems: string[] };
+
+export const PRICE_CONFLICT =
+  'Deux tarifs aussi précis l’un que l’autre donnaient deux montants pour un même cas : aucun tarif n’est gardé.';
 
 /**
- * The LLM's answer is never trusted as is: out of shape, out of range, or contradicting itself, the whole reading is
- * refused (kept, to be looked at) rather than half-stored. A wrong price is worse than no price.
+ * The LLM's answer is never trusted as is: out of shape, out of range, or about other days, the whole reading is
+ * refused (kept, to be looked at) rather than half-stored.
  *
  * One mandate often covers a weekend that the FFTA lists as two competitions (Saturday, Sunday): the départs of the
  * other days are left out, not refused. A price given twice is kept once. A category named by two prices pays the
- * most specific one (`pricesFor`); only two equally specific prices with different amounts are a contradiction.
+ * most specific one (`pricesFor`). Two equally specific prices with different amounts are a contradiction: a wrong
+ * price is worse than no price, so every price goes, but the rest of the reading (départs, rhythms) stays (2026-10-29:
+ * 17 readings out of 359 lost everything that way).
  */
 export function checkMandateData(
   raw: unknown,
@@ -104,14 +110,11 @@ export function checkMandateData(
     const categories = AGE_CATEGORIES.filter((category) => price.categories.includes(category));
     prices.set(`${categories.join()}|${price.departures}|${price.amountEuros}`, { ...price, categories });
   }
-  if (hasPriceConflict([...prices.values()])) {
-    return {
-      ok: false,
-      problems: ['Deux tarifs aussi précis l’un que l’autre donnent deux montants pour un même cas.'],
-    };
-  }
   const departures = datedDepartures(onItsDays, competition);
-  return { ok: true, data: { ...parsed.data, departures, prices: [...prices.values()] } };
+  if (hasPriceConflict([...prices.values()])) {
+    return { ok: true, data: { ...parsed.data, departures, prices: [] }, problems: [PRICE_CONFLICT] };
+  }
+  return { ok: true, data: { ...parsed.data, departures, prices: [...prices.values()] }, problems: [] };
 }
 
 /**

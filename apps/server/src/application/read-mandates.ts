@@ -1,7 +1,7 @@
 import type { MandateCounts } from '@inscript-carte/shared';
 
 import type { CalendarDate } from '../domain/calendar-date.ts';
-import { checkMandateData, inscriptarcUrlOf } from '../domain/mandate.ts';
+import { checkMandateData, inscriptarcUrlOf, type MandateCheck } from '../domain/mandate.ts';
 import type { Clock } from './ports/clock.ts';
 import type { MandateExtractor, MandateFetcher, MandateStore, PendingMandate } from './ports/mandates.ts';
 
@@ -117,8 +117,19 @@ export class ReadMandates {
 
     const saved = { ...base, sha256: document.sha256, pageCount: document.pageCount };
     let answer;
+    let check;
     try {
       answer = await this.#extractor.extract(document, mandate);
+      counts.costUsd += answer.costUsd ?? 0;
+      check = checkMandateData(answer.answer, mandate);
+      // The same mandate does not always get the same answer: a refused one, or one whose prices contradict each
+      // other, is asked once more, and the better of the two is kept.
+      if (quality(check) < FULL) {
+        const again = await this.#extractor.extract(document, mandate).catch(() => null);
+        counts.costUsd += again?.costUsd ?? 0;
+        const checkAgain = again && checkMandateData(again.answer, mandate);
+        if (checkAgain && quality(checkAgain) > quality(check)) [answer, check] = [again, checkAgain];
+      }
     } catch (error) {
       counts.failed++;
       const problems = [`La lecture du mandat n’a pas abouti : ${messageOf(error)}.`];
@@ -126,20 +137,31 @@ export class ReadMandates {
         this.#store.save({ ...saved, status: 'failed', problems, readAt: this.#clock.now() }),
       );
     }
-    counts.costUsd += answer.costUsd ?? 0;
 
-    const check = checkMandateData(answer.answer, mandate);
     const reading = { ...saved, model: answer.model, costUsd: answer.costUsd, readAt: this.#clock.now() };
-    if (check.ok) {
-      counts.read++;
-      const data = { ...check.data, inscriptarcUrl: inscriptarcUrlOf(document.text) };
-      await this.#store.save({ ...reading, status: 'parsed', data, problems: [] });
-      return null;
+    if (!check.ok) {
+      counts.invalid++;
+      const rawAnswer = JSON.stringify(answer.answer);
+      return failure(`La réponse du LLM a été refusée par les contrôles (${check.problems[0]}).`, () =>
+        this.#store.save({ ...reading, status: 'invalid', rawAnswer, problems: check.problems }),
+      );
     }
-    counts.invalid++;
-    const rawAnswer = JSON.stringify(answer.answer);
-    return failure(`La réponse du LLM a été refusée par les contrôles (${check.problems[0]}).`, () =>
-      this.#store.save({ ...reading, status: 'invalid', rawAnswer, problems: check.problems }),
-    );
+    // Without its prices, a new reading is worse than the good one there was.
+    if (keepsGood && check.problems.length > 0) {
+      counts.invalid++;
+      return 'Les tarifs lus se contredisent. La lecture précédente du mandat est gardée.';
+    }
+    counts.read++;
+    const data = { ...check.data, inscriptarcUrl: inscriptarcUrlOf(document.text) };
+    await this.#store.save({ ...reading, status: 'parsed', data, problems: check.problems });
+    return null;
   }
+}
+
+const FULL = 2;
+
+/** A full reading beats one without its prices, which beats a refused one. */
+function quality(check: MandateCheck): number {
+  if (!check.ok) return 0;
+  return check.problems.length > 0 ? 1 : FULL;
 }

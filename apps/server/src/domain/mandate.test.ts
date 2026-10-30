@@ -27,7 +27,7 @@ const answer = (overrides: Record<string, unknown> = {}) => ({
 
 describe('checkMandateData', () => {
   test('keeps a reading that holds together', () => {
-    expect(checkMandateData(answer(), COMPETITION)).toEqual({ ok: true, data: answer() as never });
+    expect(checkMandateData(answer(), COMPETITION)).toEqual({ ok: true, data: answer() as never, problems: [] });
   });
 
   test('accepts a mandate that gives no départ and no price (not every mandate has them)', () => {
@@ -50,12 +50,20 @@ describe('checkMandateData', () => {
     });
   });
 
-  test('keeps a price given twice once, in the categories’ order; refuses two amounts for the same case', () => {
+  test('keeps a price given twice once, in the categories’ order', () => {
     const same = checkMandateData(answer({ prices: [price(10, ['S3', 'S1']), price(10, ['S1', 'S3'])] }), COMPETITION);
     expect(same.ok && same.data.prices).toEqual([{ categories: ['S1', 'S3'], departures: 1, amountEuros: 10 }]);
-    expect(checkMandateData(answer({ prices: [price(10), price(12)] }), COMPETITION)).toEqual({
-      ok: false,
-      problems: ['Deux tarifs aussi précis l’un que l’autre donnent deux montants pour un même cas.'],
+  });
+
+  test('two amounts for the same case drop every price, but keep the rest of the reading', () => {
+    // « Samedi 10 €, Dimanche 12 € » read for a one-day competition (Meursault, 2026-10-29).
+    const check = checkMandateData(answer({ prices: [price(10, ['S1']), price(12), price(12, ['S1'])] }), COMPETITION);
+    expect(check).toEqual({
+      ok: true,
+      data: answer({ prices: [] }) as never,
+      problems: [
+        'Deux tarifs aussi précis l’un que l’autre donnaient deux montants pour un même cas : aucun tarif n’est gardé.',
+      ],
     });
   });
 

@@ -26,5 +26,7 @@ const { answer, model, costUsd } = await new OpenRouterMandateExtractor(
   config.mandateFallbackModel,
 ).extract(document, competition);
 const check = checkMandateData(answer, competition);
-console.log(JSON.stringify(check.ok ? check.data : { refused: check.problems, answer }, null, 2));
+console.log(
+  JSON.stringify(check.ok ? { ...check.data, problems: check.problems } : { refused: check.problems, answer }, null, 2),
+);
 console.log(`${model}, $${(costUsd ?? 0).toFixed(5)}, ${Math.round(performance.now() - started) / 1000} s`);

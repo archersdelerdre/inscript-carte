@@ -243,8 +243,8 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
   the FFTA categories it applies to (`categories`, U11 to S3). The LLM copies every price line as written ("Jeunes" =
   U11 to U21, "Adultes" = S1 to S3, "Tous" = all eight), even when a category is in two lines. The code picks, per
   category and number of départs, the price naming the fewest categories (`pricesFor`: "U11 6 €" beats "Jeunes
-  8 €"); only two equally specific prices with different amounts are refused (`hasPriceConflict`, also in the edit
-  modal). `categoriesLabel` names a list ("Tous", "Adultes", "Jeunes (U13 à U21)", "U11, U15").
+  8 €"); two equally specific prices with different amounts are a conflict (`hasPriceConflict`, also refused in the
+  edit modal). `categoriesLabel` names a list ("Tous", "Adultes", "Jeunes (U13 à U21)", "U11, U15").
 - A competition's page (`competition-registrations.tsx`, max 6xl wide, roomy: 32 px between blocks, white cards with
   a shadow on the grey `bg-muted` page; the user found it cramped and low-contrast, 2026-10-25), top to bottom: title
   with "Mandat (PDF)"; one compact bar (`registrations-summary.tsx`; the user rejected a box per number): « À
@@ -317,6 +317,12 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     (`rhythmsAreAlternatives`); the user's rules are applied by the code (`rhythmsOf`): only the rhythms the
     discipline allows (indoors AB, ABC or AB/CD: **ABC indoors since 2026-10-25**; outdoors ABC or AB/CD; **none off
     targets**, `allowedRhythms`); each one when they are per départ; for a choice ("AB/CD ou ABC selon le nombre
+  - **Price conflicts** (2026-10-29: 17 re-readings out of 359 refused that way): the prompt keeps only the prices of
+    the competition's days and the normal price (no per-day or weekend packages, no reduced or conditional prices,
+    no surcharges). An answer refused, or whose prices still conflict, is asked once more and the better answer kept
+    (`quality`). Still conflicting: the reading is kept `parsed` **without any price** (a wrong price is worse than
+    none; départs, rhythms and the Inscript'Arc link stay), its `problems` say why, shown under « Tarifs absents du
+    mandat »; an admin enters the prices by hand. A forced re-read in that state keeps the previous good reading.
     d'archers"), **AB/CD as soon as it is named**, else the only one, else none. Readings made before 2026-10-25 have
     no `rhythmsAreAlternatives` and count as a choice (as they did); readings made before the rhythm was asked have
     none. The edit modal (one checkbox per allowed rhythm; none ticked = the reading's) and the filter offer only the

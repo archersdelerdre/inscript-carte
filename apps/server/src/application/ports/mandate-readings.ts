@@ -5,7 +5,7 @@ export type MandateReadingState = {
   mandateUrl: string;
   status: MandateStatus;
   attempts: number;
-  /** Why it is `invalid` or `failed`; empty when `parsed`. */
+  /** Why it is `invalid` or `failed`; for `parsed`, what it left out (its prices, when they contradicted each other). */
   problems: string[];
 };
 
