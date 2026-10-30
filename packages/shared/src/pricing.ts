@@ -46,3 +46,22 @@ export function amountDue(
   if (total === null || alreadyPaid === null) return null;
   return Math.round((total - alreadyPaid) * 100) / 100;
 }
+
+/**
+ * What the last of the départs whose money the club holds (paid, or to refund) is worth: their price, less the price
+ * of one fewer. The amount a départ the club no longer counts on gives back as credit. With degressive prices, the
+ * 2nd of "1 départ 9 €, 2 départs 16 €" is worth 7 €. `null` when the club holds no money for these départs, or when
+ * the mandate gives no price that fits.
+ */
+export function heldDepartureValue(
+  prices: readonly MandatePrice[] | null,
+  category: AgeCategory,
+  departures: readonly { paymentStatus: PaymentStatus }[],
+): number | null {
+  const held = departures.filter(({ paymentStatus }) => paymentStatus === 'paid' || paymentStatus === 'to_refund');
+  if (held.length === 0) return null;
+  const all = registrationPrice(prices, category, held.length);
+  const others = held.length === 1 ? 0 : registrationPrice(prices, category, held.length - 1);
+  if (all === null || others === null) return null;
+  return Math.round((all - others) * 100) / 100;
+}

@@ -19,6 +19,9 @@ export const STATUS_BY_REASON = {
   admin_needs_password: 409,
   scraper_busy: 409,
   scraper_unavailable: 503,
+  credit_too_low: 409,
+  credit_price_unknown: 409,
+  credit_already_used: 409,
 } as const satisfies Partial<Record<ApiError['error'], number>>;
 
 export function error(code: ApiError['error'], status: number): Response {

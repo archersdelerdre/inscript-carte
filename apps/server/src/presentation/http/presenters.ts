@@ -174,6 +174,7 @@ export function toAdminRegistrationDto(
     createdAt: registration.createdAt,
     updatedByName,
     clubPaysRegistrations,
+    credit: registration.creditCents === null ? null : registration.creditCents / 100,
   };
 }
 
@@ -188,6 +189,7 @@ export function toAdminMemberDto({ archer, category, isAdmin }: ClubMember): Adm
     isAdmin,
     clubPaysRegistrations: archer.clubPaysRegistrations,
     hasPassword: archer.hasPassword,
+    credit: archer.creditCents / 100,
   };
 }
 

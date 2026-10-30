@@ -113,12 +113,27 @@
           <td>Remboursé</td>
           <td>Le remboursement est fait.</td>
         </tr>
+        <tr>
+          <td>Gardé en avoir</td>
+          <td>Au lieu de rembourser, le club garde la somme : l'archer s'en servira pour une prochaine inscription.</td>
+        </tr>
       </table>
       <p style="margin-top: 3mm; break-inside: avoid">
         Le paiement suit le statut : un départ qui passe en « Plus de place » ou « Annulée » devient « Rien à payer »
         s'il n'était pas payé, « À rembourser » s'il l'était. Remis dans un autre statut, il revient à « En attente de
         paiement » ou à « Payé ». Pour un licencié dont le club paie les inscriptions, il reste « Rien à payer ». Le
         menu permet toujours de choisir un autre état à la main.
+      </p>
+      <h3>Avoir</h3>
+      <p>
+        Un départ « À rembourser » peut être <b>gardé en avoir</b> : choisissez « Gardé en avoir » dans son menu de
+        paiement. Le montant est calculé à partir des tarifs du mandat ; corrigez-le si l'archer a payé une autre somme,
+        ou saisissez-le si le mandat ne donne pas de prix. La ligne du départ indique ensuite « 9 € gardés en avoir »,
+        et la mention <b>Avoir 9 €</b> s'affiche à côté du nom dans « Licenciés ». L'archer voit son avoir dans « Mon
+        suivi » et, à sa prochaine inscription, choisit le mode de paiement « Avec mon avoir » : le prix du concours est
+        pris sur l'avoir et ses départs passent directement en « Payé ». L'avoir doit couvrir tout le prix du concours ;
+        sinon, l'archer choisit un autre mode de paiement. S'il retire lui-même un départ payé ainsi, la somme revient
+        sur son avoir. Un avoir déjà utilisé ne peut plus être retiré du départ qui l'a créé.
       </p>
       <h3>Actions sur toute une fiche</h3>
       <ul>
@@ -246,6 +261,10 @@
           prochains départs sont enregistrés en « Rien à payer ». Ses inscriptions déjà faites ne changent pas. La
           mention <b>Payé par le club</b> s'affiche à côté de son nom, ici et sur ses inscriptions. La mise à jour de la
           liste FFTA n'y touche pas ; <b>Le club ne paie plus ses inscriptions</b> l'arrête.
+        </li>
+        <li>
+          <b>Remettre son avoir à zéro</b> (même menu, seulement s'il a un avoir) : une fois l'argent rendu, ou si cet
+          avoir ne doit plus servir.
         </li>
         <li>
           Un licencié peut ajouter un mot de passe (bouton « Mot de passe » en haut de la carte) : la mention

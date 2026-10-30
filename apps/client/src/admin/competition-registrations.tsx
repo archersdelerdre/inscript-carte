@@ -2,10 +2,12 @@ import {
   apiPath,
   API_ROUTES,
   BOW_TYPE_LABELS,
+  canChangePayment,
   canChangeStatus,
   categoryLabel,
   departureTitle,
   DISTANCE_LABELS,
+  heldDepartureValue,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUSES,
@@ -56,6 +58,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateRange, formatDateTime, formatDay } from '@/lib/dates';
+import { formatEuros } from '@/lib/euros';
 import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 import { PaymentDot, StatusBadge, StatusDot } from '@/registrations/status-badge';
@@ -99,6 +102,7 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
   const [paymentFilter, setPaymentFilter] = useState<typeof ALL | PaymentStatus>(ALL);
   const [noteFor, setNoteFor] = useState<AdminRegistrationDto | null>(null);
   const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
+  const [toCredit, setToCredit] = useState<AdminRegistrationDto | null>(null);
   const [query, setQuery] = useState('');
 
   const showResult = useCallback(
@@ -336,7 +340,11 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
                 group={group}
                 forceOpen={query.trim() !== ''}
                 onRowStatus={changeRowStatus}
-                onRowPayment={(registration, paymentStatus) => void updateRow(registration, { paymentStatus })}
+                onRowPayment={(registration, paymentStatus) =>
+                  paymentStatus === 'credited'
+                    ? setToCredit(registration)
+                    : void updateRow(registration, { paymentStatus })
+                }
                 onRowNote={setNoteFor}
                 onReferenceStatus={(status) => changeReferenceStatus(group, status)}
                 onReferencePayment={(paymentStatus) => void updateReference(group.paymentReference, { paymentStatus })}
@@ -353,6 +361,22 @@ export function CompetitionRegistrations({ competitionId, onSessionExpired, onCh
           onSave={async (clubNote) => {
             setNoteFor(null);
             await updateRow(noteFor, { clubNote });
+          }}
+        />
+      )}
+
+      {toCredit && (
+        <CreditDialog
+          registration={toCredit}
+          suggested={heldDepartureValue(
+            competition.prices,
+            toCredit.category,
+            registrations.filter((row) => row.paymentReference === toCredit.paymentReference),
+          )}
+          onClose={() => setToCredit(null)}
+          onSave={async (credit) => {
+            setToCredit(null);
+            await updateRow(toCredit, { paymentStatus: 'credited', credit });
           }}
         />
       )}
@@ -623,7 +647,11 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
           </SelectTrigger>
           <SelectContent>
             {PAYMENT_STATUSES.map((paymentStatus) => (
-              <SelectItem key={paymentStatus} value={paymentStatus}>
+              <SelectItem
+                key={paymentStatus}
+                value={paymentStatus}
+                disabled={!canChangePayment(registration.paymentStatus, paymentStatus)}
+              >
                 <PaymentDot paymentStatus={paymentStatus} />
                 {PAYMENT_STATUS_LABELS[paymentStatus]}
               </SelectItem>
@@ -636,8 +664,13 @@ function DepartureRow({ registration, onStatus, onPayment, onNote }: DepartureRo
         </Button>
       </div>
 
-      {(registration.clubNote || registration.updatedByName) && (
+      {(registration.clubNote || registration.updatedByName || registration.credit !== null) && (
         <div className='text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-sm'>
+          {registration.credit !== null && (
+            <p className='text-foreground'>
+              {formatEuros(registration.credit)} {registration.credit >= 2 ? 'gardés' : 'gardé'} en avoir
+            </p>
+          )}
           {registration.clubNote && (
             <p className='text-foreground flex gap-1.5 whitespace-pre-line'>
               <MessageSquareTextIcon className='text-muted-foreground mt-0.5 size-4 shrink-0' />
@@ -692,6 +725,69 @@ function NoteDialog({ registration, onClose, onSave }: NoteDialogProps) {
               Annuler
             </Button>
             <Button type='submit'>Enregistrer</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type CreditDialogProps = {
+  registration: AdminRegistrationDto;
+  /** What the départ is worth from the mandate's prices (`heldDepartureValue`); `null` when none fits. */
+  suggested: number | null;
+  onClose: () => void;
+  onSave: (credit: number) => Promise<void>;
+};
+
+/** « Gardé en avoir »: the money of a départ to refund stays at the club, for the archer's next registrations. */
+function CreditDialog({ registration, suggested, onClose, onSave }: CreditDialogProps) {
+  const [amount, setAmount] = useState(suggested === null ? '' : String(suggested).replace('.', ','));
+  const value = Number(amount.trim().replace(',', '.'));
+  // Euros and cents, nothing smaller: 6,5 or 6,50 but not 6,505.
+  const valid = amount.trim() !== '' && value > 0 && Math.abs(Math.round(value * 100) - value * 100) < 1e-6;
+  const they = registration.sex === 'female' ? 'elle' : 'il';
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <form
+          className='grid gap-4'
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (valid) void onSave(value);
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Garder ce départ en avoir ?</DialogTitle>
+            <DialogDescription>
+              Au lieu de rembourser le départ {registration.departure} de {registration.fullName}, le club garde
+              l'argent : {they} pourra s'en servir pour payer une prochaine inscription, depuis le formulaire.
+            </DialogDescription>
+          </DialogHeader>
+          <div className='grid gap-2'>
+            <Label htmlFor='credit-amount'>Montant gardé en avoir, en euros</Label>
+            <Input
+              id='credit-amount'
+              inputMode='decimal'
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              className='w-32'
+              autoFocus
+            />
+            <p className='text-muted-foreground text-sm'>
+              {suggested === null
+                ? "Le mandat ne donne pas de prix pour ce départ : indiquez la somme que l'archer a payée pour lui."
+                : 'Calculé à partir des tarifs du mandat. Corrigez-le si l’archer a payé une autre somme.'}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type='button' variant='outline' onClick={onClose}>
+              Annuler
+            </Button>
+            <Button type='submit' disabled={!valid}>
+              Garder en avoir
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

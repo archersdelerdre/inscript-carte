@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import type {
   AdminCompetitionRegistrationsResponse,
   AdminSessionResponse,
+  ApiError,
   CompetitionDto,
   CompetitionEditResponse,
   GrantAdminResponse,
@@ -322,6 +323,7 @@ describe('registration', () => {
       paymentStatus: 'to_pay',
       // No mandate read: no amount rather than a wrong one.
       amountDue: null,
+      creditUsed: null,
     });
 
     const second = await call(`/api/competitions/${SALLE}/registrations`, {
@@ -904,6 +906,7 @@ describe('admin registrations', () => {
       createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/),
       updatedByName: null,
       clubPaysRegistrations: false,
+      credit: null,
     });
   });
 
@@ -1072,6 +1075,74 @@ describe('admin registrations', () => {
     await patch({ status: 'full' });
     await patch({ status: 'confirmed' });
     expect(await payments()).toEqual(['nothing_due', 'nothing_due', 'to_pay']);
+  });
+
+  test('a départ to refund kept as credit pays a later registration; taking it back needs it unspent', async () => {
+    await database('competition_mandates').insert({
+      ffta_id: SALLE,
+      mandate_url: 'https://extranet.ffta.fr/salle.pdf',
+      status: 'parsed',
+      data: JSON.stringify({
+        departures: [],
+        prices: [
+          { categories: ['U11', 'U13', 'U15', 'U18', 'U21'], departures: 1, amountEuros: 6 },
+          { categories: ['U11', 'U13', 'U15', 'U18', 'U21'], departures: 2, amountEuros: 10 },
+        ],
+        foamTargets: 'not_mentioned',
+        evidence: {},
+      }),
+      read_at: new Date().toISOString(),
+    });
+    await registerBoth();
+    const youth = await signIn(YOUTH);
+    const [, second, adults] = await adminRegistrations(cookie);
+    const patch = (id: number, body: object) =>
+      call(`/api/admin/registrations/${id}`, { method: 'PATCH', cookie, body });
+    const credit = async () =>
+      ((await (await call('/api/me/registrations', { cookie: youth })).json()) as ListMyRegistrationsResponse).credit;
+    const errorOf = async (response: Promise<Response>) => ((await (await response).json()) as ApiError).error;
+    const registerWithCredit = (competitionId: string, departures: number[], extra: object = {}) =>
+      call(`/api/competitions/${competitionId}/registrations`, {
+        method: 'POST',
+        cookie: youth,
+        body: form({ departures, paymentMethod: 'credit', ...extra }),
+      });
+
+    await call('/api/admin/payment-references/R-0001', { method: 'PATCH', cookie, body: { paymentStatus: 'paid' } });
+    await patch(second!.id, { status: 'full' });
+    // Only a départ to refund, and with its amount.
+    expect((await patch(second!.id, { paymentStatus: 'credited' })).status).toBe(400);
+    expect((await patch(adults!.id, { paymentStatus: 'credited', credit: 9 })).status).toBe(400);
+    expect((await patch(second!.id, { paymentStatus: 'credited', credit: 4 })).status).toBe(204);
+    expect(await credit()).toBe(4);
+
+    // Nothing to take from it while the price is unknown, nor more than there is.
+    expect(await errorOf(registerWithCredit(EXTERIEUR, [1], { distance: 'nationales' }))).toBe('credit_price_unknown');
+    expect(await errorOf(registerWithCredit(SALLE, [3, 4]))).toBe('credit_too_low');
+    // A 2nd départ beside the paid one costs 10 − 6: exactly the credit.
+    const paid = await registerWithCredit(SALLE, [3]);
+    expect(await paid.json()).toMatchObject({ paymentStatus: 'paid', amountDue: null, creditUsed: 4 });
+    expect(await credit()).toBe(0);
+
+    // Spent: the club can no longer take it back, and the départ back on track is to pay again.
+    expect(await errorOf(patch(second!.id, { paymentStatus: 'refunded' }))).toBe('credit_already_used');
+    await patch(second!.id, { status: 'received' });
+    const rows = await adminRegistrations(cookie);
+    expect(
+      rows.map(({ departure, paymentStatus, paymentMethod }) => [departure, paymentStatus, paymentMethod]),
+    ).toEqual([
+      [1, 'paid', 'cheque'],
+      [2, 'to_pay', 'cheque'],
+      [3, 'paid', 'credit'],
+      [1, 'to_pay', 'cheque'],
+    ]);
+    expect(await credit()).toBe(0);
+
+    // Withdrawn, a départ paid with credit goes back to it; then the club gives the credit back by hand.
+    await call(`/api/me/registrations/${rows[2]!.id}`, { method: 'DELETE', cookie: youth });
+    expect(await credit()).toBe(4);
+    await call(`/api/admin/members/${YOUTH.licenceNumber}`, { method: 'PATCH', cookie, body: { clearCredit: true } });
+    expect(await credit()).toBe(0);
   });
 
   test('« Tout marquer remboursé » refunds the départs to refund, cancelled ones included, and nothing else', async () => {
@@ -1262,6 +1333,7 @@ describe('member list', () => {
         isAdmin: false,
         clubPaysRegistrations: false,
         hasPassword: false,
+        credit: 0,
       },
       {
         licenceNumber: ADULT.licenceNumber,
@@ -1273,6 +1345,7 @@ describe('member list', () => {
         clubPaysRegistrations: false,
         // The admin's password is their member password.
         hasPassword: true,
+        credit: 0,
       },
       {
         licenceNumber: YOUTH.licenceNumber,
@@ -1283,6 +1356,7 @@ describe('member list', () => {
         isAdmin: false,
         clubPaysRegistrations: false,
         hasPassword: true,
+        credit: 0,
       },
     ]);
   });

@@ -1,4 +1,5 @@
 import {
+  canChangePayment,
   canChangeStatus,
   PAYMENT_STATUSES,
   paymentForStatus,
@@ -22,6 +23,8 @@ import type { Registration } from '../domain/registration.ts';
 import type { Clock } from './ports/clock.ts';
 
 const MAX_CLUB_NOTE_LENGTH = 500;
+/** No départ costs that much: a typing mistake. */
+const MAX_CREDIT_CENTS = 100_000;
 /** What the organizer must receive: the club still counts on these départs. */
 const SENT_STATUSES: readonly RegistrationStatus[] = ['received', 'sent_to_organizer', 'confirmed'];
 
@@ -43,13 +46,24 @@ export type OrganizerList = {
 };
 
 /** The request body, as sent; every field is checked here. Missing fields stay as they are. */
-export type RegistrationUpdateForm = { status?: unknown; paymentStatus?: unknown; clubNote?: unknown };
+export type RegistrationUpdateForm = {
+  status?: unknown;
+  paymentStatus?: unknown;
+  credit?: unknown;
+  clubNote?: unknown;
+};
 
 export type UpdateResult =
   | { ok: true }
-  | { ok: false; reason: 'not_found' | 'invalid_request' | 'status_change_not_allowed' };
+  | { ok: false; reason: 'not_found' | 'invalid_request' | 'status_change_not_allowed' | 'credit_already_used' };
 
-type RegistrationUpdate = { status?: RegistrationStatus; paymentStatus?: PaymentStatus; clubNote?: string | null };
+type RegistrationUpdate = {
+  status?: RegistrationStatus;
+  paymentStatus?: PaymentStatus;
+  /** With `paymentStatus: 'credited'`: the amount kept. */
+  creditCents?: number;
+  clubNote?: string | null;
+};
 
 /** The club secretary's work: follow registrations, change statuses and payments, prepare the organizer's list. */
 export class AdminRegistrations {
@@ -148,9 +162,17 @@ export class AdminRegistrations {
     if (update.status && !canChangeStatus(registration.status, update.status)) {
       return { ok: false, reason: 'status_change_not_allowed' };
     }
+    if (update.paymentStatus && !canChangePayment(registration.paymentStatus, update.paymentStatus)) {
+      return { ok: false, reason: 'invalid_request' };
+    }
+    // A new credit needs its amount, and only a new one.
+    const newCredit = update.paymentStatus === 'credited' && registration.paymentStatus !== 'credited';
+    if (newCredit !== (update.creditCents !== undefined)) return { ok: false, reason: 'invalid_request' };
     const archer = await this.#archers.findByLicenceNumber(registration.archerLicenceNumber);
     const change = changeOf(registration, update, this.#clock.today(), archer?.clubPaysRegistrations ?? false);
-    await this.#registrations.save([change], admin.licenceNumber);
+    const settled = settleCredit(registration, change, update, archer?.creditCents ?? 0);
+    if (!settled) return { ok: false, reason: 'credit_already_used' };
+    await this.#registrations.save([settled.change], admin.licenceNumber);
     return { ok: true };
   }
 
@@ -161,17 +183,29 @@ export class AdminRegistrations {
     form: RegistrationUpdateForm,
   ): Promise<UpdateResult> {
     const update = parseUpdate(form, false);
-    if (!update) return { ok: false, reason: 'invalid_request' };
+    // Credit is given one départ at a time, with its own amount.
+    if (!update || update.paymentStatus === 'credited') return { ok: false, reason: 'invalid_request' };
     const registrations = await this.#registrations.forPaymentReference(paymentReference);
     if (registrations.length === 0) return { ok: false, reason: 'not_found' };
     const today = this.#clock.today();
     // One reference belongs to one archer.
     const archer = await this.#archers.findByLicenceNumber(registrations[0]!.archerLicenceNumber);
     const clubPays = archer?.clubPaysRegistrations ?? false;
-    const changes = registrations.flatMap((registration) => {
+    let creditCents = archer?.creditCents ?? 0;
+    const changes: RegistrationChange[] = [];
+    for (const registration of registrations) {
       const rowUpdate = forReferenceRow(registration, update);
-      return rowUpdate ? [changeOf(registration, rowUpdate, today, clubPays)] : [];
-    });
+      if (!rowUpdate) continue;
+      const settled = settleCredit(
+        registration,
+        changeOf(registration, rowUpdate, today, clubPays),
+        rowUpdate,
+        creditCents,
+      );
+      if (!settled) return { ok: false, reason: 'credit_already_used' };
+      changes.push(settled.change);
+      creditCents = settled.creditCents;
+    }
     if (changes.length > 0) await this.#registrations.save(changes, admin.licenceNumber);
     return { ok: true };
   }
@@ -184,6 +218,7 @@ const REFERENCE_PAYMENT_FROM: Record<PaymentStatus, readonly PaymentStatus[]> = 
   nothing_due: ['to_pay'],
   to_refund: ['refunded'],
   refunded: ['to_refund'],
+  credited: [],
 };
 
 function summarize(
@@ -232,6 +267,12 @@ function parseUpdate(form: RegistrationUpdateForm, allowNote: boolean): Registra
     if (!paymentStatus) return null;
     update.paymentStatus = paymentStatus;
   }
+  if (form.credit !== undefined) {
+    const cents = typeof form.credit === 'number' ? Math.round(form.credit * 100) : Number.NaN;
+    if (!(cents > 0 && cents <= MAX_CREDIT_CENTS) || Math.abs(cents - (form.credit as number) * 100) > 1e-6)
+      return null;
+    update.creditCents = cents;
+  }
   if (form.clubNote !== undefined) {
     if (!allowNote || (form.clubNote !== null && typeof form.clubNote !== 'string')) return null;
     const note = form.clubNote?.trim() ?? '';
@@ -243,7 +284,8 @@ function parseUpdate(form: RegistrationUpdateForm, allowNote: boolean): Registra
 
 /**
  * The new values of one row; the status change was checked before. Cancelling adds a line to the note. A status
- * change without a payment choice moves the payment along (`paymentForStatus`).
+ * change without a payment choice moves the payment along (`paymentForStatus`). The credit is settled after
+ * (`settleCredit`).
  */
 function changeOf(
   registration: Registration,
@@ -259,6 +301,35 @@ function changeOf(
     status,
     paymentStatus: update.paymentStatus ?? paymentForStatus(status, registration.paymentStatus, clubPays),
     clubNote: cancels ? [note, `Annulée par le club le ${toFrenchDate(today)}`].filter(Boolean).join('\n') : note,
+    creditCents: registration.creditCents,
+    creditMoveCents: 0,
     ...(cancels ? { cancelledAt: today } : {}),
   };
+}
+
+/**
+ * The credit side of one change, given the archer's credit before it (`creditCents`). Kept as credit: the amount
+ * goes to the credit. Leaving « Gardé en avoir » takes it back, only while the archer still has it: otherwise an
+ * admin's choice is refused (`null`), and a départ back on track through its status is to pay again (its credit
+ * already paid something else).
+ */
+function settleCredit(
+  registration: Registration,
+  change: RegistrationChange,
+  update: RegistrationUpdate,
+  creditCents: number,
+): { change: RegistrationChange; creditCents: number } | null {
+  const wasCredited = registration.paymentStatus === 'credited';
+  if (change.paymentStatus === 'credited') {
+    if (wasCredited) return { change, creditCents };
+    const kept = update.creditCents!;
+    return { change: { ...change, creditCents: kept, creditMoveCents: kept }, creditCents: creditCents + kept };
+  }
+  if (!wasCredited) return { change, creditCents };
+  const kept = registration.creditCents ?? 0;
+  if (creditCents >= kept) {
+    return { change: { ...change, creditCents: null, creditMoveCents: -kept }, creditCents: creditCents - kept };
+  }
+  if (update.paymentStatus) return null;
+  return { change: { ...change, paymentStatus: 'to_pay', creditCents: null }, creditCents };
 }

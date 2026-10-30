@@ -63,12 +63,14 @@ export class ClubMembers {
 
   /**
    * By hand: the state, for example a member who left before the next FFTA export (the next import sets it from the
-   * file again), and whether the club pays their registrations (never touched by imports). An admin cannot change
-   * themselves: deactivating would lose them the panel at once.
+   * file again), whether the club pays their registrations (never touched by imports), and their credit back to zero
+   * once the club gave it back. An admin cannot change themselves: deactivating would lose them the panel at once.
    */
   async update(by: Archer, licenceNumber: string, changes: MemberChanges): Promise<UpdateMemberResult> {
     if (licenceNumber === by.licenceNumber) return { ok: false, reason: 'cannot_change_self' };
-    return (await this.#members.update(licenceNumber, changes)) ? { ok: true } : { ok: false, reason: 'not_found' };
+    return (await this.#members.update(licenceNumber, changes, by.licenceNumber))
+      ? { ok: true }
+      : { ok: false, reason: 'not_found' };
   }
 
   /**

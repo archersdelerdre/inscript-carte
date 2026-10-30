@@ -14,10 +14,15 @@ export type Archer = {
   readonly clubPaysRegistrations: boolean;
   /** The member added a password (optional): the sign-in asks it after the birth date. Never the hash itself. */
   readonly hasPassword: boolean;
+  /**
+   * The member's credit (« avoir »), in cents: what was kept from their départs to refund, less what paid later
+   * registrations and what admins gave back.
+   */
+  readonly creditCents: number;
 };
 
-/** What the FFTA export knows: it never carries the club's own flags. */
-export type ExportedMember = Omit<Archer, 'clubPaysRegistrations' | 'hasPassword'>;
+/** What the FFTA export knows: it never carries the club's own data. */
+export type ExportedMember = Omit<Archer, 'clubPaysRegistrations' | 'hasPassword' | 'creditCents'>;
 
 /** Stored only for the organizer's Excel file ("Responsable"), never shown in the app. */
 export type ArcherContact = {

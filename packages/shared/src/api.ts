@@ -81,7 +81,13 @@ export type ApiError = {
     /** An FFTA scraper run is already going (`ScraperBusyResponse` also gives it). */
     | 'scraper_busy'
     /** The server has no browser to read the FFTA site with (`CHROME_PATH` not set). */
-    | 'scraper_unavailable';
+    | 'scraper_unavailable'
+    /** Paying with the credit: it is smaller than what this competition costs. */
+    | 'credit_too_low'
+    /** Paying with the credit: the mandate gives no price that fits, so nobody knows what to take from it. */
+    | 'credit_price_unknown'
+    /** A départ kept as credit cannot change any more: the archer already spent that credit. */
+    | 'credit_already_used';
 };
 
 /** Admin passwords have at least this many characters. */
@@ -183,7 +189,7 @@ export type RegistrationRequest = {
   /** Required for "Extérieur" competitions, `null` otherwise. */
   distance: Distance | null;
   contact: string | null;
-  /** `null` only when the club pays the archer's registrations. */
+  /** `null` only when the club pays the archer's registrations. `credit` only while the archer has some. */
   paymentMethod: PaymentMethod | null;
 };
 
@@ -199,6 +205,8 @@ export type RegistrationCreatedResponse = {
   /** What is left to pay the club for this competition, all the archer's départs there; `null` when nothing is
    * left to pay or the mandate gives no price that fits (`amountDue`). */
   amountDue: number | null;
+  /** Paid with the archer's credit: what it took from it. */
+  creditUsed: number | null;
 };
 
 export type CompetitionRegistrantDto = {
@@ -246,6 +254,8 @@ export type MyRegistrationDto = {
 
 export type ListMyRegistrationsResponse = {
   registrations: MyRegistrationDto[];
+  /** The archer's credit (« avoir »), in euros: money the club keeps for their next registrations. `0`: none. */
+  credit: number;
 };
 
 export type AdminSessionResponse = {
@@ -423,6 +433,8 @@ export type AdminRegistrationDto = {
   updatedByName: string | null;
   /** The club pays this archer's registrations (why the départs say "Rien à payer"). */
   clubPaysRegistrations: boolean;
+  /** Kept as credit (`paymentStatus` `credited`): the amount, in euros. */
+  credit: number | null;
 };
 
 export type AdminCompetitionRegistrationsResponse = {
@@ -434,11 +446,13 @@ export type AdminCompetitionRegistrationsResponse = {
 /** Only the fields to change are sent. `clubNote: null` (or blank) removes the note. */
 export type UpdateRegistrationRequest = {
   status?: RegistrationStatus;
+  /** `credited` (only from `to_refund`) needs `credit`, the amount kept in euros. */
   paymentStatus?: PaymentStatus;
+  credit?: number;
   clubNote?: string | null;
 };
 
-/** Applied to every départ of the reference that is not cancelled. */
+/** Applied to every départ of the reference that is not cancelled. Never `credited`: one départ at a time. */
 export type UpdatePaymentReferenceRequest = {
   status?: RegistrationStatus;
   paymentStatus?: PaymentStatus;
@@ -456,6 +470,8 @@ export type AdminMemberDto = {
   isAdmin: boolean;
   clubPaysRegistrations: boolean;
   hasPassword: boolean;
+  /** In euros; `0`: none. */
+  credit: number;
 };
 
 export type ListAdminMembersResponse = {
@@ -463,8 +479,11 @@ export type ListAdminMembersResponse = {
   members: AdminMemberDto[];
 };
 
-/** At least one field. `isActive` holds until the next FFTA import; `clubPaysRegistrations` is never touched by it. */
-export type UpdateMemberRequest = { isActive?: boolean; clubPaysRegistrations?: boolean };
+/**
+ * At least one field. `isActive` holds until the next FFTA import; `clubPaysRegistrations` is never touched by it.
+ * `clearCredit`: the club gave the member's credit back (or wrote it off): it goes to `0`.
+ */
+export type UpdateMemberRequest = { isActive?: boolean; clubPaysRegistrations?: boolean; clearCredit?: true };
 
 export type GrantAdminResponse = {
   /**

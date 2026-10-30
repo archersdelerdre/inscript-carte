@@ -136,6 +136,7 @@ export function createRoutes({
         const registrations = await clubRegistrations.mine(archer);
         return Response.json({
           registrations: registrations.map(toMyRegistrationDto),
+          credit: archer.creditCents / 100,
         } satisfies ListMyRegistrationsResponse);
       },
     },

@@ -3,6 +3,7 @@ import {
   amountDue,
   BOW_TYPES,
   DISTANCES,
+  heldDepartureValue,
   PAYMENT_METHODS,
   type AgeCategory,
   type BowType,
@@ -16,7 +17,7 @@ import { birthYear, type Archer } from '../domain/archer.ts';
 import { toFrenchDate } from '../domain/calendar-date.ts';
 import type { CompetitionRepository } from '../domain/competition-repository.ts';
 import { clubRegistrationDeadline, departureCount, type Competition } from '../domain/competition.ts';
-import type { RegistrationRepository } from '../domain/registration-repository.ts';
+import type { RegistrationChange, RegistrationRepository } from '../domain/registration-repository.ts';
 import { canWithdraw, isClubRegistrationOpen, type Registration } from '../domain/registration.ts';
 import type { Clock } from './ports/clock.ts';
 
@@ -41,8 +42,18 @@ export type RegisterResult =
       paymentDeadline: string;
       paymentStatus: PaymentStatus;
       amountDue: number | null;
+      creditUsed: number | null;
     }
-  | { ok: false; reason: 'not_found' | 'invalid_request' | 'registration_closed' | 'already_registered' };
+  | {
+      ok: false;
+      reason:
+        | 'not_found'
+        | 'invalid_request'
+        | 'registration_closed'
+        | 'already_registered'
+        | 'credit_too_low'
+        | 'credit_price_unknown';
+    };
 
 export type RegistrantGroup = {
   fullName: string;
@@ -90,8 +101,9 @@ export class ClubRegistrations {
       !departures ||
       typeof form.trispot !== 'boolean' ||
       typeof form.carpool !== 'boolean' ||
-      // Required, except when the club pays: then the form sends `null`.
+      // Required, except when the club pays: then the form sends `null`. Nothing to take from the credit then.
       (paymentMethod === null && !(archer.clubPaysRegistrations && form.paymentMethod === null)) ||
+      (paymentMethod === 'credit' && archer.clubPaysRegistrations) ||
       !distanceValid ||
       (form.contact !== null && contact === null) ||
       (contact !== null && contact.length > MAX_CONTACT_LENGTH)
@@ -105,7 +117,21 @@ export class ClubRegistrations {
     }
 
     const category = ageCategory(birthYear(archer), competition.startDate);
-    const paymentStatus = archer.clubPaysRegistrations ? 'nothing_due' : 'to_pay';
+    // Earlier requests on the same competition count too: degressive prices are for all the départs.
+    const ownDepartures = async () =>
+      (await this.#registrations.forArcher(archer.licenceNumber)).filter(
+        (registration) => registration.competitionId === competition.id,
+      );
+    // The credit pays what this competition costs, or nothing: a part would leave the rest to pay another way.
+    let creditUsedCents: number | null = null;
+    if (paymentMethod === 'credit') {
+      const newDepartures = departures.map(() => ({ status: 'received', paymentStatus: 'to_pay' }) as const);
+      const due = amountDue(competition.prices, category, [...(await ownDepartures()), ...newDepartures]);
+      if (due === null) return { ok: false, reason: 'credit_price_unknown' };
+      creditUsedCents = Math.round(due * 100);
+      if (archer.creditCents < creditUsedCents) return { ok: false, reason: 'credit_too_low' };
+    }
+    const paymentStatus = archer.clubPaysRegistrations ? 'nothing_due' : creditUsedCents === null ? 'to_pay' : 'paid';
     const result = await this.#registrations.add({
       competitionId: competition.id,
       archerLicenceNumber: archer.licenceNumber,
@@ -117,12 +143,9 @@ export class ClubRegistrations {
       contact: contact || null,
       paymentMethod,
       paymentStatus,
+      creditUsedCents,
     });
     if (!result.ok) return result;
-    // Earlier requests on the same competition count too: degressive prices are for all the départs.
-    const ownDepartures = (await this.#registrations.forArcher(archer.licenceNumber)).filter(
-      (registration) => registration.competitionId === competition.id,
-    );
     return {
       ok: true,
       departures: departures.map(({ departure }) => departure),
@@ -130,7 +153,8 @@ export class ClubRegistrations {
       paymentReference: result.paymentReference,
       paymentDeadline: clubRegistrationDeadline(competition),
       paymentStatus,
-      amountDue: amountDue(competition.prices, category, ownDepartures),
+      amountDue: amountDue(competition.prices, category, await ownDepartures()),
+      creditUsed: creditUsedCents === null ? null : creditUsedCents / 100,
     };
   }
 
@@ -207,8 +231,31 @@ export class ClubRegistrations {
     const today = this.#clock.today();
     if (!competition || !canWithdraw(registration, competition, today)) return { ok: false, reason: 'cannot_withdraw' };
 
-    await this.#registrations.withdraw(registrationId, `Retirée par l'archer le ${toFrenchDate(today)}`, today);
+    await this.#registrations.withdraw(
+      registrationId,
+      `Retirée par l'archer le ${toFrenchDate(today)}`,
+      today,
+      await this.#paymentAfterWithdrawal(registration, competition),
+    );
     return { ok: true };
+  }
+
+  /**
+   * Paid with credit, a withdrawn départ goes back to the credit: what it was worth (`heldDepartureValue`). « À
+   * rembourser » when no price fits any more (the club decides). Any other payment stays as it is.
+   */
+  async #paymentAfterWithdrawal(
+    registration: Registration,
+    competition: Competition,
+  ): Promise<Pick<RegistrationChange, 'paymentStatus' | 'creditCents' | 'creditMoveCents'>> {
+    if (registration.paymentStatus !== 'paid' || registration.paymentMethod !== 'credit') {
+      return { paymentStatus: registration.paymentStatus, creditCents: registration.creditCents, creditMoveCents: 0 };
+    }
+    const reference = await this.#registrations.forPaymentReference(registration.paymentReference);
+    const value = heldDepartureValue(competition.prices, registration.category, reference);
+    if (value === null) return { paymentStatus: 'to_refund', creditCents: null, creditMoveCents: 0 };
+    const creditCents = Math.round(value * 100);
+    return { paymentStatus: 'credited', creditCents, creditMoveCents: creditCents };
   }
 }
 

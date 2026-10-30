@@ -34,6 +34,11 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   scraper_busy: 'Une mise à jour du calendrier FFTA est déjà en cours. Attendez qu’elle se termine.',
   scraper_unavailable:
     'La mise à jour du calendrier FFTA n’est pas possible sur ce serveur (navigateur non installé). Prévenez la personne qui gère le serveur.',
+  credit_too_low:
+    'Votre avoir ne suffit pas pour payer ce concours. Choisissez un autre mode de paiement : votre avoir reste disponible.',
+  credit_price_unknown:
+    'Le prix de ce concours n’est pas connu, votre avoir ne peut donc pas servir ici. Choisissez un autre mode de paiement.',
+  credit_already_used: 'L’archer a déjà utilisé cet avoir pour une autre inscription : il ne peut plus être retiré.',
 };
 
 /** "À régler au club avant le 9 oct., par chèque, …" */
@@ -41,6 +46,7 @@ export const PAYMENT_METHOD_PHRASES: Record<PaymentMethod, string> = {
   cash: 'en espèces',
   cheque: 'par chèque',
   transfer: 'par virement',
+  credit: 'avec votre avoir',
 };
 
 /** `[1]` → "départ 1", `[1, 2, 3]` → "départs 1, 2 et 3". */

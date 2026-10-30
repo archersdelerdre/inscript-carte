@@ -19,6 +19,7 @@ import type {
   RegistrationRepository,
 } from '../../domain/registration-repository.ts';
 import type { NewRegistration, Registration } from '../../domain/registration.ts';
+import { addCreditMove, creditCentsColumn } from './member-credit.ts';
 
 type RegistrationRow = {
   id: number;
@@ -39,6 +40,7 @@ type RegistrationRow = {
   /** SQLite `CURRENT_TIMESTAMP`: `YYYY-MM-DD HH:MM:SS`, UTC. */
   created_at: string;
   updated_by: string | null;
+  credit_cents: number | null;
 };
 
 const ACTIVE = (query: Knex.QueryBuilder) => query.whereNot('registrations.status', 'cancelled');
@@ -87,13 +89,26 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
   async add(registration: NewRegistration): Promise<AddRegistrationsResult> {
     try {
       return await this.#database.transaction(async (transaction) => {
+        const where = {
+          competition_ffta_id: registration.competitionId,
+          archer_licence_number: registration.archerLicenceNumber,
+        };
+        const creditUsed = registration.creditUsedCents;
+        if (creditUsed !== null) {
+          const archer: { credit_cents: number } | undefined = await transaction('archers')
+            .where({ licence_number: registration.archerLicenceNumber })
+            .first(creditCentsColumn(transaction));
+          if (!archer || archer.credit_cents < creditUsed) return { ok: false, reason: 'credit_too_low' } as const;
+          // The credit pays the whole competition: the earlier départs still unpaid too.
+          await transaction('registrations')
+            .where({ ...where, payment_status: 'to_pay' })
+            .whereNotIn('status', ['full', 'cancelled'])
+            .update({ payment_status: 'paid', payment_method: 'credit', updated_at: transaction.fn.now() });
+        }
         // One reference per archer and competition: a second request (another départ) joins the first one, even if its
         // départs were all withdrawn, so the club sees one payment.
         const existing: { payment_reference: string } | undefined = await transaction('registrations')
-          .where({
-            competition_ffta_id: registration.competitionId,
-            archer_licence_number: registration.archerLicenceNumber,
-          })
+          .where(where)
           .orderBy('id')
           .first('payment_reference');
         // Otherwise a club-wide counter, like the old sheet: R-0001, R-0002…
@@ -103,8 +118,7 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
         const paymentReference = existing?.payment_reference ?? `R-${String((last ?? 0) + 1).padStart(4, '0')}`;
         await transaction('registrations').insert(
           registration.departures.map(({ departure, bowType }) => ({
-            competition_ffta_id: registration.competitionId,
-            archer_licence_number: registration.archerLicenceNumber,
+            ...where,
             departure,
             bow_type: bowType,
             category: registration.category,
@@ -117,13 +131,17 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
             payment_reference: paymentReference,
           })),
         );
+        if (creditUsed !== null && creditUsed > 0) {
+          await addCreditMove(transaction, {
+            archerLicenceNumber: registration.archerLicenceNumber,
+            amountCents: -creditUsed,
+            paymentReference,
+          });
+        }
         // Covoiturage is the archer's answer for the whole competition: the latest request wins on every active départ.
         await transaction('registrations')
           .modify(ACTIVE)
-          .where({
-            competition_ffta_id: registration.competitionId,
-            archer_licence_number: registration.archerLicenceNumber,
-          })
+          .where(where)
           .update({ carpool: registration.carpool, updated_at: transaction.fn.now() });
         return { ok: true, paymentReference } as const;
       });
@@ -215,12 +233,22 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
     return row ? toRegistration(row) : null;
   }
 
-  async withdraw(id: number, note: string, today: CalendarDate): Promise<void> {
-    await this.#database('registrations').where({ id }).update({
-      status: 'cancelled',
-      club_note: note,
-      cancelled_at: today,
-      updated_at: this.#database.fn.now(),
+  async withdraw(
+    id: number,
+    note: string,
+    today: CalendarDate,
+    payment: Pick<RegistrationChange, 'paymentStatus' | 'creditCents' | 'creditMoveCents'>,
+  ): Promise<void> {
+    await this.#database.transaction(async (transaction) => {
+      await transaction('registrations').where({ id }).update({
+        status: 'cancelled',
+        payment_status: payment.paymentStatus,
+        credit_cents: payment.creditCents,
+        club_note: note,
+        cancelled_at: today,
+        updated_at: transaction.fn.now(),
+      });
+      await moveCredit(transaction, id, payment.creditMoveCents);
     });
   }
 
@@ -232,14 +260,35 @@ export class SqliteRegistrationRepository implements RegistrationRepository {
           .update({
             status: change.status,
             payment_status: change.paymentStatus,
+            credit_cents: change.creditCents,
             club_note: change.clubNote,
             ...(change.cancelledAt ? { cancelled_at: change.cancelledAt } : {}),
             updated_by: updatedBy,
             updated_at: transaction.fn.now(),
           });
+        await moveCredit(transaction, change.id, change.creditMoveCents, updatedBy);
       }
     });
   }
+}
+
+async function moveCredit(
+  transaction: Knex.Transaction,
+  registrationId: number,
+  amountCents: number,
+  createdBy?: string,
+): Promise<void> {
+  if (amountCents === 0) return;
+  const row: Pick<RegistrationRow, 'archer_licence_number' | 'payment_reference'> = await transaction('registrations')
+    .where({ id: registrationId })
+    .first('archer_licence_number', 'payment_reference');
+  await addCreditMove(transaction, {
+    archerLicenceNumber: row.archer_licence_number,
+    amountCents,
+    registrationId,
+    paymentReference: row.payment_reference,
+    ...(createdBy && { createdBy }),
+  });
 }
 
 function toRegistration(row: RegistrationRow): Registration {
@@ -261,5 +310,6 @@ function toRegistration(row: RegistrationRow): Registration {
     contact: row.contact,
     createdAt: `${row.created_at.replace(' ', 'T')}Z`,
     updatedBy: row.updated_by,
+    creditCents: row.credit_cents,
   };
 }

@@ -3,6 +3,7 @@ import type { Knex } from 'knex';
 
 import type { ArcherRepository } from '../../domain/archer-repository.ts';
 import type { Archer, ArcherContact } from '../../domain/archer.ts';
+import { creditCentsColumn } from './member-credit.ts';
 
 type ArcherRow = {
   licence_number: string;
@@ -12,6 +13,7 @@ type ArcherRow = {
   is_active: 0 | 1;
   club_pays_registrations: 0 | 1;
   password_hash: string | null;
+  credit_cents: number;
 };
 
 export class SqliteArcherRepository implements ArcherRepository {
@@ -22,7 +24,9 @@ export class SqliteArcherRepository implements ArcherRepository {
   }
 
   async findByLicenceNumber(licenceNumber: string): Promise<Archer | null> {
-    const row = await this.#database<ArcherRow>('archers').where({ licence_number: licenceNumber }).first();
+    const row: ArcherRow | undefined = await this.#database('archers')
+      .where({ licence_number: licenceNumber })
+      .first('archers.*', creditCentsColumn(this.#database));
     return row
       ? {
           licenceNumber: row.licence_number,
@@ -32,6 +36,7 @@ export class SqliteArcherRepository implements ArcherRepository {
           isActive: row.is_active === 1,
           clubPaysRegistrations: row.club_pays_registrations === 1,
           hasPassword: row.password_hash !== null,
+          creditCents: row.credit_cents,
         }
       : null;
   }

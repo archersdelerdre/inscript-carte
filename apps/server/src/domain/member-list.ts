@@ -58,10 +58,13 @@ export interface MemberListRepository {
   countActive(): Promise<number>;
   /** Every member, those who left included. */
   all(): Promise<Archer[]>;
-  /** `false` when no member has this licence number. */
-  update(licenceNumber: string, changes: MemberChanges): Promise<boolean>;
+  /** `false` when no member has this licence number. `updatedBy`: the admin's licence number. */
+  update(licenceNumber: string, changes: MemberChanges, updatedBy: string): Promise<boolean>;
   /** For a member who forgot it; `false` when no member has this licence number. */
   removePassword(licenceNumber: string): Promise<boolean>;
 }
 
-export type MemberChanges = Partial<Pick<Archer, 'isActive' | 'clubPaysRegistrations'>>;
+export type MemberChanges = Partial<Pick<Archer, 'isActive' | 'clubPaysRegistrations'>> & {
+  /** The club gave the credit back (or wrote it off): it goes to zero. */
+  readonly clearCredit?: true;
+};

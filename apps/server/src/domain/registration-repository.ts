@@ -17,7 +17,9 @@ export type Registrant = {
 export type AddRegistrationsResult =
   | { readonly ok: true; readonly paymentReference: string }
   /** Another active registration already exists for one of these départs. */
-  | { readonly ok: false; readonly reason: 'already_registered' };
+  | { readonly ok: false; readonly reason: 'already_registered' }
+  /** Paid with credit, but the archer's credit no longer covers it (spent meanwhile). */
+  | { readonly ok: false; readonly reason: 'credit_too_low' };
 
 /** A registration with the names the admin panel shows. */
 export type RegistrationDetails = {
@@ -41,6 +43,10 @@ export type RegistrationChange = {
   readonly status: RegistrationStatus;
   readonly paymentStatus: PaymentStatus;
   readonly clubNote: string | null;
+  /** Kept as credit: the amount, in cents; `null` for any other payment state. */
+  readonly creditCents: number | null;
+  /** What this change gives to the archer's credit (negative: takes back), in cents; `0`: nothing. */
+  readonly creditMoveCents: number;
   /** Only when this change cancels the row. */
   readonly cancelledAt?: CalendarDate;
 };
@@ -53,7 +59,8 @@ export interface RegistrationRepository {
   activeDepartures(competitionId: string, archerLicenceNumber: string): Promise<number[]>;
   /**
    * Adds one registration per départ, with the archer's payment reference for this competition (new if none yet). Its
-   * covoiturage answer is set on every active départ of the archer for this competition: the latest answer wins.
+   * covoiturage answer is set on every active départ of the archer for this competition: the latest answer wins. Paid
+   * with credit: checks the archer still has enough, in the same transaction.
    */
   add(registration: NewRegistration): Promise<AddRegistrationsResult>;
   activeRegistrants(competitionId: string): Promise<Registrant[]>;
@@ -62,7 +69,13 @@ export interface RegistrationRepository {
   detailsForCompetition(competitionId: string): Promise<RegistrationDetails[]>;
   forPaymentReference(paymentReference: string): Promise<Registration[]>;
   findById(id: number): Promise<Registration | null>;
-  withdraw(id: number, note: string, today: CalendarDate): Promise<void>;
+  /** The archer cancels the row; its payment may change with it (paid with credit: kept as credit again). */
+  withdraw(
+    id: number,
+    note: string,
+    today: CalendarDate,
+    payment: Pick<RegistrationChange, 'paymentStatus' | 'creditCents' | 'creditMoveCents'>,
+  ): Promise<void>;
   /** In one transaction. */
   save(changes: readonly RegistrationChange[], updatedBy: string): Promise<void>;
 }

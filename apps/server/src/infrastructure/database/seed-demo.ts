@@ -359,6 +359,8 @@ type DemoRegistration = {
   /** `null` for a member the club pays for: no payment method asked. */
   method?: PaymentMethod | null;
   carpool?: boolean;
+  /** Kept as credit (`credited`): the amount, in euros. */
+  credit?: number;
   /** Cancelled by the archer: the note the app writes then. */
   note?: 'withdrawn';
 };
@@ -412,6 +414,16 @@ const REGISTRATIONS: DemoRegistration[] = [
     status: 'full',
     payment: 'refunded',
     method: 'transfer',
+  },
+  // Kept as credit instead of refunded: the archer can pay the next registration with it.
+  {
+    competition: '90005',
+    archer: '0000004D',
+    departures: [2],
+    status: 'full',
+    payment: 'credited',
+    method: 'cheque',
+    credit: 9,
   },
   // Guérande (extérieur): distances.
   { competition: '90006', archer: '0000013N', departures: [1, 2], carpool: true },
@@ -587,6 +599,21 @@ async function seed(): Promise<void> {
           updated_by: status === 'received' ? null : ADMIN_LICENCE,
         })),
       );
+      if (registration.credit !== undefined) {
+        const credited: { id: number } = await transaction('registrations')
+          .where({ payment_reference: reference, departure: registration.departures[0] })
+          .first('id');
+        await transaction('registrations')
+          .where({ id: credited.id })
+          .update({ credit_cents: registration.credit * 100 });
+        await transaction('member_credits').insert({
+          archer_licence_number: registration.archer,
+          amount_cents: registration.credit * 100,
+          registration_id: credited.id,
+          payment_reference: reference,
+          created_by: ADMIN_LICENCE,
+        });
+      }
     }
   });
 

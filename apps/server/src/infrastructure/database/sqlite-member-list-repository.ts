@@ -8,6 +8,7 @@ import type {
   MemberListSync,
   MemberChanges,
 } from '../../domain/member-list.ts';
+import { addCreditMove, creditCentsColumn } from './member-credit.ts';
 
 type ArcherRow = {
   licence_number: string;
@@ -17,6 +18,7 @@ type ArcherRow = {
   is_active: 0 | 1;
   club_pays_registrations: 0 | 1;
   has_password: 0 | 1;
+  credit_cents: number;
 };
 
 /** SQLite limits the number of values in one statement. */
@@ -94,15 +96,33 @@ export class SqliteMemberListRepository implements MemberListRepository {
     return readArchers(this.#database);
   }
 
-  async update(licenceNumber: string, changes: MemberChanges): Promise<boolean> {
-    const changed = await this.#database('archers')
-      .where({ licence_number: licenceNumber })
-      .update({
-        ...(changes.isActive !== undefined && { is_active: changes.isActive }),
-        ...(changes.clubPaysRegistrations !== undefined && { club_pays_registrations: changes.clubPaysRegistrations }),
-        updated_at: this.#database.fn.now(),
-      });
-    return changed > 0;
+  async update(licenceNumber: string, changes: MemberChanges, updatedBy: string): Promise<boolean> {
+    return this.#database.transaction(async (transaction) => {
+      const where = { licence_number: licenceNumber };
+      const changed = await transaction('archers')
+        .where(where)
+        .update({
+          ...(changes.isActive !== undefined && { is_active: changes.isActive }),
+          ...(changes.clubPaysRegistrations !== undefined && {
+            club_pays_registrations: changes.clubPaysRegistrations,
+          }),
+          updated_at: transaction.fn.now(),
+        });
+      if (changed === 0) return false;
+      if (changes.clearCredit) {
+        const row: { credit_cents: number } | undefined = await transaction('archers')
+          .where(where)
+          .first(creditCentsColumn(transaction));
+        if (row && row.credit_cents !== 0) {
+          await addCreditMove(transaction, {
+            archerLicenceNumber: licenceNumber,
+            amountCents: -row.credit_cents,
+            createdBy: updatedBy,
+          });
+        }
+      }
+      return true;
+    });
   }
 
   async removePassword(licenceNumber: string): Promise<boolean> {
@@ -122,6 +142,7 @@ async function readArchers(database: Knex | Knex.Transaction): Promise<Archer[]>
     'is_active',
     'club_pays_registrations',
     database.raw('password_hash is not null as has_password'),
+    creditCentsColumn(database),
   );
   return rows.map((row) => ({
     licenceNumber: row.licence_number,
@@ -131,5 +152,6 @@ async function readArchers(database: Knex | Knex.Transaction): Promise<Archer[]>
     isActive: row.is_active === 1,
     clubPaysRegistrations: row.club_pays_registrations === 1,
     hasPassword: row.has_password === 1,
+    creditCents: row.credit_cents,
   }));
 }

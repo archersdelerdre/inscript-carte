@@ -76,9 +76,14 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
   // same competition.
   const [carpool, setCarpool] = useState(false);
   const [contact, setContact] = useState(() => localStorage.getItem(STORAGE.contact) ?? '');
+  // « Avoir » is never remembered: the credit may be spent by the next time.
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>(
-    () => PAYMENT_METHODS.find((value) => value === localStorage.getItem(STORAGE.paymentMethod)) ?? '',
+    () =>
+      PAYMENT_METHODS.find((value) => value !== 'credit' && value === localStorage.getItem(STORAGE.paymentMethod)) ??
+      '',
   );
+  /** The archer's credit, in euros: « Avec mon avoir » is offered only when there is some. */
+  const [credit, setCredit] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [created, setCreated] = useState<RegistrationCreatedResponse | null>(null);
@@ -102,6 +107,7 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
       const mine = result.data.registrations.filter((registration) => registration.competitionId === competition.id);
       setTaken(mine.map((registration) => registration.departure));
       if (mine.some((registration) => registration.carpool)) setCarpool(true);
+      setCredit(result.data.credit);
     });
   }, [competition.id]);
 
@@ -134,7 +140,8 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
     }
     localStorage.setItem(STORAGE.bowType, bowType);
     localStorage.setItem(STORAGE.contact, contact.trim());
-    if (!clubPays && paymentMethod) localStorage.setItem(STORAGE.paymentMethod, paymentMethod);
+    if (!clubPays && paymentMethod && paymentMethod !== 'credit')
+      localStorage.setItem(STORAGE.paymentMethod, paymentMethod);
     setCreated(result.data);
     onRegistered();
   }
@@ -160,6 +167,12 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
               </p>
               {created.paymentStatus === 'nothing_due' ? (
                 <p>Le club prend en charge cette inscription : vous n'avez rien à régler.</p>
+              ) : created.creditUsed !== null ? (
+                <p>
+                  <strong>{formatEuros(created.creditUsed)}</strong>{' '}
+                  {created.creditUsed >= 2 ? 'ont été pris' : 'a été pris'} sur votre avoir pour ce concours : vous
+                  n'avez rien d'autre à régler.
+                </p>
               ) : (
                 <p>
                   À régler au club
@@ -350,13 +363,18 @@ export function RegistrationFormDialog({ competition, archer, onClose, onRegiste
                     <SelectValue placeholder='Choisir…' />
                   </SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_METHODS.map((value) => (
+                    {PAYMENT_METHODS.filter((value) => value !== 'credit' || credit > 0).map((value) => (
                       <SelectItem key={value} value={value}>
-                        {PAYMENT_METHOD_LABELS[value]}
+                        {value === 'credit' ? `Avec mon avoir (${formatEuros(credit)})` : PAYMENT_METHOD_LABELS[value]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {paymentMethod === 'credit' && (
+                  <p className='text-muted-foreground text-sm'>
+                    Le prix de ce concours sera pris sur votre avoir, s'il suffit.
+                  </p>
+                )}
               </div>
             )}
 

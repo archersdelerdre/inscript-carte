@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import type { AgeCategory } from './ffta-category.ts';
 import type { MandatePrice } from './mandate.ts';
-import { amountDue, registrationPrice } from './pricing.ts';
+import { amountDue, heldDepartureValue, registrationPrice } from './pricing.ts';
 
 const YOUTH: AgeCategory[] = ['U11', 'U13', 'U15', 'U18', 'U21'];
 const ADULTS: AgeCategory[] = ['S1', 'S2', 'S3'];
@@ -73,5 +73,21 @@ describe('amountDue', () => {
     expect(amountDue(DEGRESSIVE, 'S1', [paid])).toBeNull();
     expect(amountDue(DEGRESSIVE, 'U13', [{ status: 'received', paymentStatus: 'nothing_due' }])).toBeNull();
     expect(amountDue(null, 'S1', [toPay])).toBeNull();
+  });
+});
+
+describe('heldDepartureValue', () => {
+  test('the last départ whose money the club holds is worth what it added to the degressive price', () => {
+    const held = [{ paymentStatus: 'paid' }, { paymentStatus: 'to_refund' }] as const;
+    expect(heldDepartureValue(DEGRESSIVE, 'S1', held)).toBe(7);
+    // Once that one is kept as credit, the other is worth the price of one départ.
+    expect(heldDepartureValue(DEGRESSIVE, 'S1', [held[1], { paymentStatus: 'credited' }])).toBe(9);
+  });
+
+  test('no money held, or no price that fits: no amount', () => {
+    expect(
+      heldDepartureValue(DEGRESSIVE, 'S1', [{ paymentStatus: 'to_pay' }, { paymentStatus: 'refunded' }]),
+    ).toBeNull();
+    expect(heldDepartureValue(null, 'S1', [{ paymentStatus: 'paid' }])).toBeNull();
   });
 });

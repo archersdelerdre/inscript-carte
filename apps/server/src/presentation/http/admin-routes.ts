@@ -187,6 +187,7 @@ export function createAdminRoutes({
           await adminRegistrations.updateRegistration(admin, id, {
             status: body.status,
             paymentStatus: body.paymentStatus,
+            credit: body.credit,
             clubNote: body.clubNote,
           }),
         );
@@ -215,14 +216,16 @@ export function createAdminRoutes({
     [API_ROUTES.adminMember]: {
       PATCH: asAdmin(async (request: BunRequest<typeof API_ROUTES.adminMember>, admin) => {
         const body = await readJson(request);
-        const { isActive, clubPaysRegistrations } = body ?? {};
+        const { isActive, clubPaysRegistrations, clearCredit } = body ?? {};
         const changes = {
           ...(typeof isActive === 'boolean' && { isActive }),
           ...(typeof clubPaysRegistrations === 'boolean' && { clubPaysRegistrations }),
+          ...(clearCredit === true && { clearCredit: true as const }),
         };
         if (
           !isBooleanOrMissing(isActive) ||
           !isBooleanOrMissing(clubPaysRegistrations) ||
+          (clearCredit !== undefined && clearCredit !== true) ||
           !Object.keys(changes).length
         ) {
           return error('invalid_request', 400);

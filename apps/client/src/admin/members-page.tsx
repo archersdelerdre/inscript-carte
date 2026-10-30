@@ -17,6 +17,7 @@ import {
 } from '@inscript-carte/shared';
 import { cn } from 'cn';
 import {
+  CoinsIcon,
   CopyIcon,
   EllipsisVerticalIcon,
   SearchIcon,
@@ -61,6 +62,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api, type ApiResult } from '@/lib/api';
 import { formatDateTime } from '@/lib/dates';
+import { formatEuros } from '@/lib/euros';
 import { matchesSearch } from '@/lib/search';
 import { ERROR_MESSAGES } from '@/registrations/messages';
 
@@ -109,7 +111,8 @@ type MemberAction =
   | 'clubStopsPaying'
   | 'grant'
   | 'revoke'
-  | 'removePassword';
+  | 'removePassword'
+  | 'clearCredit';
 
 /** Every club member in a table, with their actions, and the update of the list from the FFTA extranet export. */
 export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
@@ -157,12 +160,13 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
     } else if (action === 'removePassword') {
       result = await api(apiPath(API_ROUTES.adminMemberPassword, { licenceNumber }), { method: 'DELETE' });
     } else {
-      result = await api(apiPath(API_ROUTES.adminMember, { licenceNumber }), {
-        method: 'PATCH',
-        body: (action === 'deactivate' || action === 'reactivate'
-          ? { isActive: action === 'reactivate' }
-          : { clubPaysRegistrations: action === 'clubPays' }) satisfies UpdateMemberRequest,
-      });
+      const body: UpdateMemberRequest =
+        action === 'clearCredit'
+          ? { clearCredit: true }
+          : action === 'deactivate' || action === 'reactivate'
+            ? { isActive: action === 'reactivate' }
+            : { clubPaysRegistrations: action === 'clubPays' };
+      result = await api(apiPath(API_ROUTES.adminMember, { licenceNumber }), { method: 'PATCH', body });
     }
     if (!result.ok && result.error === 'admin_sign_in_required') return onSessionExpired();
     setMessage(result.ok ? null : ERROR_MESSAGES[result.error]);
@@ -281,6 +285,9 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
                       {member.clubPaysRegistrations && (
                         <Badge className='ml-2 bg-green-100 text-green-900'>Payé par le club</Badge>
                       )}
+                      {member.credit > 0 && (
+                        <Badge className='ml-2 bg-teal-100 text-teal-900'>Avoir {formatEuros(member.credit)}</Badge>
+                      )}
                       {/* An admin always has one (it is also their panel password): no need to say it. */}
                       {member.hasPassword && !member.isAdmin && (
                         <Badge className='ml-2 bg-zinc-100 text-zinc-800'>
@@ -329,6 +336,12 @@ export function MembersPage({ currentLicenceNumber, onSessionExpired }: Props) {
                               <DropdownMenuItem onSelect={() => setPending({ action: 'removePassword', member })}>
                                 <KeyRoundIcon />
                                 Retirer son mot de passe
+                              </DropdownMenuItem>
+                            )}
+                            {member.credit > 0 && (
+                              <DropdownMenuItem onSelect={() => setPending({ action: 'clearCredit', member })}>
+                                <CoinsIcon />
+                                Remettre son avoir à zéro
                               </DropdownMenuItem>
                             )}
                             {member.isAdmin ? (
@@ -444,6 +457,12 @@ function confirmation(action: MemberAction, member: AdminMemberDto): { title: st
         title: `Retirer le mot de passe de ${member.fullName} ?`,
         text: `${They} pourra de nouveau se connecter avec son numéro de licence et sa date de naissance seulement, puis choisir un nouveau mot de passe dans « Mon suivi ». À faire seulement à sa demande, par exemple en cas d’oubli.`,
         button: 'Oui, retirer',
+      };
+    case 'clearCredit':
+      return {
+        title: `Remettre à zéro l’avoir de ${member.fullName} ?`,
+        text: `${They} a un avoir de ${formatEuros(member.credit)}. Faites-le une fois l’argent rendu, ou si cet avoir ne doit plus servir : ${they} ne pourra plus l’utiliser pour payer une inscription.`,
+        button: 'Oui, remettre à zéro',
       };
   }
 }

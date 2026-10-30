@@ -97,7 +97,8 @@ Inner layers never import outer ones. The domain may import types and rules from
 
 - Tables: `competitions` (PK `ffta_id`), `archers` (PK `licence_number`), `registrations` (one row per départ),
   `sessions`, `admins`, `member_imports`, `scraper_runs`, `competition_mandates`,
-  `competition_overrides`.
+  `competition_overrides`, `member_credits` (one row per move of a member's credit; no foreign key to
+  `registrations`, so a later copy of that table does not drag it along).
 - **Admin edits** (`competition_overrides`, migration `0010`): one row per edited competition, one column per editable
   field, `NULL` = the FFTA value. Decided: an edit **always wins**, even after a later FFTA change, until an admin puts
   the FFTA value back. The scraper never writes there. `SqliteCompetitionRepository` merges them
@@ -209,14 +210,25 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
 - Status: Reçue → Transmise à l'organisateur → Validée, plus Plus de place and Annulée. A cancelled row never changes
   again (the archer registers again); any other change is allowed. Going back to Reçue and cancelling both ask for
   confirmation; cancelling adds "Annulée par le club le …" to the note. Each admin change writes `updated_by`.
-- Payment, stored, a menu: En attente de paiement (`to_pay`), Payé, Rien à payer, À rembourser, Remboursé. A status
-  change without a payment choice moves it (`paymentForStatus`): ending (full / cancelled) turns unpaid into « Rien à
-  payer » and paid into « À rembourser »; un-ending reverses it (except « Rien à payer » when the club pays);
-  « Remboursé » stays.
+- Payment, stored, a menu: En attente de paiement (`to_pay`), Payé, Rien à payer, À rembourser, Remboursé, Gardé en
+  avoir (`credited`). A status change without a payment choice moves it (`paymentForStatus`): ending (full /
+  cancelled) turns unpaid into « Rien à payer » and paid into « À rembourser »; un-ending reverses it (except « Rien à
+  payer » when the club pays; « Gardé en avoir » becomes « Payé », see Credit); « Remboursé » stays.
 - Bulk actions on a reference only replace their source state (`REFERENCE_PAYMENT_FROM`): « Tout marquer comme payé »
   (En attente → Payé), « Tout remettre en attente » (Payé → En attente), « Tout marquer comme remboursé » (À
   rembourser → Remboursé, shown with 2+ to refund). Cancelled rows keep their status but their payment can change.
   Untouched rows get no `updated_by`.
+- **Credit** (« avoir », asked 2026-10-30; decided: a secondary feature, invisible to whoever has none). Only a
+  départ « À rembourser » can become « Gardé en avoir » (`canChangePayment`), one at a time, with an amount the admin
+  confirms (prefilled with `heldDepartureValue`: what the départ added to the degressive price; typed when no price
+  fits). Balance = sum of `member_credits.amount_cents`; `registrations.credit_cents` is the amount of a `credited`
+  départ. The member sees it in « Mon suivi » and pays with it through the method `credit` (« Avec mon avoir »,
+  shown only with a credit, never remembered on the device). Decided: the credit pays **the whole competition or
+  nothing** (what `amountDue` gives, earlier unpaid départs there included; `credit_too_low`, `credit_price_unknown`
+  otherwise); those départs become « Payé ». Withdrawing a départ paid with credit gives its value back as credit.
+  Leaving « Gardé en avoir » takes the credit back only while the balance has it: refused for an admin's choice
+  (`credit_already_used`), « En attente de paiement » when un-ending the départ. Licenciés: badge « Avoir 9 € » and
+  « Remettre son avoir à zéro » (money given back).
 
 ## Admin panel (`apps/client/src/admin/`)
 
@@ -305,6 +317,12 @@ Both lists live in `shared/src/registration.ts` with their rules, so the client 
     the times (`datedDepartures`, asked 2026-10-11): an earlier time than the départ before starts the next day, only
     when the day count matches; migration `0015` dated the readings stored before. Refused answers are kept as
     `invalid`, never used. Errors never fail the run. Without `OPENROUTER_API_KEY`, mandates are skipped.
+  - **Price conflicts** (2026-10-29: 17 re-readings out of 359 refused that way): the prompt keeps only the prices of
+    the competition's days and the normal price (no per-day or weekend packages, no reduced or conditional prices,
+    no surcharges). An answer refused, or whose prices still conflict, is asked once more and the better answer kept
+    (`quality`). Still conflicting: the reading is kept `parsed` **without any price** (a wrong price is worse than
+    none; départs, rhythms and the Inscript'Arc link stay), its `problems` say why, shown under « Tarifs absents du
+    mandat »; an admin enters the prices by hand. A forced re-read in that state keeps the previous good reading.
   - **Inscript'Arc link**: found by the code, not the LLM (`inscriptarcUrlOf`: the first `<name>.inscriptarc.fr` in
     the PDF's text other than `www`, kept as `https://<name>.inscriptarc.fr/`; the text writes it loosely, « https
     ://x.inscriptarc.fr, »). Stored in the reading's `data.inscriptarcUrl` of a `parsed` reading only (an invalid LLM

@@ -39,12 +39,16 @@ type Props = { archer: SignedInArcher; onClose: () => void; onWithdrawn: () => v
 export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
   const { signOut, sessionExpired } = useSession();
   const [registrations, setRegistrations] = useState<MyRegistrationDto[] | null>(null);
+  const [credit, setCredit] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [toWithdraw, setToWithdraw] = useState<MyRegistrationDto | null>(null);
 
   const showResult = useCallback(
     (result: ApiResult<ListMyRegistrationsResponse>) => {
-      if (result.ok) return setRegistrations(result.data.registrations);
+      if (result.ok) {
+        setCredit(result.data.credit);
+        return setRegistrations(result.data.registrations);
+      }
       if (result.error === 'not_signed_in') sessionExpired();
       setMessage(ERROR_MESSAGES[result.error]);
     },
@@ -96,6 +100,13 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
         {message && (
           <p role='alert' className='rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900'>
             {message}
+          </p>
+        )}
+        {/* Only for the few archers who have one. */}
+        {credit > 0 && (
+          <p className='rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-950'>
+            Vous avez un avoir de <strong>{formatEuros(credit)}</strong> au club. Pour l'utiliser, choisissez « Avec mon
+            avoir » comme mode de paiement lors de votre prochaine inscription.
           </p>
         )}
         {registrations === null && !message && <p className='text-muted-foreground'>Chargement…</p>}
@@ -153,6 +164,11 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                     {registration.paymentStatus === 'refunded' && (
                       <p className='text-muted-foreground text-sm'>Ce départ vous a été remboursé.</p>
                     )}
+                    {registration.paymentStatus === 'credited' && (
+                      <p className='text-muted-foreground text-sm'>
+                        Le club garde ce paiement en avoir pour une prochaine inscription.
+                      </p>
+                    )}
                     {registration.clubNote && <p className='text-muted-foreground text-sm'>{registration.clubNote}</p>}
                     {registration.canWithdraw && (
                       <Button variant='outline' className='w-fit' onClick={() => setToWithdraw(registration)}>
@@ -173,8 +189,11 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
                     </>
                   )}{' '}
                   avant le {formatDay(due.clubRegistrationDeadline)}
-                  {due.paymentMethod && `, ${PAYMENT_METHOD_PHRASES[due.paymentMethod]}`}, en indiquant la référence{' '}
-                  <strong className='whitespace-nowrap'>{due.paymentReference}</strong>.
+                  {/* Paid with credit once, then to pay again: the credit is spent, so no method is told. */}
+                  {due.paymentMethod &&
+                    due.paymentMethod !== 'credit' &&
+                    `, ${PAYMENT_METHOD_PHRASES[due.paymentMethod]}`}
+                  , en indiquant la référence <strong className='whitespace-nowrap'>{due.paymentReference}</strong>.
                 </p>
               )}
               {/* For the whole competition, set apart from the départs' own buttons. Not once it is over. */}

@@ -42,9 +42,10 @@ export function canChangeStatus(from: RegistrationStatus, to: RegistrationStatus
 
 /**
  * Stored and chosen by the club (a menu in the panel, asked 2026-10-10). "Rien à payer" and "À rembourser" belong to
- * a départ the club no longer counts on ("Plus de place", "Annulée"): never paid, or paid and to give back.
+ * a départ the club no longer counts on ("Plus de place", "Annulée"): never paid, or paid and to give back. « Gardé en
+ * avoir » (asked 2026-10-30) is a refund the club keeps for the archer's next registrations instead.
  */
-export const PAYMENT_STATUSES = ['to_pay', 'paid', 'nothing_due', 'to_refund', 'refunded'] as const;
+export const PAYMENT_STATUSES = ['to_pay', 'paid', 'nothing_due', 'to_refund', 'refunded', 'credited'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   to_pay: 'En attente de paiement',
@@ -52,11 +53,18 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   nothing_due: 'Rien à payer',
   to_refund: 'À rembourser',
   refunded: 'Remboursé',
+  credited: 'Gardé en avoir',
 };
+
+/** Only a départ to refund can be kept as credit; every other payment change is allowed. */
+export function canChangePayment(from: PaymentStatus, to: PaymentStatus): boolean {
+  return from === to || to !== 'credited' || from === 'to_refund';
+}
 
 /**
  * The payment that goes with a new status, when the club does not choose one itself: a départ that ends ("Plus de
- * place", "Annulée") has nothing to pay, or must be refunded when it was paid; one put back the other way round.
+ * place", "Annulée") has nothing to pay, or must be refunded when it was paid; one put back the other way round (one
+ * kept as credit is paid again: the server takes the credit back, or asks to pay when it was already spent).
  * `clubPays`: the club pays this archer, so an un-ended départ stays `nothing_due`.
  */
 export function paymentForStatus(status: RegistrationStatus, payment: PaymentStatus, clubPays: boolean): PaymentStatus {
@@ -64,17 +72,18 @@ export function paymentForStatus(status: RegistrationStatus, payment: PaymentSta
   if (ended && payment === 'to_pay') return 'nothing_due';
   if (ended && payment === 'paid') return 'to_refund';
   if (!ended && payment === 'nothing_due') return clubPays ? 'nothing_due' : 'to_pay';
-  if (!ended && payment === 'to_refund') return 'paid';
+  if (!ended && (payment === 'to_refund' || payment === 'credited')) return 'paid';
   return payment;
 }
 
-/** How the archer will pay the club; chosen when registering. */
-export const PAYMENT_METHODS = ['cash', 'cheque', 'transfer'] as const;
+/** How the archer will pay the club; chosen when registering. « Avoir » only while the archer has some. */
+export const PAYMENT_METHODS = ['cash', 'cheque', 'transfer', 'credit'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: 'Espèces',
   cheque: 'Chèque',
   transfer: 'Virement',
+  credit: 'Avoir',
 };
 
 /**

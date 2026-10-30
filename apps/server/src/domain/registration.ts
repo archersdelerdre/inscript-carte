@@ -33,6 +33,8 @@ export type Registration = {
   readonly createdAt: string;
   /** Licence number of the admin who changed the row last. */
   readonly updatedBy: string | null;
+  /** Kept as credit (`credited`): the amount, in cents. */
+  readonly creditCents: number | null;
 };
 
 /** What an archer asks for; the server adds the category, status and payment reference. */
@@ -48,6 +50,11 @@ export type NewRegistration = {
   readonly contact: string | null;
   readonly paymentMethod: PaymentMethod | null;
   readonly paymentStatus: PaymentStatus;
+  /**
+   * Paid with the archer's credit (method `credit`): what to take from it, in cents. The new départs and the earlier
+   * unpaid ones of this competition become paid.
+   */
+  readonly creditUsedCents: number | null;
 };
 
 /**
