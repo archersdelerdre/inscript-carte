@@ -61,7 +61,10 @@ Migrations run when the server starts. There is no rollback command; to start ov
 - Installable as a PWA (asked 2026-10-31): `apps/client/public/` holds `manifest.webmanifest` and the PNG icons (the
   favicon's target on white, inside the maskable safe zone; rendered from an SVG with `rsvg-convert`). Decided: **no
   service worker** (every page needs the API; a cache would only risk stale files after a deploy).
-- Built for `linux/amd64` and pushed by `npm run deploy` (registry `registry.jonas.bzh`). The user pushes and deploys.
+- Built for `linux/amd64` and pushed by `bun run deploy` (`scripts/deploy.sh`, registry `registry.jonas.bzh`), which
+  then has Portainer (`portainer.jonas.bzh`, environment `3`) recreate the `inscript-carte` container with the new
+  image, through its API (`PORTAINER_API_KEY`, an access token in the user's shell, never in the repo). The user runs
+  it.
   Behind Caddy, which must send `X-Forwarded-Proto: https` (session cookies get `Secure`) and flushes SSE by itself.
 - Database: `/data/inscript-carte.sqlite` in a volume. Runs as user `bun`. Env: `OPENROUTER_API_KEY` (never commit
   it; locally it lives in `apps/server/.env`, git-ignored).

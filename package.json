@@ -14,7 +14,7 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "deploy": "docker build --platform=linux/amd64 -t registry.jonas.bzh/inscript-carte:latest . && docker push registry.jonas.bzh/inscript-carte:latest"
+    "deploy": "./scripts/deploy.sh"
   },
   "devDependencies": {
     "oxfmt": "^0.72.0",
