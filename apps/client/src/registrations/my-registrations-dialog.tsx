@@ -2,12 +2,13 @@ import {
   apiPath,
   API_ROUTES,
   BOW_TYPE_LABELS,
+  CLUB_NAME,
   departureTitle,
   type ListMyRegistrationsResponse,
   type MyRegistrationDto,
   type SignedInArcher,
 } from '@inscript-carte/shared';
-import { CarIcon, TargetIcon } from 'lucide-react';
+import { CarIcon, CheckIcon, CopyIcon, TargetIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useSession } from '@/auth/session';
@@ -215,11 +216,7 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
           );
         })}
 
-        <p className='text-muted-foreground text-sm'>
-          Pour ajouter un départ, cliquez sur « S'inscrire » sur la fiche du concours. Pour changer de départ, retirez
-          l'ancien puis inscrivez-vous au nouveau. Une fois l'inscription transmise par le club, seul le club peut la
-          modifier.
-        </p>
+        <BankDetails />
       </DialogContent>
 
       <AlertDialog open={toWithdraw !== null} onOpenChange={(open) => !open && setToWithdraw(null)}>
@@ -240,5 +237,42 @@ export function MyRegistrationsDialog({ archer, onClose, onWithdrawn }: Props) {
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
+  );
+}
+
+/** The club's account, as in the member guide: shown to every member, whatever their way to pay. */
+const CLUB_IBAN = 'FR76 1470 6000 3386 7675 9900 007';
+const CLUB_BIC = 'AGRIFRPP847';
+
+function BankDetails() {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    // The bank apps want the IBAN without its spaces.
+    await navigator.clipboard.writeText(CLUB_IBAN.replaceAll(' ', '')).catch(() => undefined);
+    setCopied(true);
+  }
+
+  return (
+    <section aria-labelledby='bank-details-title' className='bg-muted grid gap-2 rounded-xl p-4 text-sm'>
+      <h3 id='bank-details-title' className='text-base font-semibold'>
+        Paiement par virement
+      </h3>
+      <dl className='grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1'>
+        <dt className='text-muted-foreground'>Titulaire</dt>
+        <dd>{CLUB_NAME}</dd>
+        <dt className='text-muted-foreground'>IBAN</dt>
+        <dd className='flex flex-wrap items-center gap-x-2'>
+          <span className='font-mono whitespace-nowrap select-all'>{CLUB_IBAN}</span>
+          <Button variant='ghost' onClick={() => void copy()}>
+            {copied ? <CheckIcon /> : <CopyIcon />}
+            {copied ? 'Copié' : 'Copier'}
+          </Button>
+        </dd>
+        <dt className='text-muted-foreground'>BIC</dt>
+        <dd className='font-mono select-all'>{CLUB_BIC}</dd>
+      </dl>
+      <p>Indiquez la référence de l'inscription (R-…) dans le libellé du virement.</p>
+    </section>
   );
 }

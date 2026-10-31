@@ -165,7 +165,7 @@ function Deadline({ competition }: { competition: CompetitionDto }) {
       {competition.inscriptarcUrl && (
         <p className='flex gap-2 text-sm text-sky-900'>
           <InfoIcon className='size-4.5 shrink-0' />
-          <span className='truncate'>
+          <span>
             Inscription possible aussi sur{' '}
             <a href={competition.inscriptarcUrl} target='_blank' rel='noopener' className='font-medium underline'>
               Inscript'Arc

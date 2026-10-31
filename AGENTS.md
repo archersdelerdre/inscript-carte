@@ -58,6 +58,9 @@ Migrations run when the server starts. There is no rollback command; to start ov
 
 - One image, one port (3998): the server answers `/api/*` and serves the built client for every other path
   (`static-files.ts`, on when `CLIENT_DIST_PATH` is set; unknown paths get `index.html`, `/assets/*` cached a year).
+- Installable as a PWA (asked 2026-10-31): `apps/client/public/` holds `manifest.webmanifest` and the PNG icons (the
+  favicon's target on white, inside the maskable safe zone; rendered from an SVG with `rsvg-convert`). Decided: **no
+  service worker** (every page needs the API; a cache would only risk stale files after a deploy).
 - Built for `linux/amd64` and pushed by `npm run deploy` (registry `registry.jonas.bzh`). The user pushes and deploys.
   Behind Caddy, which must send `X-Forwarded-Proto: https` (session cookies get `Secure`) and flushes SSE by itself.
 - Database: `/data/inscript-carte.sqlite` in a volume. Runs as user `bun`. Env: `OPENROUTER_API_KEY` (never commit
@@ -182,6 +185,8 @@ Inner layers never import outer ones. The domain may import types and rules from
   another file), cleared when it goes.
 - Withdraw: only `received` départs, until the deadline. The row stays, `cancelled`, with "Retirée par l'archer le …"
   in the note, and leaves "Mon suivi".
+- « Mon suivi » ends with the club's bank details (holder, IBAN with « Copier », BIC, « put the R-… reference in the
+  transfer label »; asked 2026-10-31), the same as in the member guide: change both together.
 - Names of registrants: signed-in members only; the count (`clubArcherCount`) is public. « Voir les inscrits » shows
   each archer's category for that competition (« Senior 2 Femme », stored with the registration; asked by members,
   2026-10-11), bow and départs. Grouped **by day** (user's choice): a heading « Mardi 3 novembre », then the archers
@@ -199,7 +204,8 @@ Inner layers never import outer ones. The domain may import types and rules from
 - A départ shows as "Départ 2 · Après-midi" (`departureTitle`) when the mandate names it; the number always stays.
 - **Inscript'Arc** (asked 2026-10-29): some organizers take registrations on `https://<name>.inscriptarc.fr/`
   (17 mandates out of 116 that day). Decided: **not put forward** (the user rejected a big button): one line on the
-  card under the club deadline, « Inscription possible aussi sur Inscript'Arc » (link), and in the form a box « Pour
+  card under the club deadline, « Inscription possible aussi sur Inscript'Arc » (link; it wraps on phones, a cut line
+  hid the link), and in the form a box « Pour
   aller plus vite, vous pouvez vous inscrire directement sur la page Inscript'Arc du concours. ». The admin
   registrations page links « Inscriptions sur Inscript'Arc » next to « Mandat (PDF) ». Club rules do not change.
 

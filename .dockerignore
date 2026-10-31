@@ -17,6 +17,7 @@
 !apps/client/vite.config.ts
 !apps/client/tsconfig*.json
 !apps/client/src
+!apps/client/public
 
 # Only to read the commit being built (shown at startup): the current branch and commit hashes, no history.
 !.git/HEAD
