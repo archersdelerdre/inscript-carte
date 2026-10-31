@@ -258,12 +258,13 @@ function BankDetails() {
       <h3 id='bank-details-title' className='text-base font-semibold'>
         Paiement par virement
       </h3>
-      <dl className='grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1'>
+      <dl className='grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1'>
         <dt className='text-muted-foreground'>Titulaire</dt>
         <dd>{CLUB_NAME}</dd>
         <dt className='text-muted-foreground'>IBAN</dt>
         <dd className='flex flex-wrap items-center gap-x-2'>
-          <span className='font-mono whitespace-nowrap select-all'>{CLUB_IBAN}</span>
+          {/* Wraps between its groups of four on narrow phones: a single line made the dialog scroll sideways. */}
+          <span className='font-mono select-all'>{CLUB_IBAN}</span>
           <Button variant='ghost' onClick={() => void copy()}>
             {copied ? <CheckIcon /> : <CopyIcon />}
             {copied ? 'Copié' : 'Copier'}
